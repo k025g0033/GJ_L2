@@ -92,6 +92,11 @@ void GameScene::Update() {
 	}
 #endif
 
+	// ステージクリア判定（仮：ENTERで即終了。本来はゴール地点への到達などで判定する）
+	if (Input::GetInstance()->TriggerKey(DIK_RETURN)) {
+		isFinished_ = true;
+	}
+
 	// カメラの処理
 	if (isDebugCameraActive_) {
 		// デバッグカメラの更新

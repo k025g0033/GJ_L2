@@ -3,6 +3,10 @@
 
 using namespace KamataEngine;
 
+void StageSelectScene::Initialize() {
+	isFinished_ = false;
+}
+
 void StageSelectScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		isFinished_ = true;

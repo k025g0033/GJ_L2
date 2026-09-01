@@ -1,12 +1,14 @@
 #pragma once
+#include "IScene.h"
 
 // タイトルシーン
-class TitleScene {
+class TitleScene : public IScene {
 public:
-	void Update();
-	void Draw();
+	void Initialize() override;
+	void Update() override;
+	void Draw() override;
 
-	bool IsFinished() const { return isFinished_; }
+	bool IsFinished() const override { return isFinished_; }
 
 private:
 	bool isFinished_ = false;
