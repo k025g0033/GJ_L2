@@ -4,14 +4,28 @@
 enum class MapChipType {
 	kBlank, // 空白
 	kBlock, // ブロック
+	kPlayer,
+};
+
+// 1マス分のデータ
+struct MapChipDataUnit {
+	MapChipType type; // マップチップの種別
+	uint8_t subID;    // 種類ごとのサブID
 };
 
 struct MapChipData {
-	std::vector<std::vector<MapChipType>> data;
+	std::vector<std::vector<MapChipDataUnit>> data;
 };
 
 class MapChipField {
 public:
+
+	// マップチップCSVの文字番号
+	enum MapChipCsvIndex {
+		kChipType = 0,  // 種別
+		kChipSubID = 1, // サブID
+	};
+
 	struct IndexSet {
 		uint32_t xIndex;
 		uint32_t yIndex;
@@ -47,4 +61,6 @@ public:
 	IndexSet GetMapChipIndexByPosition(const KamataEngine::Vector3& position);
 
 	Rect GetRectByIndex(uint32_t xIndex, uint32_t yIndex);
+
+	uint8_t GetMapChipSubIDByIndex(uint32_t xIndex, uint32_t yIndex);
 };
