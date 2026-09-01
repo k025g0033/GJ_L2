@@ -41,16 +41,14 @@ void GameScene::Initialize() {
 	mapChipField_ = new MapChipField;
 	mapChipField_->LoadMapChipCsv("Resources/map.csv");
 
-	// 座標をマップチップ番号で指定
-	Vector3 playerPosition = mapChipField_->GetMapChipPositionByIndex(1, 18);
-
 	// カメラの初期化
 	camera_.farZ = 1000.0f;
 	camera_.Initialize();
-	// 自キャラの生成,初期化
-	player_ = new Player();
-	player_->Initialize(modelPlayer_, &camera_, playerPosition);
-	player_->SetMapChipField(mapChipField_);
+
+	// CSVの配置情報からブロックとプレイヤーを生成
+	GenerateBlocks();
+	assert(player_ != nullptr && "player is not placed in map.csv");
+
 	// 天球の生成,初期化
 	skydome_ = new Skydome();
 	skydome_->Initialize(modelSkydome_, &camera_);
@@ -61,8 +59,6 @@ void GameScene::Initialize() {
 	cameraController_->Reset();
 	CameraController::Rect stageRect = {11, 100, 6, 100};
 	cameraController_->SetMovableArea(stageRect);
-
-	GenerateBlocks();
 
 	// デバッグカメラの生成
 	debugCamera_ = new DebugCamera(1280, 720);
@@ -166,12 +162,30 @@ void GameScene::GenerateBlocks() {
 	// ブロックの生成
 	for (uint32_t i = 0; i < numBlockVertical; ++i) {
 		for (uint32_t j = 0; j < numBlockHorizontal; ++j) {
-			if (mapChipField_->GetMapChipTypeByIndex(j, i) == MapChipType::kBlock) {
+			MapChipType type = mapChipField_->GetMapChipTypeByIndex(j, i);
+
+			switch (type) {
+			case MapChipType::kBlock:
 				worldTransformBlocks_[i][j] = new WorldTransform();
 				worldTransformBlocks_[i][j]->Initialize();
 				worldTransformBlocks_[i][j]->translation_ = mapChipField_->GetMapChipPositionByIndex(j, i);
-			} else {
+				UpdateWorldTransform(*worldTransformBlocks_[i][j]);
+				break;
+			case MapChipType::kPlayer: {
+				assert(player_ == nullptr && "player is already placed");
+				// 自キャラ生成
+				// 座標をマップチップ番号で指定
+				Vector3 playerPosition = mapChipField_->GetMapChipPositionByIndex(j, i);
+				player_ = new Player();
+				player_->Initialize(modelPlayer_,  &camera_, playerPosition);
+				player_->SetMapChipField(mapChipField_);
+				break;
+			}
+			
+			case MapChipType::kBlank:
+			default:
 				worldTransformBlocks_[i][j] = nullptr;
+				break;
 			}
 		}
 	}
