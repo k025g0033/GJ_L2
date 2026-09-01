@@ -27,6 +27,9 @@ public:
 
 	void GenerateBlocks();
 
+	// クローンの生成
+	void SpawnClone();
+
 private:
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
@@ -61,4 +64,16 @@ private:
 	KamataEngine::DebugCamera* debugCamera_ = nullptr;
 	// デバッグカメラ有効
 	bool isDebugCameraActive_ = false;
+
+	///// ----- クローン ----- /////
+	/// --- 状態 ---
+	// クローンを生成済みか
+	bool hasClone_ = false;
+
+	/// --- データ ---
+	// クローン用ワールドトランスフォーム（モデルは自機のものを流用）
+	KamataEngine::WorldTransform cloneWorldTransform_;
+
+	// 自機からどれだけ離してクローンを出すか（仮の固定オフセット）
+	static inline const float kCloneOffsetX = 2.0f;
 };

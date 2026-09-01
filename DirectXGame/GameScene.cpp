@@ -76,6 +76,19 @@ void GameScene::Update() {
 	// プレイヤーの更新
 	player_->Update();
 
+	///// ----- クローン ----- /////
+	/// --- 召喚 ---
+	// Fキーのトリガーで、まだ居ないときだけ自機の隣にクローンを生成する
+	if (Input::GetInstance()->TriggerKey(DIK_F) && !hasClone_) {
+		SpawnClone();
+	}
+
+	/// --- 更新 ---
+	// クローンのワールド行列を更新（今は固定位置だが、将来動かす場合もここで更新する）
+	if (hasClone_) {
+		UpdateWorldTransform(cloneWorldTransform_);
+	}
+
 	// 天球の更新
 	skydome_->Update();
 
@@ -137,6 +150,11 @@ void GameScene::Draw() {
 		skydome_->Draw();
 	}
 
+	// クローンの描画（現在は自機と同じモデルを流用）
+	if (hasClone_) {
+		modelPlayer_->Draw(cloneWorldTransform_, camera_);
+	}
+
 	// プレイヤーの描画
 	player_->Draw();
 
@@ -151,6 +169,13 @@ void GameScene::Draw() {
 	}
 
 	Model::PostDraw();
+
+	///// ----- クローンと自機との接続線 ----- /////
+	// 仮：ワイヤーフレームの線で接続。将来的には伸縮する3Dモデル（立方体）に差し替える
+	if (hasClone_) {
+		PrimitiveDrawer::GetInstance()->SetCamera(&camera_);
+		PrimitiveDrawer::GetInstance()->DrawLine3d(player_->GetWorldTransform().translation_, cloneWorldTransform_.translation_, {1.0f, 1.0f, 1.0f, 1.0f});
+	}
 }
 
 void GameScene::GenerateBlocks() {
@@ -194,4 +219,17 @@ void GameScene::GenerateBlocks() {
 			}
 		}
 	}
+}
+
+///// ----- クローン ----- /////
+/// --- 生成 ---
+void GameScene::SpawnClone() {
+	// クローン用ワールドトランスフォームの初期化
+	cloneWorldTransform_.Initialize();
+
+	// 自機の位置を基準に、X方向にオフセットした位置へ配置
+	cloneWorldTransform_.translation_ = player_->GetWorldTransform().translation_;
+	cloneWorldTransform_.translation_.x += kCloneOffsetX;
+
+	hasClone_ = true;
 }
