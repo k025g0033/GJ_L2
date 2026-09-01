@@ -184,7 +184,9 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClCompile Include="MapChipField.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Skydome.cpp" />
+    <ClCompile Include="StageSelectScene.cpp" />
     <ClCompile Include="Taya.cpp" />
+    <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="WorldTransformConfig.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -193,7 +195,9 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClInclude Include="MapChipField.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Skydome.h" />
+    <ClInclude Include="StageSelectScene.h" />
     <ClInclude Include="Taya.h" />
+    <ClInclude Include="TitleScene.h" />
     <ClInclude Include="WorldTransformConfig.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
