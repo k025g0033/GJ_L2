@@ -76,9 +76,8 @@ private:
 
 	KamataEngine::Vector3 velocity_ = {};
 
-	static inline const float kAcceleration = 0.01f;
-	static inline const float kAttenuation = 0.1f;
-	static inline const float kLimitRunSpeed = 0.5f;
+	// プレイヤーの速度
+	static inline const float kLimitRunSpeed = 0.15f;
 
 	LRDirection lrDirection_ = LRDirection::kRight;
 
@@ -88,7 +87,7 @@ private:
 	float turnTimer_ = 0.0f;
 
 	// 旋回時間<秒>
-	static inline const float kTimeTurn = 0.3f;
+	static inline const float kTimeTurn = 0.21f;
 
 	// 接地状態フラグ
 	bool onGround_ = true;
@@ -98,7 +97,7 @@ private:
 	// 最大落下速度 (下方向)
 	static inline const float kLimitFallSpeed = 0.5f;
 	// ジャンプ初速 (上方向)
-	static inline const float kJumpAcceleration = 0.3f;
+	static inline const float kJumpAcceleration = 0.25f;
 
 	// キャラクターの当たり判定サイズ
 	static inline const float kWidth = 0.8f;
