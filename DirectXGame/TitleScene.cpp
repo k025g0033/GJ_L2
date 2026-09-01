@@ -3,6 +3,10 @@
 
 using namespace KamataEngine;
 
+void TitleScene::Initialize() {
+	isFinished_ = false;
+}
+
 void TitleScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		isFinished_ = true;
