@@ -39,6 +39,11 @@ private:
 	KamataEngine::Model* modelBlock_ = nullptr;
 	// 天球モデル
 	KamataEngine::Model* modelSkydome_ = nullptr;
+	// 背景スプライト
+	KamataEngine::Sprite* backgroundSprite_ = nullptr;
+	uint32_t backgroundTextureHandle_ = 0;
+	// 0: 天球、1: スプライト
+	int backgroundMode_ = 0;
 
 	// ブロック用ワールドトランスフォーム
 	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformBlocks_;

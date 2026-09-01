@@ -11,6 +11,7 @@ GameScene::~GameScene() {
 	delete modelPlayer_;
 	delete modelBlock_;
 	delete modelSkydome_;
+	delete backgroundSprite_;
 	delete mapChipField_;
 
 	delete debugCamera_;
@@ -31,6 +32,10 @@ void GameScene::Initialize() {
 	modelBlock_ = Model::CreateFromOBJ("block", true);
 	// 天球のモデル生成
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
+	// 背景スプライトの生成
+	backgroundTextureHandle_ = TextureManager::Load("uvChecker.png");
+	backgroundSprite_ = Sprite::Create(backgroundTextureHandle_, {0.0f, 0.0f});
+	backgroundSprite_->SetSize({1280.0f, 720.0f});
 
 	// マップチップフィールドの初期化と生成
 	mapChipField_ = new MapChipField;
@@ -64,6 +69,14 @@ void GameScene::Initialize() {
 }
 
 void GameScene::Update() {
+#ifdef USE_IMGUI
+	ImGui::Begin("Background");
+	ImGui::RadioButton("Skydome", &backgroundMode_, 0);
+	ImGui::SameLine();
+	ImGui::RadioButton("Sprite", &backgroundMode_, 1);
+	ImGui::End();
+#endif
+
 	// プレイヤーの更新
 	player_->Update();
 
@@ -109,11 +122,19 @@ void GameScene::Update() {
 }
 
 void GameScene::Draw() {
+	// スプライト背景は3Dモデルより先に描画する
+	if (backgroundMode_ == 1) {
+		Sprite::PreDraw();
+		backgroundSprite_->Draw();
+		Sprite::PostDraw();
+	}
 
 	Model::PreDraw();
 
 	// 天球の描画
-	skydome_->Draw();
+	if (backgroundMode_ == 0) {
+		skydome_->Draw();
+	}
 
 	// プレイヤーの描画
 	player_->Draw();
