@@ -1,6 +1,6 @@
-#include <Windows.h>
-#include "KamataEngine.h"
 #include "GameScene.h"
+#include "KamataEngine.h"
+#include <Windows.h>
 
 using namespace KamataEngine;
 
@@ -17,15 +17,24 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// ゲームシーンの初期化
 	gameScene->Initialize();
 
+	// ImGuiManagerインスタンスの取得
+	ImGuiManager* imGuiManager = ImGuiManager::GetInstance();
+
 	// メインループ
 	while (true) {
 		// エンジンの更新
 		if (KamataEngine::Update()) {
 			break;
 		}
-	
+
+		// ImGui受付開始
+		imGuiManager->Begin();
+
 		// ゲームシーンの更新
 		gameScene->Update();
+
+		// ImGui受付終了
+		imGuiManager->End();
 
 		// 描画開始
 		deCommon->PreDraw();
@@ -33,9 +42,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		// ゲームシーンの描画
 		gameScene->Draw();
 
+		// ImGuiの描画
+		imGuiManager->Draw();
+
 		// 描画終了
 		deCommon->PostDraw();
-
 	}
 
 	// ゲームシーンの解放
