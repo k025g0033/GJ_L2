@@ -18,6 +18,7 @@ std::map<char, MapChipType> mapChipTypeTable = {
 	{'P', MapChipType::kPlayer},
 	{'L', MapChipType::kLazer},
 	{'C', MapChipType::kCloneBase}, // クローンの素（例: C0）
+    {'W', MapChipType::kWater},
 };
 
 }

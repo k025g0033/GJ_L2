@@ -30,6 +30,7 @@ void Player::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera
 
 void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects) {
 
+	CheckInWater();
 	if (canMove) {
 		Move();
 	} else {
@@ -86,8 +87,13 @@ void Player::Draw() {
 
 void Player::Move() {
 	// 移動入力
-	// 接地状態
-	// 左右移動操作
+
+	if (isInWater_) {
+		MoveInWater();
+		return;
+	}
+
+	// 地上移動操作
 	if (Input::GetInstance()->PushKey(DIK_D) || Input::GetInstance()->PushKey(DIK_A)) {
 
 		if (Input::GetInstance()->PushKey(DIK_D)) {
@@ -518,6 +524,53 @@ void Player::CancelTurn() {
 	turnTimer_ = kTimeTurn;
 }
 
+void Player::CheckInWater() {
+	MapChipField::IndexSet index = mapChipField_->GetMapChipIndexByPosition(worldTransform_.translation_);
+
+	isInWater_ = mapChipField_->GetMapChipTypeByIndex(index.xIndex, index.yIndex) == MapChipType::kWater;
+}
+
+void Player::MoveInWater() {
+	if (Input::GetInstance()->PushKey(DIK_D) || Input::GetInstance()->PushKey(DIK_A)) {
+
+		if (Input::GetInstance()->PushKey(DIK_D)) {
+			velocity_.x = kSwimSpeedX;
+
+			if (lrDirection_ != LRDirection::kRight) {
+				lrDirection_ = LRDirection::kRight;
+				turnFirstRotationY_ = worldTransform_.rotation_.y;
+				turnTimer_ = kTimeTurn;
+			}
+		} else if (Input::GetInstance()->PushKey(DIK_A)) {
+			velocity_.x = -kSwimSpeedX;
+
+			if (lrDirection_ != LRDirection::kLeft) {
+				lrDirection_ = LRDirection::kLeft;
+				turnFirstRotationY_ = worldTransform_.rotation_.y;
+				turnTimer_ = kTimeTurn;
+			}
+		}
+	} else {
+		velocity_.x *= 1.0f - kWaterResistance;
+		if (std::abs(velocity_.x) < 0.001f) {
+			velocity_.x = 0.0f;
+		}
+	}
+
+	// 弱い重力で、上昇後はゆっくり沈む。
+	velocity_.y -= kWaterGravity;
+	// 押した瞬間だけひとかきする（押しっぱなしでは連続上昇しない）。
+	if (Input::GetInstance()->TriggerKey(DIK_W)) {
+		velocity_.y = kSwimSpeedY;
+	}
+
+	velocity_.x = std::clamp(velocity_.x, -kSwimSpeedX, kSwimSpeedX);
+
+	velocity_.y = std::clamp(velocity_.y, -kLimitWaterFallSpeed, kSwimSpeedY);
+
+	// 1水中では地上扱いにしない
+	onGround_ = false;
+}
 ///// ----- クローンの素など、マップチップ以外の障害物との当たり判定 ----- /////
 void Player::isObstacleCollision(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
 	isObstacleCollisionTop(info, obstacleRects);
