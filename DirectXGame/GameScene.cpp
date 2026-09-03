@@ -17,6 +17,7 @@ GameScene::~GameScene() {
 	}
 	lazers_.clear();
 	delete modelLazer_;
+	delete modelCloneBase_;
 	delete backgroundSprite_;
 	delete mapChipField_;
 
@@ -28,6 +29,12 @@ GameScene::~GameScene() {
 		}
 	}
 	worldTransformBlocks_.clear();
+
+	// クローンの素の解放
+	for (CloneBase* cloneBase : cloneBases_) {
+		delete cloneBase;
+	}
+	cloneBases_.clear();
 }
 
 void GameScene::Initialize() {
@@ -40,6 +47,8 @@ void GameScene::Initialize() {
 	modelLazer_ = Model::CreateFromOBJ("Lazer", true);
 	// 天球のモデル生成
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
+	// クローンの素モデル生成（球体）
+	modelCloneBase_ = Model::CreateSphere();
 	// 背景スプライトの生成
 	backgroundTextureHandle_ = TextureManager::Load("uvChecker.png");
 	backgroundSprite_ = Sprite::Create(backgroundTextureHandle_, {0.0f, 0.0f});
@@ -56,6 +65,8 @@ void GameScene::Initialize() {
 	// CSVの配置情報からブロックとプレイヤーを生成
 	GenerateBlocks();
 	assert(player_ != nullptr && "player is not placed in map.csv");
+	line3D_ = new Line3D();
+	line3D_->Initialize();
 
 	// 天球の生成,初期化
 	skydome_ = new Skydome();
@@ -87,6 +98,14 @@ void GameScene::Update() {
 	for (Lazer* lazer : lazers_) {
 		lazer->Update();
 	}
+
+	// クローンの素の更新（複数配置に対応）
+	for (CloneBase* cloneBase : cloneBases_) {
+		cloneBase->Update();
+	}
+
+	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
+	ShowCloneBaseManagerImGui();
 
 	// 天球の更新
 	skydome_->Update();
@@ -132,6 +151,8 @@ void GameScene::Update() {
 		camera_.UpdateMatrix();
 		// camera_.translation_ = {7.7f, 7.0f, -11.0f};
 	}
+
+	line3D_->Update(player_->GetWorldTransform().translation_, camera_, mapChipField_);
 }
 
 void GameScene::Draw() {
@@ -149,8 +170,16 @@ void GameScene::Draw() {
 		skydome_->Draw();
 	}
 
+	// クローンの素の描画（球体、または線接続後は自機と同じ形）
+	for (CloneBase* cloneBase : cloneBases_) {
+		cloneBase->Draw();
+	}
+
 	// プレイヤーの描画
 	player_->Draw();
+
+	// 実際の線と予測線の描画
+	line3D_->Draw(camera_);
 
 	// ブロックの描画
 	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
@@ -214,6 +243,16 @@ void GameScene::GenerateBlocks() {
 				break;
 			}
 			
+			case MapChipType::kCloneBase: {
+				// クローンの素を生成（CSV上の "C0"。複数配置に対応）
+				Vector3 cloneBasePosition = mapChipField_->GetMapChipPositionByIndex(j, i);
+				CloneBase* cloneBase = new CloneBase();
+				cloneBase->Initialize(modelCloneBase_, modelPlayer_, &camera_, cloneBasePosition);
+				cloneBases_.push_back(cloneBase);
+				worldTransformBlocks_[i][j] = nullptr;
+				break;
+			}
+
 			case MapChipType::kBlank:
 			default:
 				worldTransformBlocks_[i][j] = nullptr;
@@ -232,4 +271,40 @@ void GameScene::GenerateBlocks() {
 		lazer->Initialize(modelLazer_, &camera_, positions.front(), positions.back());
 		lazers_.push_back(lazer);
 	}
+}
+
+///// ----- クローンの素 ----- /////
+/// --- ImGui管理パネル ---
+void GameScene::ShowCloneBaseManagerImGui() {
+#ifdef USE_IMGUI
+	ImGui::Begin("CloneBase Manager");
+
+	if (cloneBases_.empty()) {
+		// まだ1体も配置されていない場合
+		ImGui::Text("クローンの素は配置されていません");
+	} else {
+		for (size_t i = 0; i < cloneBases_.size(); ++i) {
+			CloneBase* cloneBase = cloneBases_[i];
+			const Vector3& pos = cloneBase->GetWorldTransform().translation_;
+			bool isTransformed = cloneBase->GetState() == CloneBase::State::kTransformed;
+			const char* stateText = isTransformed ? "変形済み（線がつながった）" : "素の状態";
+
+			ImGui::PushID(static_cast<int>(i));
+			ImGui::Text("C0[%zu] 座標:(%.1f, %.1f, %.1f) 状態:%s", i, pos.x, pos.y, pos.z, stateText);
+			ImGui::SameLine();
+			if (isTransformed) {
+				if (ImGui::Button("素に戻す(仮)")) {
+					cloneBase->ResetToBase();
+				}
+			} else {
+				if (ImGui::Button("線をつなげる(仮)")) {
+					cloneBase->Transform();
+				}
+			}
+			ImGui::PopID();
+		}
+	}
+
+	ImGui::End();
+#endif
 }

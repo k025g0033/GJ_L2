@@ -6,6 +6,7 @@ enum class MapChipType {
 	kBlock, // ブロック
 	kPlayer, // プレイヤー
 	kLazer,  // レーザー
+	kCloneBase, // クローンの素
 };
 
 // 1マス分のデータ
