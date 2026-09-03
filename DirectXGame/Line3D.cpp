@@ -169,7 +169,6 @@ Line3D::Path Line3D::CalculatePath(const Vector3& origin, const Vector3& initial
 	Path path;
 	Vector3 currentOrigin = origin;
 	Vector3 direction = initialDirection;
-	float remainingDistance = kMaxTravelDistance;
 
 	for (int reflectionCount = 0; reflectionCount <= 2; ++reflectionCount) {
 		BlockHit nearestHit;
@@ -191,14 +190,13 @@ Line3D::Path Line3D::CalculatePath(const Vector3& origin, const Vector3& initial
 			}
 		}
 
-		float segmentDistance = nearestHit.isHit ? std::min(nearestHit.distance, remainingDistance) : remainingDistance;
+		float segmentDistance = nearestHit.isHit ? std::min(nearestHit.distance, kMaxTravelDistance) : kMaxTravelDistance;
 		Vector3 end = currentOrigin + direction * segmentDistance;
 		path.segments[path.segmentCount++] = {currentOrigin, end};
-		if (!nearestHit.isHit || nearestHit.distance >= remainingDistance || reflectionCount == 2) {
+		if (!nearestHit.isHit || nearestHit.distance >= kMaxTravelDistance || reflectionCount == 2) {
 			break;
 		}
 
-		remainingDistance -= nearestHit.distance;
 		direction = direction - nearestHit.normal * (2.0f * Dot(direction, nearestHit.normal));
 		currentOrigin = end + direction * kHitEpsilon;
 	}
