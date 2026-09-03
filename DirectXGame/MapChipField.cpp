@@ -14,7 +14,8 @@ std::unordered_map<std::string, MapChipType> mapChipTable = {
 // マップチップ種別テーブル
 std::map<char, MapChipType> mapChipTypeTable = {
     {'B', MapChipType::kBlock},
-	{'P', MapChipType::kPlayer}
+	{'P', MapChipType::kPlayer},
+	{'L', MapChipType::kLazer}
 };
 
 }

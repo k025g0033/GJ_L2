@@ -5,6 +5,7 @@
 #include "MapChipField.h"
 #include "Player.h"
 #include "Skydome.h"
+#include "Lazer.h"
 #include <vector>
 
 // ゲームシーン
@@ -35,6 +36,8 @@ private:
 	Player* player_ = nullptr;
 	// 天球
 	Skydome* skydome_ = nullptr;
+	// レーザー
+	std::vector<Lazer*> lazers_;
 	// マップチップフィールド
 	MapChipField* mapChipField_;
 	// カメラ
@@ -44,6 +47,8 @@ private:
 	KamataEngine::Model* modelPlayer_ = nullptr;
 	// ブロックモデル
 	KamataEngine::Model* modelBlock_ = nullptr;
+	// レーザーモデル
+	KamataEngine::Model* modelLazer_ = nullptr;
 	// 天球モデル
 	KamataEngine::Model* modelSkydome_ = nullptr;
 	// 背景スプライト
