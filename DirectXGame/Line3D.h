@@ -15,8 +15,11 @@ public:
 	~Line3D();
 
 	void Initialize();
-	void Update(const KamataEngine::Vector3& origin, const KamataEngine::Camera& camera, MapChipField* mapChipField);
+	void Update(
+	    const KamataEngine::Vector3& origin, const KamataEngine::Camera& camera, MapChipField* mapChipField,
+	    bool canFire);
 	void Draw(const KamataEngine::Camera& camera);
+	bool IsActive() const { return linePath_.segmentCount > 0; }
 
 private:
 	struct Segment {

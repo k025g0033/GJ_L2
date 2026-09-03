@@ -26,9 +26,13 @@ void Player::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera
 	worldTransform_.translation_ = position;
 }
 
-void Player::Update() {
+void Player::Update(bool canMove) {
 
-	Move();
+	if (canMove) {
+		Move();
+	} else {
+		velocity_ = {};
+	}
 
 	// 衝突情報を初期化
 	Player::CollisionMapInfo collisionInfo;

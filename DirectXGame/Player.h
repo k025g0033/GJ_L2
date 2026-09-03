@@ -30,7 +30,7 @@ public:
 
 	void Initialize(KamataEngine::Model* model, KamataEngine::Camera* cameraz, const KamataEngine::Vector3& position);
 
-	void Update();
+	void Update(bool canMove);
 
 	void Draw();
 
@@ -59,6 +59,8 @@ public:
 	const KamataEngine::WorldTransform& GetWorldTransform() const { return worldTransform_; }
 
 	const KamataEngine::Vector3& GetVelocity() const { return velocity_; }
+
+	bool IsOnGround() const { return onGround_; }
 
 	void SetMapChipField(MapChipField* mapChipField) { mapChipField_ = mapChipField; }
 
