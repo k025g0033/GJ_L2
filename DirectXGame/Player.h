@@ -1,7 +1,8 @@
 #pragma once
 #include "KamataEngine.h"
+#include "MapChipField.h" // 前方宣言から実体includeに変更（Rectを使うため）
 
-class MapChipField;
+#include <vector>
 
 class Player {
 public:
@@ -30,39 +31,46 @@ public:
 
 	void Initialize(KamataEngine::Model* model, KamataEngine::Camera* cameraz, const KamataEngine::Vector3& position);
 
-	void Update(bool canMove);
+	void Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects);
 
 	void Draw();
 
 	void Move();
 
+	///// ----- 自機とブロックの当たり判定 ----- /////
 	void isMapCollision(CollisionMapInfo& info);
-
 	void isMapCollisionTop(CollisionMapInfo& info);
-
 	void isMapCollisionBottom(CollisionMapInfo& info);
-
 	void isMapCollisionRight(CollisionMapInfo& info);
-
 	void isMapCollisionLeft(CollisionMapInfo& info);
+
+	///// ----- クローンの素などの、マップチップ以外の障害物との当たり判定 ----- /////
+	void isObstacleCollision(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects);
+	void isObstacleCollisionTop(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects);
+	void isObstacleCollisionBottom(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects);
+	void isObstacleCollisionRight(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects);
+	void isObstacleCollisionLeft(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects);
 
 	void isCollisionMove(const CollisionMapInfo& info);
 
 	void isHitCeiling(const CollisionMapInfo& info);
 
-	void isOnGround(const CollisionMapInfo& info);
+	// 障害物の矩形一覧も見て、乗っているか判定するように変更
+	void isOnGround(const CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects);
 
 	void isHitWall(const CollisionMapInfo& info);
 
 	KamataEngine::Vector3 CornerPosition(const KamataEngine::Vector3& center, Corner corner);
 
+	bool IsOnGround() const { return onGround_; }
+
+	// 旋回を強制的にキャンセルし、逆方向へ戻す
+	// （方向転換先にブロックがあり、向けない時に使用）
+	void CancelTurn();
+
 	const KamataEngine::WorldTransform& GetWorldTransform() const { return worldTransform_; }
 
 	const KamataEngine::Vector3& GetVelocity() const { return velocity_; }
-
-	bool IsOnGround() const { return onGround_; }
-
-	void SetMapChipField(MapChipField* mapChipField) { mapChipField_ = mapChipField; }
 
 	// 当たり判定サイズの取得（クローンの素との当たり判定などで使用）
 	float GetWidth() const { return kWidth; }
@@ -71,9 +79,10 @@ public:
 	// 現在向いている方向を取得（クローンの素をどちら側に持つか判定するのに使用）
 	LRDirection GetLRDirection() const { return lrDirection_; }
 
-	// 旋回を強制的にキャンセルし、逆方向へ戻す
-	// （方向転換先にブロックがあり、向けない時に使用）
-	void CancelTurn();
+	void SetMapChipField(MapChipField* mapChipField) { mapChipField_ = mapChipField; }
+
+	// 座標を直接設定する（クローンの素との当たり判定で押し出す時に使用）
+	void SetTranslation(const KamataEngine::Vector3& position) { worldTransform_.translation_ = position; }
 
 private:
 	// マップチップによるフィールド

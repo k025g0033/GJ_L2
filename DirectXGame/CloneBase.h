@@ -1,8 +1,6 @@
 #pragma once
 #include "KamataEngine.h"
-
-// 前方宣言
-class MapChipField;
+#include "MapChipField.h"
 
 /// <summary>
 /// クローンの素
@@ -11,6 +9,7 @@ class MapChipField;
 /// </summary>
 class CloneBase {
 public:
+	~CloneBase();
 	// クローンの素の状態
 	enum class State {
 		kBase,        // 素の状態（まだ何ともつながっていない）
@@ -24,10 +23,12 @@ public:
 	/// <param name="modelClone">変形後に使うモデル（自機と同じもの）</param>
 	/// <param name="camera">カメラ</param>
 	/// <param name="position">配置座標</param>
-	void Initialize(KamataEngine::Model* modelBase, KamataEngine::Model* modelClone, KamataEngine::Camera* camera, const KamataEngine::Vector3& position);
+	void Initialize(
+	    KamataEngine::Model* modelBase, KamataEngine::Model* modelClone, KamataEngine::Camera* camera,
+	    MapChipField* mapChipField, const KamataEngine::Vector3& position);
 
 	// 更新
-	void Update();
+	void Update(bool isControlled);
 
 	// 描画
 	void Draw();
@@ -42,7 +43,10 @@ public:
 	State GetState() const { return state_; }
 
 	// ワールドトランスフォームを取得
-	const KamataEngine::WorldTransform& GetWorldTransform() const { return worldTransform_; }
+	const KamataEngine::WorldTransform& GetWorldTransform() const {
+		return state_ == State::kTransformed ? player_->GetWorldTransform() : worldTransform_;
+	}
+	Player* GetPlayer() const { return player_; }
 
 	// 座標を直接設定する（プレイヤーが持っている間、追従させるために使用）
 	void SetTranslation(const KamataEngine::Vector3& position) { worldTransform_.translation_ = position; }
@@ -62,6 +66,9 @@ public:
 	float GetWidth() const { return kWidth; }
 	float GetHeight() const { return kHeight; }
 
+	// 現在位置をもとにした当たり判定用の矩形を取得する（自機との当たり判定で使用）
+	MapChipField::Rect GetRect() const;
+
 	// 指定座標に置いたとき、ブロックと重なるかどうかを判定する
 	bool IsCollidingWithBlock(const KamataEngine::Vector3& position, MapChipField* mapChipField) const;
 
@@ -75,6 +82,7 @@ private:
 	KamataEngine::Model* modelClone_ = nullptr;
 	// カメラ
 	KamataEngine::Camera* camera_ = nullptr;
+	Player* player_ = nullptr;
 
 	// 現在の状態
 	State state_ = State::kBase;

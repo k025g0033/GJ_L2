@@ -4,9 +4,11 @@
 #include "MapChipField.h"
 #include "WorldTransformConfig.h"
 #include "math/MathUtility.h"
+
 #include <algorithm>
 #include <cassert>
 #include <numbers>
+#include <cmath>
 
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;
@@ -26,7 +28,7 @@ void Player::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera
 	worldTransform_.translation_ = position;
 }
 
-void Player::Update(bool canMove) {
+void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects) {
 
 	CheckInWater();
 	if (canMove) {
@@ -40,14 +42,18 @@ void Player::Update(bool canMove) {
 	// 移動量に速度をコピー
 	collisionInfo.moveVelocity = velocity_;
 
-	// マップ衝突チェック
+	/// --- マップ衝突チェック ---
 	isMapCollision(collisionInfo);
+
+	// クローンの素など、ブロック以外の障害物との当たり判定
+	// ブロックで補正した後の移動量に対してさらに補正する
+	isObstacleCollision(collisionInfo, obstacleRects);
 
 	isCollisionMove(collisionInfo);
 
 	isHitCeiling(collisionInfo);
 
-	isOnGround(collisionInfo);
+	isOnGround(collisionInfo, obstacleRects);
 
 	isHitWall(collisionInfo);
 
@@ -442,7 +448,7 @@ void Player::isHitCeiling(const CollisionMapInfo& info) {
 	}
 }
 
-void Player::isOnGround(const CollisionMapInfo& info) {
+void Player::isOnGround(const CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
 	if (onGround_) {
 		// ジャンプ開始
 		if (velocity_.y > 0.0f) {
@@ -473,6 +479,23 @@ void Player::isOnGround(const CollisionMapInfo& info) {
 
 		if (!hit) {
 			onGround_ = false;
+		}
+
+		// クローンの素の上に乗っているかも調べる
+		if (!hit) {
+			float halfWidth = kWidth / 2.0f;
+			float left = worldTransform_.translation_.x - halfWidth;
+			float right = worldTransform_.translation_.x + halfWidth;
+			float playerBottom = worldTransform_.translation_.y - kHeight / 2.0f;
+
+			for (const MapChipField::Rect& rect : obstacleRects) {
+				bool overlapX = !(right <= rect.left || left >= rect.right);
+				bool touchingTop = std::abs(playerBottom - rect.top) <= kGroundSearchHeight;
+				if (overlapX && touchingTop) {
+					hit = true;
+					break;
+				}
+			}
 		}
 
 	} else {
@@ -547,4 +570,107 @@ void Player::MoveInWater() {
 
 	// 1水中では地上扱いにしない
 	onGround_ = false;
+}
+///// ----- クローンの素など、マップチップ以外の障害物との当たり判定 ----- /////
+void Player::isObstacleCollision(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
+	isObstacleCollisionTop(info, obstacleRects);
+	isObstacleCollisionBottom(info, obstacleRects);
+	isObstacleCollisionRight(info, obstacleRects);
+	isObstacleCollisionLeft(info, obstacleRects);
+}
+
+void Player::isObstacleCollisionTop(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
+	if (info.moveVelocity.y <= 0.0f) {
+		return;
+	}
+
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+	float nowLeft = worldTransform_.translation_.x - halfWidth;
+	float nowRight = worldTransform_.translation_.x + halfWidth;
+	float nowTop = worldTransform_.translation_.y + halfHeight;
+
+	for (const MapChipField::Rect& rect : obstacleRects) {
+		if (nowRight <= rect.left || nowLeft >= rect.right) {
+			continue; // 横方向が重なっていない障害物は無視する
+		}
+
+		float newTop = nowTop + info.moveVelocity.y;
+		if (nowTop <= rect.bottom && newTop > rect.bottom) {
+			info.moveVelocity.y = rect.bottom - nowTop - kBlank;
+			info.isCeilingCollision = true;
+		}
+	}
+}
+
+void Player::isObstacleCollisionBottom(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
+	if (info.moveVelocity.y >= 0.0f) {
+		return;
+	}
+
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+	float nowLeft = worldTransform_.translation_.x - halfWidth;
+	float nowRight = worldTransform_.translation_.x + halfWidth;
+	float nowBottom = worldTransform_.translation_.y - halfHeight;
+
+	for (const MapChipField::Rect& rect : obstacleRects) {
+		if (nowRight <= rect.left || nowLeft >= rect.right) {
+			continue;
+		}
+
+		float newBottom = nowBottom + info.moveVelocity.y;
+		if (nowBottom >= rect.top && newBottom < rect.top) {
+			info.moveVelocity.y = rect.top - nowBottom + kBlank;
+			info.isGroundCollision = true;
+		}
+	}
+}
+
+void Player::isObstacleCollisionRight(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
+	if (info.moveVelocity.x <= 0.0f) {
+		return;
+	}
+
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+	float nowBottom = worldTransform_.translation_.y - halfHeight;
+	float nowTop = worldTransform_.translation_.y + halfHeight;
+	float nowRight = worldTransform_.translation_.x + halfWidth;
+
+	for (const MapChipField::Rect& rect : obstacleRects) {
+		if (nowTop <= rect.bottom || nowBottom >= rect.top) {
+			continue; // 縦方向が重なっていない障害物は無視する
+		}
+
+		float newRight = nowRight + info.moveVelocity.x;
+		if (nowRight <= rect.left && newRight > rect.left) {
+			info.moveVelocity.x = rect.left - nowRight - kBlank;
+			info.isWallCollision = true;
+		}
+	}
+}
+
+void Player::isObstacleCollisionLeft(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
+	if (info.moveVelocity.x >= 0.0f) {
+		return;
+	}
+
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+	float nowBottom = worldTransform_.translation_.y - halfHeight;
+	float nowTop = worldTransform_.translation_.y + halfHeight;
+	float nowLeft = worldTransform_.translation_.x - halfWidth;
+
+	for (const MapChipField::Rect& rect : obstacleRects) {
+		if (nowTop <= rect.bottom || nowBottom >= rect.top) {
+			continue;
+		}
+
+		float newLeft = nowLeft + info.moveVelocity.x;
+		if (nowLeft >= rect.right && newLeft < rect.right) {
+			info.moveVelocity.x = rect.right - nowLeft + kBlank;
+			info.isWallCollision = true;
+		}
+	}
 }
