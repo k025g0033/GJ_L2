@@ -41,6 +41,20 @@ public:
 	// ワールドトランスフォームを取得
 	const KamataEngine::WorldTransform& GetWorldTransform() const { return worldTransform_; }
 
+	// 座標を直接設定する（プレイヤーが持っている間、追従させるために使用）
+	void SetTranslation(const KamataEngine::Vector3& position) { worldTransform_.translation_ = position; }
+
+	///// ----- 持つ・投げる（仮実装） ----- /////
+	// プレイヤーに持たれているか
+	bool IsHeld() const { return isHeld_; }
+	// 持たれた状態にする
+	void PickUp() { isHeld_ = true; }
+	// 持たれていない状態に戻す（投げた/離した時）
+	void Release() { isHeld_ = false; }
+
+	// 当たり判定に使う球の半径（見た目のスケール(kBaseScale)に合わせた値）
+	static inline const float kCollisionRadius = 0.5f;
+
 private:
 	// ワールド変換データ
 	KamataEngine::WorldTransform worldTransform_;
@@ -54,6 +68,9 @@ private:
 
 	// 現在の状態
 	State state_ = State::kBase;
+
+	// プレイヤーに持たれているか（仮実装）
+	bool isHeld_ = false;
 
 	// 素の状態での表示スケール（球体モデルを1マスに収める）
 	static inline const float kBaseScale = 0.5f;

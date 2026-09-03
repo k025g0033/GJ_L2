@@ -62,6 +62,10 @@ public:
 
 	void SetMapChipField(MapChipField* mapChipField) { mapChipField_ = mapChipField; }
 
+	// 当たり判定サイズの取得（クローンの素との当たり判定などで使用）
+	float GetWidth() const { return kWidth; }
+	float GetHeight() const { return kHeight; }
+
 private:
 	// マップチップによるフィールド
 	MapChipField* mapChipField_ = nullptr;

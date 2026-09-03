@@ -1,8 +1,11 @@
 #include "GameScene.h"
 #include "2d/ImGuiManager.h"
+#include "CollisionUtility.h"
 #include "WorldTransformConfig.h"
+#include "math/MathUtility.h"
 
 using namespace KamataEngine;
+using namespace KamataEngine::MathUtility;   // 追加
 
 GameScene::GameScene() {}
 
@@ -84,6 +87,12 @@ void GameScene::Update() {
 
 	// プレイヤーの更新
 	player_->Update();
+
+	// 全ての当たり判定を行う
+	CheckAllCollisions();
+
+	// プレイヤーとクローンの素の当たり判定、スペースキーで持つ処理（仮実装）
+	UpdateCloneBasePickup();
 
 	// クローンの素の更新（複数配置に対応）
 	for (CloneBase* cloneBase : cloneBases_) {
@@ -229,29 +238,36 @@ void GameScene::GenerateBlocks() {
 
 ///// ----- クローンの素 ----- /////
 /// --- ImGui管理パネル ---
+// NOTE: ImGuiの表示文字列は日本語だと文字化けするため、英語表記にしている（コード上のコメントは日本語のままでよい）
 void GameScene::ShowCloneBaseManagerImGui() {
 #ifdef USE_IMGUI
 	ImGui::Begin("CloneBase Manager");
 
+	// 当たり判定・拾えるかどうかの状態（仮実装）
+	ImGui::Text("Colliding With CloneBase: %s", isCollidingWithCloneBase_ ? "True" : "False");
+	ImGui::Text("Can Pick Up: %s", canPickUpCloneBase_ ? "True" : "False");
+	ImGui::Text("Holding CloneBase: %s", isHoldingCloneBase_ ? "True" : "False");
+	ImGui::Separator();
+
 	if (cloneBases_.empty()) {
 		// まだ1体も配置されていない場合
-		ImGui::Text("クローンの素は配置されていません");
+		ImGui::Text("No clone bases placed");
 	} else {
 		for (size_t i = 0; i < cloneBases_.size(); ++i) {
 			CloneBase* cloneBase = cloneBases_[i];
 			const Vector3& pos = cloneBase->GetWorldTransform().translation_;
 			bool isTransformed = cloneBase->GetState() == CloneBase::State::kTransformed;
-			const char* stateText = isTransformed ? "変形済み（線がつながった）" : "素の状態";
+			const char* stateText = isTransformed ? "Transformed (Line Connected)" : "Base (Not Connected)";
 
 			ImGui::PushID(static_cast<int>(i));
-			ImGui::Text("C0[%zu] 座標:(%.1f, %.1f, %.1f) 状態:%s", i, pos.x, pos.y, pos.z, stateText);
+			ImGui::Text("C0[%zu] Pos:(%.1f, %.1f, %.1f) State:%s%s", i, pos.x, pos.y, pos.z, stateText, cloneBase->IsHeld() ? " [Held]" : "");
 			ImGui::SameLine();
 			if (isTransformed) {
-				if (ImGui::Button("素に戻す(仮)")) {
+				if (ImGui::Button("Reset To Base (Debug)")) {
 					cloneBase->ResetToBase();
 				}
 			} else {
-				if (ImGui::Button("線をつなげる(仮)")) {
+				if (ImGui::Button("Connect Line (Debug)")) {
 					cloneBase->Transform();
 				}
 			}
@@ -262,3 +278,51 @@ void GameScene::ShowCloneBaseManagerImGui() {
 	ImGui::End();
 #endif
 }
+
+///// ----- クローンの素を持つ処理（仮実装） ----- /////
+// プレイヤーとクローンの素（球体）の当たり判定を取り、当たっている間にスペースキーを押すと持つ。
+// 今は「触れていたら拾える」実装。将来的には自機を中心とした円の半径内なら拾えるようにする予定。
+void GameScene::UpdateCloneBasePickup() {
+	// クローンの素を持っている間は、プレイヤーの少し上に追従させる
+	if (isHoldingCloneBase_ &&
+		heldCloneBase_) {
+		heldCloneBase_->SetTranslation(player_->GetWorldTransform().translation_ + Vector3(0.0f, 1.2f, 0.0f));
+		return;
+	}
+
+	// 当たっていて、まだ持っていないときだけ拾える
+	if (canPickUpCloneBase_ && collidingCloneBase_ && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+		isHoldingCloneBase_ = true;
+		heldCloneBase_ = collidingCloneBase_;
+		heldCloneBase_->PickUp();
+	}
+}
+
+///// ----- 全ての当たり判定を行う ----- /////
+void GameScene::CheckAllCollisions() {
+	/// --- 自キャラとクローンの素の当たり判定 ---
+	{
+		isCollidingWithCloneBase_ = false;
+		canPickUpCloneBase_ = false;
+		collidingCloneBase_ = nullptr; // 今どのクローンの素と当たっているか（新規に用意する）
+
+		const Vector3& playerPos = player_->GetWorldTransform().translation_;
+		float playerHalfWidth = player_->GetWidth() / 2.0f;
+		float playerHalfHeight = player_->GetHeight() / 2.0f;
+
+		for (CloneBase* cloneBase : cloneBases_) {
+			bool isColliding =
+			    CollisionUtility::IsCollisionBoxAndSphere(playerPos, playerHalfWidth, playerHalfHeight, playerHalfWidth, cloneBase->GetWorldTransform().translation_, CloneBase::kCollisionRadius);
+
+			if (!isColliding) {
+				continue;
+			}
+
+			isCollidingWithCloneBase_ = true;
+			canPickUpCloneBase_ = true;
+			collidingCloneBase_ = cloneBase;
+			break; // 仮実装として最初に当たった1体だけを対象にする
+		}
+	}
+}
+
