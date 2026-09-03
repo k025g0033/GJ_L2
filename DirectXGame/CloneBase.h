@@ -1,6 +1,9 @@
 #pragma once
 #include "KamataEngine.h"
 
+// 前方宣言
+class MapChipField;
+
 /// <summary>
 /// クローンの素
 /// マップチップCSV上の "C0" で配置される。
@@ -55,6 +58,13 @@ public:
 	// 当たり判定に使う球の半径（見た目のスケール(kBaseScale)に合わせた値）
 	static inline const float kCollisionRadius = 0.5f;
 
+	// 当たり判定サイズの取得
+	float GetWidth() const { return kWidth; }
+	float GetHeight() const { return kHeight; }
+
+	// 指定座標に置いたとき、ブロックと重なるかどうかを判定する
+	bool IsCollidingWithBlock(const KamataEngine::Vector3& position, MapChipField* mapChipField) const;
+
 private:
 	// ワールド変換データ
 	KamataEngine::WorldTransform worldTransform_;
@@ -74,4 +84,9 @@ private:
 
 	// 素の状態での表示スケール（球体モデルを1マスに収める）
 	static inline const float kBaseScale = 0.5f;
+
+	///// ----- 当たり判定(立方体) ----- /////
+	// 見た目は仮で球体だが、当たり判定は自機と同じく立方体として扱う
+	static inline const float kWidth = 0.8f;
+	static inline const float kHeight = 0.8f;
 };

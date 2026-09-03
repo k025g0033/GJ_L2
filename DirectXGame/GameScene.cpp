@@ -331,18 +331,53 @@ void GameScene::ShowCloneBaseManagerImGui() {
 // プレイヤーとクローンの素（球体）の当たり判定を取り、当たっている間にスペースキーを押すと持つ。
 // 今は「触れていたら拾える」実装。将来的には自機を中心とした円の半径内なら拾えるようにする予定。
 void GameScene::UpdateCloneBasePickup() {
-	// クローンの素を持っている間は、プレイヤーの少し上に追従させる
-	if (isHoldingCloneBase_ &&
-		heldCloneBase_) {
-		heldCloneBase_->SetTranslation(player_->GetWorldTransform().translation_ + Vector3(0.0f, 1.2f, 0.0f));
+	// 前フレームの向きを読み取ってから、今の向きで上書きしておく
+	Player::LRDirection previousDirection = previousPlayerDirection_;
+	previousPlayerDirection_ = player_->GetLRDirection();
+
+	isCollidingWithCloneBase_ = false;
+	canPickUpCloneBase_ = false;
+
+	const Vector3& playerPos = player_->GetWorldTransform().translation_;
+	float playerHalfWidth = player_->GetWidth() / 2.0f;
+	float playerHalfHeight = player_->GetHeight() / 2.0f;
+
+	// クローンの素を持っている間は、プレイヤーの正面に隙間なくくっつける
+	if (isHoldingCloneBase_ && heldCloneBase_) {
+		bool directionChanged = (player_->GetLRDirection() != previousDirection);
+
+		Vector3 targetPosition = ComputeHeldCloneBasePosition();
+
+		// 方向転換した先にブロックがあるなら、旋回をキャンセルして元の向きに戻す
+		if (directionChanged && heldCloneBase_->IsCollidingWithBlock(targetPosition, mapChipField_)) {
+			player_->CancelTurn();
+			previousPlayerDirection_ = player_->GetLRDirection(); // 戻した向きを記録し直す
+			targetPosition = ComputeHeldCloneBasePosition();      // 戻した向きで座標を再計算
+		}
+
+		heldCloneBase_->SetTranslation(targetPosition);
 		return;
 	}
 
-	// 当たっていて、まだ持っていないときだけ拾える
-	if (canPickUpCloneBase_ && collidingCloneBase_ && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		isHoldingCloneBase_ = true;
-		heldCloneBase_ = collidingCloneBase_;
-		heldCloneBase_->PickUp();
+	// (以降、当たり判定と「拾う」入力を確認する処理は変更なし)
+	for (CloneBase* cloneBase : cloneBases_) {
+		bool isColliding =
+		    CollisionUtility::IsCollisionBoxAndSphere(playerPos, playerHalfWidth, playerHalfHeight, playerHalfWidth, cloneBase->GetWorldTransform().translation_, CloneBase::kCollisionRadius);
+
+		if (!isColliding) {
+			continue;
+		}
+
+		isCollidingWithCloneBase_ = true;
+		canPickUpCloneBase_ = true;
+
+		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+			isHoldingCloneBase_ = true;
+			heldCloneBase_ = cloneBase;
+			cloneBase->PickUp();
+		}
+
+		break;
 	}
 }
 
@@ -374,3 +409,17 @@ void GameScene::CheckAllCollisions() {
 	}
 }
 
+///// ----- 持っているクローンの素の追従位置を計算する ----- /////
+Vector3 GameScene::ComputeHeldCloneBasePosition() const {
+	const Vector3& playerPos = player_->GetWorldTransform().translation_;
+	float playerHalfWidth = player_->GetWidth() / 2.0f;
+	float cloneHalfWidth = heldCloneBase_->GetWidth() / 2.0f;
+
+	// 向いている方向 (+1: 右, -1: 左)
+	float direction = (player_->GetLRDirection() == Player::LRDirection::kRight) ? 1.0f : -1.0f;
+
+	// 自機の正面に、隙間なくくっつく位置
+	float offsetX = direction * (playerHalfWidth + cloneHalfWidth);
+
+	return playerPos + Vector3(offsetX, 0.0f, 0.0f);
+}
