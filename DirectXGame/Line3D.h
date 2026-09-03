@@ -17,9 +17,11 @@ public:
 	void Initialize();
 	void Update(
 	    const KamataEngine::Vector3& origin, const KamataEngine::Camera& camera, MapChipField* mapChipField,
-	    bool canFire);
+	    bool canFire, bool isClone);
 	void Draw(const KamataEngine::Camera& camera);
 	bool IsActive() const { return linePath_.segmentCount > 0; }
+	bool IsCloneLine() const { return isCloneLine_; }
+	bool IsTouchingSphere(const KamataEngine::Vector3& center, float radius) const;
 
 private:
 	struct Segment {
@@ -47,6 +49,8 @@ private:
 	Path linePath_{};
 	Path predictionPath_{};
 	bool isPredictionVisible_ = true;
+	bool isCloneLine_ = false;
 	float lineTravelDistance_ = 0.0f;
 	static inline const float kLineSpeed = 0.5f;
+	static inline const float kMaxTravelDistance = 30.0f;
 };

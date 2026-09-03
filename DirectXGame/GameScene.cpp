@@ -94,11 +94,18 @@ void GameScene::Update() {
 	ImGui::RadioButton("Sprite", &backgroundMode_, 1);
 	ImGui::End();
 #endif
+	if (controlledClone_ && Input::GetInstance()->IsTriggerMouse(1)) {
+		controlledClone_ = nullptr;
+		cameraController_->SetTarget(player_);
+	}
+
+	Player* activePlayer = controlledClone_ ? controlledClone_->GetPlayer() : player_;
+	bool isTryingToFire =
+	    activePlayer->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
+	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire;
 
 	// プレイヤーの更新
-	bool isTryingToFire =
-	    player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
-	player_->Update(!line3D_->IsActive() && !isTryingToFire);
+	player_->Update(controlledClone_ == nullptr && canActivePlayerMove);
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
 		lazer->Update();
@@ -112,7 +119,7 @@ void GameScene::Update() {
 
 	// クローンの素の更新（複数配置に対応）
 	for (CloneBase* cloneBase : cloneBases_) {
-		cloneBase->Update();
+		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove);
 	}
 
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
@@ -163,7 +170,21 @@ void GameScene::Update() {
 		// camera_.translation_ = {7.7f, 7.0f, -11.0f};
 	}
 
-	line3D_->Update(player_->GetWorldTransform().translation_, camera_, mapChipField_, player_->IsOnGround());
+	line3D_->Update(
+	    activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, activePlayer->IsOnGround(),
+	    controlledClone_ != nullptr);
+
+	if (controlledClone_ == nullptr && line3D_->IsActive() && !line3D_->IsCloneLine()) {
+		for (CloneBase* cloneBase : cloneBases_) {
+			if (line3D_->IsTouchingSphere(
+			        cloneBase->GetWorldTransform().translation_, CloneBase::kCollisionRadius)) {
+				cloneBase->Transform();
+				controlledClone_ = cloneBase;
+				cameraController_->SetTarget(cloneBase->GetPlayer());
+				break;
+			}
+		}
+	}
 }
 
 void GameScene::Draw() {
@@ -258,7 +279,7 @@ void GameScene::GenerateBlocks() {
 				// クローンの素を生成（CSV上の "C0"。複数配置に対応）
 				Vector3 cloneBasePosition = mapChipField_->GetMapChipPositionByIndex(j, i);
 				CloneBase* cloneBase = new CloneBase();
-				cloneBase->Initialize(modelCloneBase_, modelPlayer_, &camera_, cloneBasePosition);
+				cloneBase->Initialize(modelCloneBase_, modelPlayer_, &camera_, mapChipField_, cloneBasePosition);
 				cloneBases_.push_back(cloneBase);
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
