@@ -126,4 +126,16 @@ private:
 
 	// 着地時の速度減衰率
 	static inline const float kAttenuationWall = 0.5f;
+
+	// 水に入っているか
+	bool isInWater_ = false;
+	void CheckInWater();
+	void MoveInWater();
+
+	// 水中時の数値
+	static inline const float kSwimSpeedX = 0.08f;      // X方向速度
+	static inline const float kSwimSpeedY = 0.08f;      // Y方向速度
+	static inline const float kWaterGravity = 0.003f;   // 重力
+	static inline const float kWaterResistance = 0.05f; // 抵抗
+	static inline const float kLimitWaterFallSpeed = 0.04f; // 水中の最大下降速度
 };

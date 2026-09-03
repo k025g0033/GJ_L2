@@ -6,7 +6,7 @@
 #include <map>
 
 using namespace KamataEngine;
-using namespace KamataEngine::MathUtility;   // 追加
+using namespace KamataEngine::MathUtility; // 追加
 
 GameScene::GameScene() {}
 
@@ -48,6 +48,9 @@ void GameScene::Initialize() {
 	modelBlock_ = Model::CreateFromOBJ("block", true);
 	// レーザーモデル生成
 	modelLazer_ = Model::CreateFromOBJ("Lazer", true);
+	// 水モデルの生成
+	modelWater_ = Model::CreateFromOBJ("water", true);
+	modelWater_->SetAlpha(0.4f);
 	// 天球のモデル生成
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
 	// クローンの素モデル生成（球体）
@@ -96,12 +99,20 @@ void GameScene::Update() {
 #endif
 
 	// プレイヤーの更新
-	bool isTryingToFire =
-	    player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
+	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
 	player_->Update(!line3D_->IsActive() && !isTryingToFire);
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
 		lazer->Update();
+	}
+
+	// 水の更新
+	for (auto& line : worldTransformWaters_) {
+		for (WorldTransform* water : line) {
+			if (water) {
+				UpdateWorldTransform(*water);
+			}
+		}
 	}
 
 	// 全ての当たり判定を行う
@@ -207,13 +218,19 @@ void GameScene::Draw() {
 		lazer->Draw();
 	}
 
+		// 水の描画
+	for (auto& line : worldTransformWaters_) {
+		for (WorldTransform* water : line) {
+			if (water) {
+				modelWater_->Draw(*water, camera_);
+			}
+		}
+	}
+
 	Model::PostDraw();
 }
 
 void GameScene::GenerateBlocks() {
-
-	// サブIDごとにレーザーの座標を格納する
-	std::map<uint8_t, std::vector<Vector3>> lazerPositionsByID;
 
 	// 要素数
 	uint32_t numBlockVertical = mapChipField_->kNumBlockVertical;
@@ -223,6 +240,14 @@ void GameScene::GenerateBlocks() {
 	worldTransformBlocks_.resize(numBlockVertical);
 	for (uint32_t i = 0; i < numBlockVertical; ++i) {
 		worldTransformBlocks_[i].resize(numBlockHorizontal);
+	}
+
+	// サブIDごとにレーザーの座標を格納する
+	std::map<uint8_t, std::vector<Vector3>> lazerPositionsByID;
+
+	worldTransformWaters_.resize(numBlockVertical);
+	for (uint32_t i = 0; i < numBlockVertical; ++i) {
+		worldTransformWaters_[i].resize(numBlockHorizontal, nullptr);
 	}
 
 	// ブロックの生成
@@ -243,7 +268,7 @@ void GameScene::GenerateBlocks() {
 				// 座標をマップチップ番号で指定
 				Vector3 playerPosition = mapChipField_->GetMapChipPositionByIndex(j, i);
 				player_ = new Player();
-				player_->Initialize(modelPlayer_,  &camera_, playerPosition);
+				player_->Initialize(modelPlayer_, &camera_, playerPosition);
 				player_->SetMapChipField(mapChipField_);
 				break;
 			}
@@ -253,7 +278,14 @@ void GameScene::GenerateBlocks() {
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
-			
+			case MapChipType::kWater: {
+				worldTransformWaters_[i][j] = new WorldTransform();
+				worldTransformWaters_[i][j]->Initialize();
+				worldTransformWaters_[i][j]->translation_ = mapChipField_->GetMapChipPositionByIndex(j, i);
+
+				UpdateWorldTransform(*worldTransformWaters_[i][j]);
+				break;
+			}
 			case MapChipType::kCloneBase: {
 				// クローンの素を生成（CSV上の "C0"。複数配置に対応）
 				Vector3 cloneBasePosition = mapChipField_->GetMapChipPositionByIndex(j, i);

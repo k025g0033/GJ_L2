@@ -7,6 +7,7 @@ enum class MapChipType {
 	kPlayer, // プレイヤー
 	kLazer,  // レーザー
 	kCloneBase, // クローンの素
+	kWater,     // 水
 };
 
 // 1マス分のデータ

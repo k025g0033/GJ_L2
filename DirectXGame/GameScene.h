@@ -62,6 +62,8 @@ private:
 	KamataEngine::Model* modelLazer_ = nullptr;
 	// 天球モデル
 	KamataEngine::Model* modelSkydome_ = nullptr;
+	// 水モデル
+	KamataEngine::Model* modelWater_ = nullptr;
 	// クローンの素モデル（球体）
 	KamataEngine::Model* modelCloneBase_ = nullptr;
 	Line3D* line3D_ = nullptr;
@@ -73,6 +75,8 @@ private:
 
 	// ブロック用ワールドトランスフォーム
 	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformBlocks_;
+	// 水用ワールドトランスフォーム
+	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformWaters_;
 
 	// カメラ
 	KamataEngine::Camera camera_;
