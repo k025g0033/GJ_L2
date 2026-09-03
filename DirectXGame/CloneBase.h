@@ -1,8 +1,6 @@
 #pragma once
 #include "KamataEngine.h"
-
-// 前方宣言
-class MapChipField;
+#include "MapChipField.h"
 
 /// <summary>
 /// クローンの素
@@ -61,6 +59,9 @@ public:
 	// 当たり判定サイズの取得
 	float GetWidth() const { return kWidth; }
 	float GetHeight() const { return kHeight; }
+
+	// 現在位置をもとにした当たり判定用の矩形を取得する（自機との当たり判定で使用）
+	MapChipField::Rect GetRect() const;
 
 	// 指定座標に置いたとき、ブロックと重なるかどうかを判定する
 	bool IsCollidingWithBlock(const KamataEngine::Vector3& position, MapChipField* mapChipField) const;

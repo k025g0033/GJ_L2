@@ -102,4 +102,5 @@ private:
 
 	// プレイヤーとクローンの素の当たり判定、スペースキーで持つ処理の更新
 	void UpdateCloneBasePickup();
+
 };
