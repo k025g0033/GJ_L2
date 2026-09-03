@@ -96,7 +96,9 @@ void GameScene::Update() {
 #endif
 
 	// プレイヤーの更新
-	player_->Update();
+	bool isTryingToFire =
+	    player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
+	player_->Update(!line3D_->IsActive() && !isTryingToFire);
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
 		lazer->Update();
@@ -161,7 +163,7 @@ void GameScene::Update() {
 		// camera_.translation_ = {7.7f, 7.0f, -11.0f};
 	}
 
-	line3D_->Update(player_->GetWorldTransform().translation_, camera_, mapChipField_);
+	line3D_->Update(player_->GetWorldTransform().translation_, camera_, mapChipField_, player_->IsOnGround());
 }
 
 void GameScene::Draw() {

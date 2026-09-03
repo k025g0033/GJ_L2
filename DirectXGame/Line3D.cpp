@@ -87,7 +87,7 @@ void Line3D::Initialize() {
 	}
 }
 
-void Line3D::Update(const Vector3& origin, const Camera& camera, MapChipField* mapChipField) {
+void Line3D::Update(const Vector3& origin, const Camera& camera, MapChipField* mapChipField, bool canFire) {
 	if (Input::GetInstance()->TriggerKey(DIK_Q)) {
 		isPredictionVisible_ = !isPredictionVisible_;
 	}
@@ -98,7 +98,7 @@ void Line3D::Update(const Vector3& origin, const Camera& camera, MapChipField* m
 	if (predictionPath_.segmentCount > 2) {
 		predictionPath_.segmentCount = 2;
 	}
-	if (Input::GetInstance()->IsTriggerMouse(0)) {
+	if (canFire && linePath_.segmentCount == 0 && Input::GetInstance()->IsTriggerMouse(0)) {
 		linePath_ = fullPath;
 		lineTravelDistance_ = 0.0f;
 	} else if (linePath_.segmentCount > 0) {
