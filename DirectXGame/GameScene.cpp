@@ -1,4 +1,4 @@
-#include "GameScene.h"
+﻿#include "GameScene.h"
 #include "2d/ImGuiManager.h"
 #include "CollisionUtility.h"
 #include "WorldTransformConfig.h"
@@ -49,6 +49,9 @@ void GameScene::Initialize() {
 	modelBlock_ = Model::CreateFromOBJ("block", true);
 	// レーザーモデル生成
 	modelLazer_ = Model::CreateFromOBJ("Lazer", true);
+	// 水モデルの生成
+	modelWater_ = Model::CreateFromOBJ("water", true);
+	modelWater_->SetAlpha(0.4f);
 	// 天球のモデル生成
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
 	// クローンの素モデル生成（球体）
@@ -120,6 +123,15 @@ void GameScene::Update() {
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
 		lazer->Update();
+	}
+
+	// 水の更新
+	for (auto& line : worldTransformWaters_) {
+		for (WorldTransform* water : line) {
+			if (water) {
+				UpdateWorldTransform(*water);
+			}
+		}
 	}
 
 	// 全ての当たり判定を行う
@@ -236,13 +248,19 @@ void GameScene::Draw() {
 		lazer->Draw();
 	}
 
+		// 水の描画
+	for (auto& line : worldTransformWaters_) {
+		for (WorldTransform* water : line) {
+			if (water) {
+				modelWater_->Draw(*water, camera_);
+			}
+		}
+	}
+
 	Model::PostDraw();
 }
 
 void GameScene::GenerateBlocks() {
-
-	// サブIDごとにレーザーの座標を格納する
-	std::map<uint8_t, std::vector<Vector3>> lazerPositionsByID;
 
 	// 要素数
 	uint32_t numBlockVertical = mapChipField_->kNumBlockVertical;
@@ -252,6 +270,14 @@ void GameScene::GenerateBlocks() {
 	worldTransformBlocks_.resize(numBlockVertical);
 	for (uint32_t i = 0; i < numBlockVertical; ++i) {
 		worldTransformBlocks_[i].resize(numBlockHorizontal);
+	}
+
+	// サブIDごとにレーザーの座標を格納する
+	std::map<uint8_t, std::vector<Vector3>> lazerPositionsByID;
+
+	worldTransformWaters_.resize(numBlockVertical);
+	for (uint32_t i = 0; i < numBlockVertical; ++i) {
+		worldTransformWaters_[i].resize(numBlockHorizontal, nullptr);
 	}
 
 	// ブロックの生成
@@ -282,7 +308,14 @@ void GameScene::GenerateBlocks() {
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
+			case MapChipType::kWater: {
+				worldTransformWaters_[i][j] = new WorldTransform();
+				worldTransformWaters_[i][j]->Initialize();
+				worldTransformWaters_[i][j]->translation_ = mapChipField_->GetMapChipPositionByIndex(j, i);
 
+				UpdateWorldTransform(*worldTransformWaters_[i][j]);
+				break;
+			}
 			case MapChipType::kCloneBase: {
 				// クローンの素を生成（CSV上の "C0"。複数配置に対応）
 				Vector3 cloneBasePosition = mapChipField_->GetMapChipPositionByIndex(j, i);
