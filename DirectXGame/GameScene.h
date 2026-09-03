@@ -30,6 +30,9 @@ public:
 
 	void GenerateBlocks();
 
+	// 全ての当たり判定を行う
+	void CheckAllCollisions();
+
 private:
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
@@ -78,4 +81,19 @@ private:
 
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
 	void ShowCloneBaseManagerImGui();
+
+	///// ----- クローンの素を持つ処理（仮実装） ----- /////
+	// プレイヤーといずれかのクローンの素が当たっているか
+	bool isCollidingWithCloneBase_ = false;
+	// 拾える状態か（現状は「当たっていたら拾える」。将来的には自機を中心とした円の半径内で判定する）
+	bool canPickUpCloneBase_ = false;
+	// クローンの素を持っているか
+	bool isHoldingCloneBase_ = false;
+	// 持っているクローンの素（未所持ならnullptr）
+	CloneBase* heldCloneBase_ = nullptr;
+	// 今当たっているクローンの素（当たっていなければnullptr）
+	CloneBase* collidingCloneBase_ = nullptr;
+
+	// プレイヤーとクローンの素の当たり判定、スペースキーで持つ処理の更新
+	void UpdateCloneBasePickup();
 };

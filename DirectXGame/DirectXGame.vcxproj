@@ -180,11 +180,14 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
   <ItemGroup>
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CloneBase.cpp" />
+    <ClCompile Include="Collision3D.cpp" />
+    <ClCompile Include="CollisionUtility.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="Lazer.cpp" />
     <ClCompile Include="Line3D.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MapChipField.cpp" />
+    <ClCompile Include="Matrix4x4.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="ResultScene.cpp" />
     <ClCompile Include="SceneManager.cpp" />
@@ -192,16 +195,20 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClCompile Include="StageSelectScene.cpp" />
     <ClCompile Include="Taya.cpp" />
     <ClCompile Include="TitleScene.cpp" />
+    <ClCompile Include="Vector3.cpp" />
     <ClCompile Include="WorldTransformConfig.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="CloneBase.h" />
+    <ClInclude Include="Collision3D.h" />
+    <ClInclude Include="CollisionUtility.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="Line3D.h" />
     <ClInclude Include="IScene.h" />
     <ClInclude Include="Lazer.h" />
     <ClInclude Include="MapChipField.h" />
+    <ClInclude Include="Matrix4x4.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="ResultScene.h" />
     <ClInclude Include="SceneManager.h" />
@@ -209,6 +216,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClInclude Include="StageSelectScene.h" />
     <ClInclude Include="Taya.h" />
     <ClInclude Include="TitleScene.h" />
+    <ClInclude Include="Vector3.h" />
     <ClInclude Include="WorldTransformConfig.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
