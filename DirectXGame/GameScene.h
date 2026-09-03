@@ -4,6 +4,7 @@
 #include "IScene.h"
 #include "KamataEngine.h"
 #include "MapChipField.h"
+#include "Line3D.h"
 #include "Player.h"
 #include "Skydome.h"
 #include <vector>
@@ -49,6 +50,7 @@ private:
 	KamataEngine::Model* modelSkydome_ = nullptr;
 	// クローンの素モデル（球体）
 	KamataEngine::Model* modelCloneBase_ = nullptr;
+	Line3D* line3D_ = nullptr;
 	// 背景スプライト
 	KamataEngine::Sprite* backgroundSprite_ = nullptr;
 	uint32_t backgroundTextureHandle_ = 0;

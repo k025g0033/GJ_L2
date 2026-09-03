@@ -12,6 +12,7 @@ GameScene::~GameScene() {
 	delete modelBlock_;
 	delete modelSkydome_;
 	delete modelCloneBase_;
+	delete line3D_;
 	delete backgroundSprite_;
 	delete mapChipField_;
 
@@ -57,6 +58,8 @@ void GameScene::Initialize() {
 	// CSVの配置情報からブロックとプレイヤーを生成
 	GenerateBlocks();
 	assert(player_ != nullptr && "player is not placed in map.csv");
+	line3D_ = new Line3D();
+	line3D_->Initialize();
 
 	// 天球の生成,初期化
 	skydome_ = new Skydome();
@@ -137,6 +140,8 @@ void GameScene::Update() {
 		camera_.UpdateMatrix();
 		// camera_.translation_ = {7.7f, 7.0f, -11.0f};
 	}
+
+	line3D_->Update(player_->GetWorldTransform().translation_, camera_, mapChipField_);
 }
 
 void GameScene::Draw() {
@@ -161,6 +166,9 @@ void GameScene::Draw() {
 
 	// プレイヤーの描画
 	player_->Draw();
+
+	// 実際の線と予測線の描画
+	line3D_->Draw(camera_);
 
 	// ブロックの描画
 	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
