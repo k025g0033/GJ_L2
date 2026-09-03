@@ -1,6 +1,9 @@
 #pragma once
 #include "KamataEngine.h"
 #include "MapChipField.h"
+#include "Player.h"
+
+#include <vector>
 
 /// <summary>
 /// クローンの素
@@ -28,7 +31,7 @@ public:
 	    MapChipField* mapChipField, const KamataEngine::Vector3& position);
 
 	// 更新
-	void Update(bool isControlled);
+	void Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects);
 
 	// 描画
 	void Draw();

@@ -3,11 +3,11 @@
 #include "CollisionUtility.h"
 #include "WorldTransformConfig.h"
 #include "math/MathUtility.h"
-#include <map>
 #include <cmath> // std::abs
+#include <map>
 
 using namespace KamataEngine;
-using namespace KamataEngine::MathUtility;   // 追加
+using namespace KamataEngine::MathUtility; // 追加
 
 GameScene::GameScene() {}
 
@@ -100,6 +100,9 @@ void GameScene::Update() {
 		cameraController_->SetTarget(player_);
 	}
 
+	// 現在操作しているキャラクター（通常は自機、クローンを操作中はそのクローンの中のPlayer）
+	Player* activePlayer = controlledClone_ ? controlledClone_->GetPlayer() : player_;
+
 	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
 	std::vector<MapChipField::Rect> cloneBaseRects;
 	for (CloneBase* cloneBase : cloneBases_) {
@@ -110,9 +113,10 @@ void GameScene::Update() {
 	}
 
 	// プレイヤーの更新
-	bool isTryingToFire =
-	    player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
+	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
+	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire;
 	player_->Update(!line3D_->IsActive() && !isTryingToFire, cloneBaseRects);
+
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
 		lazer->Update();
@@ -126,7 +130,7 @@ void GameScene::Update() {
 
 	// クローンの素の更新（複数配置に対応）
 	for (CloneBase* cloneBase : cloneBases_) {
-		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove);
+		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, cloneBaseRects);
 	}
 
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
@@ -177,14 +181,11 @@ void GameScene::Update() {
 		// camera_.translation_ = {7.7f, 7.0f, -11.0f};
 	}
 
-	line3D_->Update(
-	    activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, activePlayer->IsOnGround(),
-	    controlledClone_ != nullptr);
+	line3D_->Update(activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, activePlayer->IsOnGround(), controlledClone_ != nullptr);
 
 	if (controlledClone_ == nullptr && line3D_->IsActive() && !line3D_->IsCloneLine()) {
 		for (CloneBase* cloneBase : cloneBases_) {
-			if (line3D_->IsTouchingSphere(
-			        cloneBase->GetWorldTransform().translation_, CloneBase::kCollisionRadius)) {
+			if (line3D_->IsTouchingSphere(cloneBase->GetWorldTransform().translation_, CloneBase::kCollisionRadius)) {
 				cloneBase->Transform();
 				controlledClone_ = cloneBase;
 				cameraController_->SetTarget(cloneBase->GetPlayer());
@@ -271,7 +272,7 @@ void GameScene::GenerateBlocks() {
 				// 座標をマップチップ番号で指定
 				Vector3 playerPosition = mapChipField_->GetMapChipPositionByIndex(j, i);
 				player_ = new Player();
-				player_->Initialize(modelPlayer_,  &camera_, playerPosition);
+				player_->Initialize(modelPlayer_, &camera_, playerPosition);
 				player_->SetMapChipField(mapChipField_);
 				break;
 			}
@@ -281,7 +282,7 @@ void GameScene::GenerateBlocks() {
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
-			
+
 			case MapChipType::kCloneBase: {
 				// クローンの素を生成（CSV上の "C0"。複数配置に対応）
 				Vector3 cloneBasePosition = mapChipField_->GetMapChipPositionByIndex(j, i);

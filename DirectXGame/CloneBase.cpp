@@ -24,9 +24,9 @@ void CloneBase::Initialize(
 	player_->SetMapChipField(mapChipField);
 }
 
-void CloneBase::Update(bool isControlled) {
+void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects) {
 	if (state_ == State::kTransformed) {
-		player_->Update(isControlled);
+		player_->Update(isControlled, obstacleRects);
 		return;
 	}
 
