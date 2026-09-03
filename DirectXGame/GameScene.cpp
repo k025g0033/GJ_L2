@@ -4,6 +4,7 @@
 #include "WorldTransformConfig.h"
 #include "math/MathUtility.h"
 #include <map>
+#include <cmath> // std::abs
 
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;   // 追加
@@ -99,13 +100,19 @@ void GameScene::Update() {
 		cameraController_->SetTarget(player_);
 	}
 
-	Player* activePlayer = controlledClone_ ? controlledClone_->GetPlayer() : player_;
-	bool isTryingToFire =
-	    activePlayer->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
-	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire;
+	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
+	std::vector<MapChipField::Rect> cloneBaseRects;
+	for (CloneBase* cloneBase : cloneBases_) {
+		if (cloneBase == heldCloneBase_) {
+			continue;
+		}
+		cloneBaseRects.push_back(cloneBase->GetRect());
+	}
 
 	// プレイヤーの更新
-	player_->Update(controlledClone_ == nullptr && canActivePlayerMove);
+	bool isTryingToFire =
+	    player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
+	player_->Update(!line3D_->IsActive() && !isTryingToFire, cloneBaseRects);
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
 		lazer->Update();
@@ -144,7 +151,7 @@ void GameScene::Update() {
 	}
 
 #ifdef _DEBUG
-	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+	if (Input::GetInstance()->TriggerKey(DIK_P)) {
 		// デバッグカメラ有効フラグ
 		isDebugCameraActive_ = !isDebugCameraActive_;
 	}
@@ -404,7 +411,7 @@ void GameScene::UpdateCloneBasePickup() {
 
 ///// ----- 全ての当たり判定を行う ----- /////
 void GameScene::CheckAllCollisions() {
-	/// --- 自キャラとクローンの素の当たり判定 ---
+	/// --- 自キャラとクローンの素の当たり判定(拾える判定) ---
 	{
 		isCollidingWithCloneBase_ = false;
 		canPickUpCloneBase_ = false;
@@ -443,4 +450,15 @@ Vector3 GameScene::ComputeHeldCloneBasePosition() const {
 	float offsetX = direction * (playerHalfWidth + cloneHalfWidth);
 
 	return playerPos + Vector3(offsetX, 0.0f, 0.0f);
+}
+
+///// ----- 当たり判定用の矩形を取得する ----- /////
+MapChipField::Rect CloneBase::GetRect() const {
+	const Vector3& pos = worldTransform_.translation_;
+	MapChipField::Rect rect;
+	rect.left = pos.x - kWidth / 2.0f;
+	rect.right = pos.x + kWidth / 2.0f;
+	rect.bottom = pos.y - kHeight / 2.0f;
+	rect.top = pos.y + kHeight / 2.0f;
+	return rect;
 }
