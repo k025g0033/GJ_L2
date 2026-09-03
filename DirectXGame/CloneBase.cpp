@@ -5,6 +5,7 @@
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;
 
+
 void CloneBase::Initialize(Model* modelBase, Model* modelClone, Camera* camera, const Vector3& position) {
 	modelBase_ = modelBase;
 	modelClone_ = modelClone;
