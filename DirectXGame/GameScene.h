@@ -1,5 +1,6 @@
 #pragma once
 #include "CameraController.h"
+#include "CloneBase.h"
 #include "IScene.h"
 #include "KamataEngine.h"
 #include "MapChipField.h"
@@ -27,9 +28,6 @@ public:
 
 	void GenerateBlocks();
 
-	// クローンの生成
-	void SpawnClone();
-
 private:
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
@@ -49,6 +47,8 @@ private:
 	KamataEngine::Model* modelBlock_ = nullptr;
 	// 天球モデル
 	KamataEngine::Model* modelSkydome_ = nullptr;
+	// クローンの素モデル（球体）
+	KamataEngine::Model* modelCloneBase_ = nullptr;
 	// 背景スプライト
 	KamataEngine::Sprite* backgroundSprite_ = nullptr;
 	uint32_t backgroundTextureHandle_ = 0;
@@ -65,15 +65,10 @@ private:
 	// デバッグカメラ有効
 	bool isDebugCameraActive_ = false;
 
-	///// ----- クローン ----- /////
-	/// --- 状態 ---
-	// クローンを生成済みか
-	bool hasClone_ = false;
+	///// ----- クローンの素 ----- /////
+	// map.csv上の "C0" で配置された、クローンの素のリスト（複数配置に対応）
+	std::vector<CloneBase*> cloneBases_;
 
-	/// --- データ ---
-	// クローン用ワールドトランスフォーム（モデルは自機のものを流用）
-	KamataEngine::WorldTransform cloneWorldTransform_;
-
-	// 自機からどれだけ離してクローンを出すか（仮の固定オフセット）
-	static inline const float kCloneOffsetX = 2.0f;
+	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
+	void ShowCloneBaseManagerImGui();
 };

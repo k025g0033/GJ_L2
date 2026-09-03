@@ -11,6 +11,7 @@ GameScene::~GameScene() {
 	delete modelPlayer_;
 	delete modelBlock_;
 	delete modelSkydome_;
+	delete modelCloneBase_;
 	delete backgroundSprite_;
 	delete mapChipField_;
 
@@ -22,6 +23,12 @@ GameScene::~GameScene() {
 		}
 	}
 	worldTransformBlocks_.clear();
+
+	// クローンの素の解放
+	for (CloneBase* cloneBase : cloneBases_) {
+		delete cloneBase;
+	}
+	cloneBases_.clear();
 }
 
 void GameScene::Initialize() {
@@ -32,6 +39,8 @@ void GameScene::Initialize() {
 	modelBlock_ = Model::CreateFromOBJ("block", true);
 	// 天球のモデル生成
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
+	// クローンの素モデル生成（球体）
+	modelCloneBase_ = Model::CreateSphere();
 	// 背景スプライトの生成
 	backgroundTextureHandle_ = TextureManager::Load("uvChecker.png");
 	backgroundSprite_ = Sprite::Create(backgroundTextureHandle_, {0.0f, 0.0f});
@@ -76,18 +85,13 @@ void GameScene::Update() {
 	// プレイヤーの更新
 	player_->Update();
 
-	///// ----- クローン ----- /////
-	/// --- 召喚 ---
-	// Fキーのトリガーで、まだ居ないときだけ自機の隣にクローンを生成する
-	if (Input::GetInstance()->TriggerKey(DIK_F) && !hasClone_) {
-		SpawnClone();
+	// クローンの素の更新（複数配置に対応）
+	for (CloneBase* cloneBase : cloneBases_) {
+		cloneBase->Update();
 	}
 
-	/// --- 更新 ---
-	// クローンのワールド行列を更新（今は固定位置だが、将来動かす場合もここで更新する）
-	if (hasClone_) {
-		UpdateWorldTransform(cloneWorldTransform_);
-	}
+	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
+	ShowCloneBaseManagerImGui();
 
 	// 天球の更新
 	skydome_->Update();
@@ -150,9 +154,9 @@ void GameScene::Draw() {
 		skydome_->Draw();
 	}
 
-	// クローンの描画（現在は自機と同じモデルを流用）
-	if (hasClone_) {
-		modelPlayer_->Draw(cloneWorldTransform_, camera_);
+	// クローンの素の描画（球体、または線接続後は自機と同じ形）
+	for (CloneBase* cloneBase : cloneBases_) {
+		cloneBase->Draw();
 	}
 
 	// プレイヤーの描画
@@ -169,13 +173,6 @@ void GameScene::Draw() {
 	}
 
 	Model::PostDraw();
-
-	///// ----- クローンと自機との接続線 ----- /////
-	// 仮：ワイヤーフレームの線で接続。将来的には伸縮する3Dモデル（立方体）に差し替える
-	if (hasClone_) {
-		PrimitiveDrawer::GetInstance()->SetCamera(&camera_);
-		PrimitiveDrawer::GetInstance()->DrawLine3d(player_->GetWorldTransform().translation_, cloneWorldTransform_.translation_, {1.0f, 1.0f, 1.0f, 1.0f});
-	}
 }
 
 void GameScene::GenerateBlocks() {
@@ -211,7 +208,16 @@ void GameScene::GenerateBlocks() {
 				player_->SetMapChipField(mapChipField_);
 				break;
 			}
-			
+			case MapChipType::kCloneBase: {
+				// クローンの素を生成（CSV上の "C0"。複数配置に対応）
+				Vector3 cloneBasePosition = mapChipField_->GetMapChipPositionByIndex(j, i);
+				CloneBase* cloneBase = new CloneBase();
+				cloneBase->Initialize(modelCloneBase_, modelPlayer_, &camera_, cloneBasePosition);
+				cloneBases_.push_back(cloneBase);
+				worldTransformBlocks_[i][j] = nullptr;
+				break;
+			}
+
 			case MapChipType::kBlank:
 			default:
 				worldTransformBlocks_[i][j] = nullptr;
@@ -221,15 +227,38 @@ void GameScene::GenerateBlocks() {
 	}
 }
 
-///// ----- クローン ----- /////
-/// --- 生成 ---
-void GameScene::SpawnClone() {
-	// クローン用ワールドトランスフォームの初期化
-	cloneWorldTransform_.Initialize();
+///// ----- クローンの素 ----- /////
+/// --- ImGui管理パネル ---
+void GameScene::ShowCloneBaseManagerImGui() {
+#ifdef USE_IMGUI
+	ImGui::Begin("CloneBase Manager");
 
-	// 自機の位置を基準に、X方向にオフセットした位置へ配置
-	cloneWorldTransform_.translation_ = player_->GetWorldTransform().translation_;
-	cloneWorldTransform_.translation_.x += kCloneOffsetX;
+	if (cloneBases_.empty()) {
+		// まだ1体も配置されていない場合
+		ImGui::Text("クローンの素は配置されていません");
+	} else {
+		for (size_t i = 0; i < cloneBases_.size(); ++i) {
+			CloneBase* cloneBase = cloneBases_[i];
+			const Vector3& pos = cloneBase->GetWorldTransform().translation_;
+			bool isTransformed = cloneBase->GetState() == CloneBase::State::kTransformed;
+			const char* stateText = isTransformed ? "変形済み（線がつながった）" : "素の状態";
 
-	hasClone_ = true;
+			ImGui::PushID(static_cast<int>(i));
+			ImGui::Text("C0[%zu] 座標:(%.1f, %.1f, %.1f) 状態:%s", i, pos.x, pos.y, pos.z, stateText);
+			ImGui::SameLine();
+			if (isTransformed) {
+				if (ImGui::Button("素に戻す(仮)")) {
+					cloneBase->ResetToBase();
+				}
+			} else {
+				if (ImGui::Button("線をつなげる(仮)")) {
+					cloneBase->Transform();
+				}
+			}
+			ImGui::PopID();
+		}
+	}
+
+	ImGui::End();
+#endif
 }

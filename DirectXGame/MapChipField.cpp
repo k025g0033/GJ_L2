@@ -9,12 +9,14 @@ namespace {
 std::unordered_map<std::string, MapChipType> mapChipTable = {
     {"",   MapChipType::kBlank},
     {"B0", MapChipType::kBlock},
+    {"C0", MapChipType::kCloneBase},
 };
 
 // マップチップ種別テーブル
 std::map<char, MapChipType> mapChipTypeTable = {
     {'B', MapChipType::kBlock},
-	{'P', MapChipType::kPlayer}
+	{'P', MapChipType::kPlayer},
+	{'C', MapChipType::kCloneBase}, // クローンの素（例: C0）
 };
 
 }
