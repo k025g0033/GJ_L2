@@ -480,3 +480,13 @@ void Player::isHitWall(const CollisionMapInfo& info) {
 		velocity_.x *= (1.0f - kAttenuationWall);
 	}
 }
+
+///// ----- 方向転換キャンセル ----- /////
+void Player::CancelTurn() {
+	// 向きを元(逆)に戻す
+	lrDirection_ = (lrDirection_ == LRDirection::kRight) ? LRDirection::kLeft : LRDirection::kRight;
+
+	// 現在の(旋回途中の)角度から、戻す方向への旋回アニメーションを開始する
+	turnFirstRotationY_ = worldTransform_.rotation_.y;
+	turnTimer_ = kTimeTurn;
+}

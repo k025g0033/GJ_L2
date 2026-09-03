@@ -66,6 +66,13 @@ public:
 	float GetWidth() const { return kWidth; }
 	float GetHeight() const { return kHeight; }
 
+	// 現在向いている方向を取得（クローンの素をどちら側に持つか判定するのに使用）
+	LRDirection GetLRDirection() const { return lrDirection_; }
+
+	// 旋回を強制的にキャンセルし、逆方向へ戻す
+	// （方向転換先にブロックがあり、向けない時に使用）
+	void CancelTurn();
+
 private:
 	// マップチップによるフィールド
 	MapChipField* mapChipField_ = nullptr;

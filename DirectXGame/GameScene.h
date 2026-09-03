@@ -33,6 +33,12 @@ public:
 	// 全ての当たり判定を行う
 	void CheckAllCollisions();
 
+	// クローンの素を持っているときの追従先座標を計算する
+	KamataEngine::Vector3 ComputeHeldCloneBasePosition() const;
+
+	// 前フレームの自機の向き（方向転換を検出するために保持）
+	Player::LRDirection previousPlayerDirection_ = Player::LRDirection::kRight;
+
 private:
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;

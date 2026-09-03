@@ -1,7 +1,9 @@
 #include "CloneBase.h"
+#include "MapChipField.h"
 #include "WorldTransformConfig.h"
 
 using namespace KamataEngine;
+using namespace KamataEngine::MathUtility;
 
 void CloneBase::Initialize(Model* modelBase, Model* modelClone, Camera* camera, const Vector3& position) {
 	modelBase_ = modelBase;
@@ -32,4 +34,24 @@ void CloneBase::Draw() {
 		// 素の状態は球体で描画する
 		modelBase_->Draw(worldTransform_, *camera_);
 	}
+}
+
+///// ----- ブロックとの当たり判定 ----- /////
+bool CloneBase::IsCollidingWithBlock(const Vector3& position, MapChipField* mapChipField) const {
+	// 自機のCornerPositionと同じ考え方で4隅を調べる
+	Vector3 offsetTable[4] = {
+	    {kWidth / 2.0f,  -kHeight / 2.0f, 0.0f}, // 右下
+	    {-kWidth / 2.0f, -kHeight / 2.0f, 0.0f}, // 左下
+	    {kWidth / 2.0f,  kHeight / 2.0f,  0.0f}, // 右上
+	    {-kWidth / 2.0f, kHeight / 2.0f,  0.0f}, // 左上
+	};
+
+	for (const Vector3& offset : offsetTable) {
+		MapChipField::IndexSet indexSet = mapChipField->GetMapChipIndexByPosition(position + offset);
+		if (mapChipField->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex) == MapChipType::kBlock) {
+			return true; // どれか1隅でもブロックに重なっていたら衝突とみなす
+		}
+	}
+
+	return false;
 }
