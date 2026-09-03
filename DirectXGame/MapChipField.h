@@ -5,6 +5,7 @@ enum class MapChipType {
 	kBlank, // 空白
 	kBlock, // ブロック
 	kPlayer,
+	kCloneBase, // クローンの素
 };
 
 // 1マス分のデータ
