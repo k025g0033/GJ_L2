@@ -21,6 +21,9 @@
     <ClCompile Include="GameScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Line3D.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="Taya.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -54,6 +57,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Line3D.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Taya.h">
