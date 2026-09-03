@@ -87,7 +87,8 @@ void Line3D::Initialize() {
 	}
 }
 
-void Line3D::Update(const Vector3& origin, const Camera& camera, MapChipField* mapChipField, bool canFire) {
+void Line3D::Update(
+	const Vector3& origin, const Camera& camera, MapChipField* mapChipField, bool canFire, bool isClone) {
 	if (Input::GetInstance()->TriggerKey(DIK_Q)) {
 		isPredictionVisible_ = !isPredictionVisible_;
 	}
@@ -101,6 +102,8 @@ void Line3D::Update(const Vector3& origin, const Camera& camera, MapChipField* m
 	if (canFire && linePath_.segmentCount == 0 && Input::GetInstance()->IsTriggerMouse(0)) {
 		linePath_ = fullPath;
 		lineTravelDistance_ = 0.0f;
+		isCloneLine_ = isClone;
+		lineColor_.SetColor(isClone ? Vector4{1.0f, 1.0f, 0.0f, 1.0f} : Vector4{0.2f, 0.8f, 1.0f, 1.0f});
 	} else if (linePath_.segmentCount > 0) {
 		lineTravelDistance_ += kLineSpeed;
 		if (lineTravelDistance_ >= GetPathLength(linePath_)) {
@@ -115,6 +118,29 @@ void Line3D::Draw(const Camera& camera) {
 	if (isPredictionVisible_) {
 		DrawPath(predictionPath_, camera, &predictionColor_, predictionWorldTransforms_, std::numeric_limits<float>::max());
 	}
+}
+
+bool Line3D::IsTouchingSphere(const Vector3& center, float radius) const {
+	float remainingDistance = lineTravelDistance_;
+	for (size_t i = 0; i < linePath_.segmentCount && remainingDistance > 0.0f; ++i) {
+		Vector3 difference = linePath_.segments[i].end - linePath_.segments[i].start;
+		float length = Length(difference);
+		if (length <= 0.00001f) {
+			continue;
+		}
+
+		float visibleLength = std::min(length, remainingDistance);
+		Vector3 direction = difference / length;
+		Vector3 toCenter = center - linePath_.segments[i].start;
+		float nearestDistance = std::clamp(Dot(toCenter, direction), 0.0f, visibleLength);
+		Vector3 nearestPoint = linePath_.segments[i].start + direction * nearestDistance;
+		if (Length(center - nearestPoint) <= radius) {
+			return true;
+		}
+
+		remainingDistance -= length;
+	}
+	return false;
 }
 
 Vector3 Line3D::GetMouseDirection(const Vector3& origin, const Camera& camera) const {
@@ -164,9 +190,10 @@ Line3D::Path Line3D::CalculatePath(const Vector3& origin, const Vector3& initial
 			}
 		}
 
-		Vector3 end = currentOrigin + direction * (nearestHit.isHit ? nearestHit.distance : kMaxDistance);
+		float segmentDistance = nearestHit.isHit ? std::min(nearestHit.distance, kMaxTravelDistance) : kMaxTravelDistance;
+		Vector3 end = currentOrigin + direction * segmentDistance;
 		path.segments[path.segmentCount++] = {currentOrigin, end};
-		if (!nearestHit.isHit || reflectionCount == 2) {
+		if (!nearestHit.isHit || nearestHit.distance >= kMaxTravelDistance || reflectionCount == 2) {
 			break;
 		}
 

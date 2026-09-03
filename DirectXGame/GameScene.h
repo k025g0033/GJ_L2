@@ -84,6 +84,7 @@ private:
 	///// ----- クローンの素 ----- /////
 	// map.csv上の "C0" で配置された、クローンの素のリスト（複数配置に対応）
 	std::vector<CloneBase*> cloneBases_;
+	CloneBase* controlledClone_ = nullptr;
 
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
 	void ShowCloneBaseManagerImGui();
