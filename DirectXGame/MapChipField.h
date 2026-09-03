@@ -4,7 +4,8 @@
 enum class MapChipType {
 	kBlank, // 空白
 	kBlock, // ブロック
-	kPlayer,
+	kPlayer, // プレイヤー
+	kLazer,  // レーザー
 	kCloneBase, // クローンの素
 };
 

@@ -1,6 +1,7 @@
 #include "GameScene.h"
 #include "2d/ImGuiManager.h"
 #include "WorldTransformConfig.h"
+#include <map>
 
 using namespace KamataEngine;
 
@@ -11,8 +12,12 @@ GameScene::~GameScene() {
 	delete modelPlayer_;
 	delete modelBlock_;
 	delete modelSkydome_;
+	for (Lazer* lazer : lazers_) {
+		delete lazer;
+	}
+	lazers_.clear();
+	delete modelLazer_;
 	delete modelCloneBase_;
-	delete line3D_;
 	delete backgroundSprite_;
 	delete mapChipField_;
 
@@ -38,6 +43,8 @@ void GameScene::Initialize() {
 	modelPlayer_ = Model::CreateFromOBJ("player", true);
 	// ブロックモデル生成
 	modelBlock_ = Model::CreateFromOBJ("block", true);
+	// レーザーモデル生成
+	modelLazer_ = Model::CreateFromOBJ("Lazer", true);
 	// 天球のモデル生成
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
 	// クローンの素モデル生成（球体）
@@ -87,6 +94,10 @@ void GameScene::Update() {
 
 	// プレイヤーの更新
 	player_->Update();
+	// レーザーの更新
+	for (Lazer* lazer : lazers_) {
+		lazer->Update();
+	}
 
 	// クローンの素の更新（複数配置に対応）
 	for (CloneBase* cloneBase : cloneBases_) {
@@ -180,10 +191,19 @@ void GameScene::Draw() {
 		}
 	}
 
+	// レーザーの描画
+	for (Lazer* lazer : lazers_) {
+		lazer->Draw();
+	}
+
 	Model::PostDraw();
 }
 
 void GameScene::GenerateBlocks() {
+
+	// サブIDごとにレーザーの座標を格納する
+	std::map<uint8_t, std::vector<Vector3>> lazerPositionsByID;
+
 	// 要素数
 	uint32_t numBlockVertical = mapChipField_->kNumBlockVertical;
 	uint32_t numBlockHorizontal = mapChipField_->kNumBlockHorizontal;
@@ -216,6 +236,13 @@ void GameScene::GenerateBlocks() {
 				player_->SetMapChipField(mapChipField_);
 				break;
 			}
+			case MapChipType::kLazer: {
+				uint8_t subID = mapChipField_->GetMapChipSubIDByIndex(j, i);
+				lazerPositionsByID[subID].push_back(mapChipField_->GetMapChipPositionByIndex(j, i));
+				worldTransformBlocks_[i][j] = nullptr;
+				break;
+			}
+			
 			case MapChipType::kCloneBase: {
 				// クローンの素を生成（CSV上の "C0"。複数配置に対応）
 				Vector3 cloneBasePosition = mapChipField_->GetMapChipPositionByIndex(j, i);
@@ -232,6 +259,17 @@ void GameScene::GenerateBlocks() {
 				break;
 			}
 		}
+	}
+
+	// L0、L1...のグループごとに1本ずつレーザーを生成する
+	for (const auto& [subID, positions] : lazerPositionsByID) {
+		if (positions.size() < 2) {
+			continue;
+		}
+
+		Lazer* lazer = new Lazer();
+		lazer->Initialize(modelLazer_, &camera_, positions.front(), positions.back());
+		lazers_.push_back(lazer);
 	}
 }
 

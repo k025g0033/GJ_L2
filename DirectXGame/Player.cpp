@@ -78,9 +78,9 @@ void Player::Move() {
 	// 移動入力
 	// 接地状態
 	// 左右移動操作
-	if (Input::GetInstance()->PushKey(DIK_RIGHT) || Input::GetInstance()->PushKey(DIK_LEFT)) {
+	if (Input::GetInstance()->PushKey(DIK_D) || Input::GetInstance()->PushKey(DIK_A)) {
 
-		if (Input::GetInstance()->PushKey(DIK_RIGHT)) {
+		if (Input::GetInstance()->PushKey(DIK_D)) {
 			velocity_.x = kLimitRunSpeed;
 
 			if (lrDirection_ != LRDirection::kRight) {
@@ -88,7 +88,7 @@ void Player::Move() {
 				turnFirstRotationY_ = worldTransform_.rotation_.y;
 				turnTimer_ = kTimeTurn;
 			}
-		} else if (Input::GetInstance()->PushKey(DIK_LEFT)) {
+		} else if (Input::GetInstance()->PushKey(DIK_A)) {
 			velocity_.x = -kLimitRunSpeed;
 
 			if (lrDirection_ != LRDirection::kLeft) {
@@ -101,7 +101,7 @@ void Player::Move() {
 		velocity_.x = 0.0f;
 	}
 	if (onGround_) {
-		if (Input::GetInstance()->PushKey(DIK_UP)) {
+		if (Input::GetInstance()->PushKey(DIK_W)) {
 			// ジャンプ初速
 			velocity_.y += kJumpAcceleration;
 		}

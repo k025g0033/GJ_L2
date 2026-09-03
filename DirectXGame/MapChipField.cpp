@@ -16,6 +16,7 @@ std::unordered_map<std::string, MapChipType> mapChipTable = {
 std::map<char, MapChipType> mapChipTypeTable = {
     {'B', MapChipType::kBlock},
 	{'P', MapChipType::kPlayer},
+	{'L', MapChipType::kLazer}
 	{'C', MapChipType::kCloneBase}, // クローンの素（例: C0）
 };
 
