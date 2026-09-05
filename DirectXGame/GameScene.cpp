@@ -2,8 +2,8 @@
 #include "2d/ImGuiManager.h"
 #include "CollisionUtility.h"
 #include "WorldTransformConfig.h"
-#include <cassert>
 #include "math/MathUtility.h"
+#include <cassert>
 #include <cmath> // std::abs
 #include <map>
 #include <string>
@@ -26,6 +26,15 @@ GameScene::~GameScene() {
 	delete modelCloneBase_;
 	delete backgroundSprite_;
 	delete mapChipField_;
+	for (PushPlate* plate : pressurePlates_) {
+		delete plate;
+	}
+	pressurePlates_.clear();
+
+	for (Door* door : doors_) {
+		delete door;
+	}
+	doors_.clear();
 
 	delete debugCamera_;
 
@@ -109,6 +118,8 @@ void GameScene::Update() {
 
 	// 現在操作しているキャラクター（通常は自機、クローンを操作中はそのクローンの中のPlayer）
 	Player* activePlayer = controlledClone_ ? controlledClone_->GetPlayer() : player_;
+	UpdatePressurePlates();
+	UpdateDoors();
 
 	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
 	std::vector<MapChipField::Rect> cloneBaseRects;
@@ -117,6 +128,13 @@ void GameScene::Update() {
 			continue;
 		}
 		cloneBaseRects.push_back(cloneBase->GetRect());
+	}
+	// ドアを「障害物」として扱うための矩形一覧を作る
+	for (const Door* door : doors_) {
+		if (door->IsOpen()) {
+			continue;
+		}
+		cloneBaseRects.push_back(door->GetRect());
 	}
 
 	// プレイヤーの更新
@@ -252,7 +270,17 @@ void GameScene::Draw() {
 		lazer->Draw();
 	}
 
-		// 水の描画
+	// 感圧板の描画
+	for (PushPlate* plate : pressurePlates_) {
+		plate->Draw();
+	}
+
+	// 扉の描画
+	for (Door* door : doors_) {
+		door->Draw();
+	}
+
+	// 水の描画
 	for (auto& line : worldTransformWaters_) {
 		for (WorldTransform* water : line) {
 			if (water) {
@@ -329,7 +357,49 @@ void GameScene::GenerateBlocks() {
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
+			case MapChipType::kPushPlate: {
+				const uint8_t plateID = mapChipField_->GetMapChipSubIDByIndex(j, i);
+				const uint8_t requiredCount = mapChipField_->GetRequiredActorCountByIndex(j, i);
 
+				// 左隣が同じ設定なら、左端の処理ですでにまとめて生成されている。
+				if (j > 0 && mapChipField_->GetMapChipTypeByIndex(j - 1, i) == MapChipType::kPushPlate &&
+				    mapChipField_->GetMapChipSubIDByIndex(j - 1, i) == plateID &&
+				    mapChipField_->GetRequiredActorCountByIndex(j - 1, i) == requiredCount) {
+					worldTransformBlocks_[i][j] = nullptr;
+					break;
+				}
+
+				// 同じ行に連続する、同じID・同じ必要人数の感圧板の右端を探す。
+				uint32_t endX = j;
+				while (endX + 1 < numBlockHorizontal &&
+				       mapChipField_->GetMapChipTypeByIndex(endX + 1, i) == MapChipType::kPushPlate &&
+				       mapChipField_->GetMapChipSubIDByIndex(endX + 1, i) == plateID &&
+				       mapChipField_->GetRequiredActorCountByIndex(endX + 1, i) == requiredCount) {
+					++endX;
+				}
+
+				const Vector3 leftPosition = mapChipField_->GetMapChipPositionByIndex(j, i);
+				const Vector3 rightPosition = mapChipField_->GetMapChipPositionByIndex(endX, i);
+				Vector3 centerPosition = leftPosition;
+				centerPosition.x = (leftPosition.x + rightPosition.x) / 2.0f;
+				const float plateWidth = static_cast<float>(endX - j + 1) * MapChipField::kBlockWidth;
+
+				PushPlate* plate = new PushPlate();
+				plate->Initialize(
+				    modelBlock_, &camera_, centerPosition, plateID, requiredCount, plateWidth);
+				pressurePlates_.push_back(plate);
+				for (uint32_t plateX = j; plateX <= endX; ++plateX) {
+					worldTransformBlocks_[i][plateX] = nullptr;
+				}
+				break;
+			}
+			case MapChipType::kDoor: {
+				Door* door = new Door();
+				door->Initialize(modelBlock_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i), mapChipField_->GetMapChipSubIDByIndex(j, i));
+				doors_.push_back(door);
+				worldTransformBlocks_[i][j] = nullptr;
+				break;
+			}
 			case MapChipType::kBlank:
 			default:
 				worldTransformBlocks_[i][j] = nullptr;
@@ -499,4 +569,30 @@ MapChipField::Rect CloneBase::GetRect() const {
 	rect.bottom = pos.y - kHeight / 2.0f;
 	rect.top = pos.y + kHeight / 2.0f;
 	return rect;
+}
+
+void GameScene::UpdatePressurePlates() {
+	std::vector<Player*> actors = {player_};
+	for (CloneBase* cloneBase : cloneBases_) {
+		if (cloneBase->GetState() == CloneBase::State::kTransformed) {
+			actors.push_back(cloneBase->GetPlayer());
+		}
+	}
+	for (PushPlate* plate : pressurePlates_) {
+		plate->Update(actors);
+	}
+}
+
+void GameScene::UpdateDoors() {
+	for (Door* door : doors_) {
+		bool shouldOpen = false;
+		for (const PushPlate* plate : pressurePlates_) {
+			if (plate->GetID() == door->GetID() && plate->IsPushed()) {
+				shouldOpen = true;
+				break;
+			}
+		}
+		door->SetOpen(shouldOpen);
+		door->Update();
+	}
 }

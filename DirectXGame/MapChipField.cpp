@@ -19,6 +19,8 @@ std::map<char, MapChipType> mapChipTypeTable = {
 	{'L', MapChipType::kLazer},
 	{'C', MapChipType::kCloneBase}, // クローンの素（例: C0）
     {'W', MapChipType::kWater},
+    {'S',MapChipType::kPushPlate},
+    {'D',MapChipType::kDoor},
 };
 
 }
@@ -81,6 +83,12 @@ void MapChipField::LoadMapChipCsv(const std::string& filePath) {
 
 			// マップチップのサブIDを設定
 			mapChipData_.data[i][j].subID = static_cast<uint8_t>(word[kChipSubID] - '0');
+
+			// S0は1人、S02はID 0を2人で作動させる感圧板として扱う。
+			if (mapChipData_.data[i][j].type == MapChipType::kPushPlate && word.size() > kChipRequiredCount &&
+			    word[kChipRequiredCount] >= '1' && word[kChipRequiredCount] <= '9') {
+				mapChipData_.data[i][j].requiredActorCount = static_cast<uint8_t>(word[kChipRequiredCount] - '0');
+			}
 		}
 	}
 }
@@ -123,4 +131,12 @@ uint8_t MapChipField::GetMapChipSubIDByIndex(uint32_t xIndex, uint32_t yIndex) {
 	}
 
 	return mapChipData_.data[yIndex][xIndex].subID;
+}
+
+uint8_t MapChipField::GetRequiredActorCountByIndex(uint32_t xIndex, uint32_t yIndex) {
+	if (xIndex >= kNumBlockHorizontal || yIndex >= kNumBlockVertical) {
+		return 1;
+	}
+
+	return mapChipData_.data[yIndex][xIndex].requiredActorCount;
 }
