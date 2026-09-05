@@ -93,6 +93,19 @@ void Player::Move() {
 		return;
 	}
 
+	// 水面を上向きに抜けた直後は、短い猶予内のW入力で岸へ飛び出せる。
+	// 押しっぱなしで水面を抜けた場合も、そのフレームで成立する。
+	const bool preserveWaterExitMomentum = waterExitGraceFrames_ > 0;
+	if (waterExitGraceFrames_ > 0) {
+		if (Input::GetInstance()->PushKey(DIK_W)) {
+			velocity_.y = std::max(velocity_.y, kWaterExitJumpSpeed);
+			waterExitGraceFrames_ = 0;
+			onGround_ = false;
+		} else {
+			--waterExitGraceFrames_;
+		}
+	}
+
 	// 地上移動操作
 	if (Input::GetInstance()->PushKey(DIK_D) || Input::GetInstance()->PushKey(DIK_A)) {
 
@@ -113,6 +126,9 @@ void Player::Move() {
 				turnTimer_ = kTimeTurn;
 			}
 		}
+	} else if (preserveWaterExitMomentum) {
+		// 水から出た直後にキーを離しても、水中で付いた横方向の勢いを急に消さない。
+		velocity_.x *= 1.0f - kWaterResistance;
 	} else {
 		velocity_.x = 0.0f;
 	}
@@ -525,9 +541,19 @@ void Player::CancelTurn() {
 }
 
 void Player::CheckInWater() {
+	wasInWater_ = isInWater_;
 	MapChipField::IndexSet index = mapChipField_->GetMapChipIndexByPosition(worldTransform_.translation_);
 
 	isInWater_ = mapChipField_->GetMapChipTypeByIndex(index.xIndex, index.yIndex) == MapChipType::kWater;
+
+	// 上昇中に水判定が外れた時だけ、離水ジャンプの入力猶予を開始する。
+	if (wasInWater_ && !isInWater_ && velocity_.y > 0.0f) {
+		waterExitGraceFrames_ = kWaterExitGraceFrameCount;
+		onGround_ = false;
+	}
+	if (isInWater_) {
+		waterExitGraceFrames_ = 0;
+	}
 }
 
 void Player::MoveInWater() {

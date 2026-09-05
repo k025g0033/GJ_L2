@@ -3,17 +3,17 @@
 #include "CloneBase.h"
 #include "IScene.h"
 #include "KamataEngine.h"
-#include "MapChipField.h"
+#include "Lazer.h"
 #include "Line3D.h"
+#include "MapChipField.h"
 #include "Player.h"
 #include "Skydome.h"
-#include "Lazer.h"
 #include <vector>
 
 // ゲームシーン
 class GameScene : public IScene {
 public:
-	GameScene();
+	explicit GameScene(int stageNumber = 1);
 	~GameScene() override;
 
 	// 初期化
@@ -108,4 +108,5 @@ private:
 	// プレイヤーとクローンの素の当たり判定、スペースキーで持つ処理の更新
 	void UpdateCloneBasePickup();
 
+	int stageNumber_ = 1;
 };

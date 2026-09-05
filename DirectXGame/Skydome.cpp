@@ -1,4 +1,5 @@
 #include "Skydome.h"
+#include <cassert>
 
 void Skydome::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera) {
 	// NILLポインタチェック

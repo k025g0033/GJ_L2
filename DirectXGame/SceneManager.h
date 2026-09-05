@@ -55,5 +55,5 @@ private:
 
 	/// --- ステージ進行を管理 ---
 	// ステージセレクトで選んだステージ番号（仮ステージが1つだけの間は未使用。複数ステージ対応時にStageSelectSceneから渡す）
-	int selectedStageNumber_ = 0;
+	int selectedStageNumber_ = 1;
 };

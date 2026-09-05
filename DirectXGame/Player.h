@@ -138,6 +138,8 @@ private:
 
 	// 水に入っているか
 	bool isInWater_ = false;
+	bool wasInWater_ = false;
+	uint32_t waterExitGraceFrames_ = 0;
 	void CheckInWater();
 	void MoveInWater();
 
@@ -147,4 +149,6 @@ private:
 	static inline const float kWaterGravity = 0.003f;   // 重力
 	static inline const float kWaterResistance = 0.05f; // 抵抗
 	static inline const float kLimitWaterFallSpeed = 0.04f; // 水中の最大下降速度
+	static inline const float kWaterExitJumpSpeed = 0.22f;  // 水面から飛び出す初速
+	static inline const uint32_t kWaterExitGraceFrameCount = 8; // 離水後にジャンプを受け付ける猶予
 };

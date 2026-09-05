@@ -1,15 +1,17 @@
-﻿#include "GameScene.h"
+#include "GameScene.h"
 #include "2d/ImGuiManager.h"
 #include "CollisionUtility.h"
 #include "WorldTransformConfig.h"
+#include <cassert>
 #include "math/MathUtility.h"
 #include <cmath> // std::abs
 #include <map>
+#include <string>
 
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility; // 追加
 
-GameScene::GameScene() {}
+GameScene::GameScene(int stageNumber) : stageNumber_(stageNumber) {}
 
 GameScene::~GameScene() {
 	// 解放
@@ -62,8 +64,10 @@ void GameScene::Initialize() {
 	backgroundSprite_->SetSize({1280.0f, 720.0f});
 
 	// マップチップフィールドの初期化と生成
-	mapChipField_ = new MapChipField;
-	mapChipField_->LoadMapChipCsv("Resources/map.csv");
+	std::string mapPath = "Resources/map/map_" + std::to_string(stageNumber_) + ".csv";
+
+	mapChipField_ = new MapChipField();
+	mapChipField_->LoadMapChipCsv(mapPath);
 
 	// カメラの初期化
 	camera_.farZ = 1000.0f;
@@ -118,7 +122,7 @@ void GameScene::Update() {
 	// プレイヤーの更新
 	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire;
-	player_->Update(!line3D_->IsActive() && !isTryingToFire, cloneBaseRects);
+	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, cloneBaseRects);
 
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
