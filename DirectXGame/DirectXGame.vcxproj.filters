@@ -45,6 +45,12 @@
     <ClCompile Include="CollisionUtility.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+	<ClCompile Include="Door.cpp">
+	  <Filter>ソース ファイル</Filter>
+	</ClCompile>
+	<ClCompile Include="PushPlate.cpp">
+	  <Filter>ソース ファイル</Filter>
+	</ClCompile>
     <ClCompile Include="MapChipField.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -95,6 +101,12 @@
     <ClInclude Include="CollisionUtility.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+	<ClInclude Include="Door.h">
+	  <Filter>ヘッダー ファイル</Filter>
+	</ClInclude>
+	<ClInclude Include="PushPlate.h">
+	  <Filter>ヘッダー ファイル</Filter>
+	</ClInclude>
     <ClInclude Include="MapChipField.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

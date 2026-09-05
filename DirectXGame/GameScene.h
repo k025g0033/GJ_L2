@@ -1,12 +1,14 @@
 #pragma once
 #include "CameraController.h"
 #include "CloneBase.h"
+#include "Door.h"
 #include "IScene.h"
 #include "KamataEngine.h"
 #include "Lazer.h"
 #include "Line3D.h"
 #include "MapChipField.h"
 #include "Player.h"
+#include "PushPlate.h"
 #include "Skydome.h"
 #include <vector>
 
@@ -40,6 +42,12 @@ public:
 	Player::LRDirection previousPlayerDirection_ = Player::LRDirection::kRight;
 
 private:
+	std::vector<PushPlate*> pressurePlates_;
+	std::vector<Door*> doors_;
+
+	void UpdatePressurePlates();
+	void UpdateDoors();
+
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
 
