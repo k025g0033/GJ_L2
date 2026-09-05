@@ -8,12 +8,16 @@ enum class MapChipType {
 	kLazer,  // レーザー
 	kCloneBase, // クローンの素
 	kWater,     // 水
+	kPushPlate, // 感圧板
+	kDoor, // 扉
+
 };
 
 // 1マス分のデータ
 struct MapChipDataUnit {
-	MapChipType type; // マップチップの種別
-	uint8_t subID;    // 種類ごとのサブID
+	MapChipType type = MapChipType::kBlank; // マップチップの種別
+	uint8_t subID = 0;                      // 種類ごとのサブID
+	uint8_t requiredActorCount = 1;         // 感圧板を作動させる必要人数
 };
 
 struct MapChipData {
@@ -27,6 +31,7 @@ public:
 	enum MapChipCsvIndex {
 		kChipType = 0,  // 種別
 		kChipSubID = 1, // サブID
+		kChipRequiredCount = 2, // 感圧板の必要人数
 	};
 
 	struct IndexSet {
@@ -66,4 +71,5 @@ public:
 	Rect GetRectByIndex(uint32_t xIndex, uint32_t yIndex);
 
 	uint8_t GetMapChipSubIDByIndex(uint32_t xIndex, uint32_t yIndex);
+	uint8_t GetRequiredActorCountByIndex(uint32_t xIndex, uint32_t yIndex);
 };
