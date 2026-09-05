@@ -237,3 +237,9 @@ void Line3D::DrawPath(
 		remainingDistance -= length;
 	}
 }
+
+void Line3D::ResetLine() {
+	linePath_.segmentCount = 0;
+	lineTravelDistance_ = 0.0f;
+	isCloneLine_ = false;
+}

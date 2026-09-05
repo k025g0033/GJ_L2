@@ -11,6 +11,7 @@
 #include "PushPlate.h"
 #include "Skydome.h"
 #include <vector>
+#include "Goal.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -117,4 +118,7 @@ private:
 	void UpdateCloneBasePickup();
 
 	int stageNumber_ = 1;
+
+	// ゴール
+	std::vector<Goal*> goals_;
 };

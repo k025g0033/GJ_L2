@@ -23,6 +23,9 @@ public:
 	bool IsCloneLine() const { return isCloneLine_; }
 	bool IsTouchingSphere(const KamataEngine::Vector3& center, float radius) const;
 
+	// 接続解除
+	void ResetLine();
+
 private:
 	struct Segment {
 		KamataEngine::Vector3 start{};

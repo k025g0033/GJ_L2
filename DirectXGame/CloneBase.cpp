@@ -16,6 +16,7 @@ void CloneBase::Initialize(
 	worldTransform_.Initialize();
 	worldTransform_.translation_ = position;
 	worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
+	initialPosition_ = position; // 初期位置を保存
 
 	state_ = State::kBase;
 
@@ -27,6 +28,24 @@ void CloneBase::Initialize(
 void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects) {
 	if (state_ == State::kTransformed) {
 		player_->Update(isControlled, obstacleRects);
+
+			if (player_->IsInWater()) {
+			// プレイヤー型クローンを初期位置へ戻す
+			player_->Respawn(initialPosition_);
+
+			// 球体のクローンの素も初期位置へ戻す
+			worldTransform_.translation_ = initialPosition_;
+			worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
+
+			// 見た目をプレイヤー型から球体へ戻す
+			state_ = State::kBase;
+
+			// GameSceneへ消滅を通知
+			wasDestroyedByWater_ = true;
+
+			UpdateWorldTransform(worldTransform_);
+		}
+
 		return;
 	}
 
@@ -65,4 +84,13 @@ bool CloneBase::IsCollidingWithBlock(const Vector3& position, MapChipField* mapC
 	}
 
 	return false;
+}
+
+bool CloneBase::ConsumeWaterDestroyed() {
+	if (!wasDestroyedByWater_) {
+		return false;
+	}
+
+	wasDestroyedByWater_ = false;
+	return true;
 }

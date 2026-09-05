@@ -10,7 +10,7 @@ enum class MapChipType {
 	kWater,     // 水
 	kPushPlate, // 感圧板
 	kDoor, // 扉
-
+	kGoal, // ゴール
 };
 
 // 1マス分のデータ

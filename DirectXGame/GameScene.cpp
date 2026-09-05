@@ -36,6 +36,11 @@ GameScene::~GameScene() {
 	}
 	doors_.clear();
 
+	for (Goal* goal : goals_) {
+		delete goal;
+	}
+	goals_.clear();
+
 	delete debugCamera_;
 
 	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
@@ -127,8 +132,15 @@ void GameScene::Update() {
 		if (cloneBase == heldCloneBase_) {
 			continue;
 		}
+
+		// 変身済みクローンは球体の障害物として扱わない
+		if (cloneBase->GetState() == CloneBase::State::kTransformed) {
+			continue;
+		}
+
 		cloneBaseRects.push_back(cloneBase->GetRect());
 	}
+
 	// ドアを「障害物」として扱うための矩形一覧を作る
 	for (const Door* door : doors_) {
 		if (door->IsOpen()) {
@@ -141,6 +153,15 @@ void GameScene::Update() {
 	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire;
 	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, cloneBaseRects);
+
+	// ゴールの更新
+	for (Goal* goal : goals_) {
+		goal->Update(player_);
+
+		if (goal->IsReached()) {
+			isFinished_ = true;
+		}
+	}
 
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
@@ -165,6 +186,19 @@ void GameScene::Update() {
 	// クローンの素の更新（複数配置に対応）
 	for (CloneBase* cloneBase : cloneBases_) {
 		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, cloneBaseRects);
+
+		if (cloneBase->ConsumeWaterDestroyed()) {
+			// 消滅したクローンを操作していた場合
+			if (controlledClone_ == cloneBase) {
+				controlledClone_ = nullptr;
+
+				// 接続線を切る
+				line3D_->ResetLine();
+
+				// カメラを通常プレイヤーへ戻す
+				cameraController_->SetTarget(player_);
+			}
+		}
 	}
 
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
@@ -194,11 +228,6 @@ void GameScene::Update() {
 		isDebugCameraActive_ = !isDebugCameraActive_;
 	}
 #endif
-
-	// ステージクリア判定（仮：ENTERで即終了。本来はゴール地点への到達などで判定する）
-	if (Input::GetInstance()->TriggerKey(DIK_RETURN)) {
-		isFinished_ = true;
-	}
 
 	// カメラの処理
 	if (isDebugCameraActive_) {
@@ -278,6 +307,10 @@ void GameScene::Draw() {
 	// 扉の描画
 	for (Door* door : doors_) {
 		door->Draw();
+	}
+
+	for (Goal* goal : goals_) {
+		goal->Draw();
 	}
 
 	// 水の描画
@@ -362,8 +395,7 @@ void GameScene::GenerateBlocks() {
 				const uint8_t requiredCount = mapChipField_->GetRequiredActorCountByIndex(j, i);
 
 				// 左隣が同じ設定なら、左端の処理ですでにまとめて生成されている。
-				if (j > 0 && mapChipField_->GetMapChipTypeByIndex(j - 1, i) == MapChipType::kPushPlate &&
-				    mapChipField_->GetMapChipSubIDByIndex(j - 1, i) == plateID &&
+				if (j > 0 && mapChipField_->GetMapChipTypeByIndex(j - 1, i) == MapChipType::kPushPlate && mapChipField_->GetMapChipSubIDByIndex(j - 1, i) == plateID &&
 				    mapChipField_->GetRequiredActorCountByIndex(j - 1, i) == requiredCount) {
 					worldTransformBlocks_[i][j] = nullptr;
 					break;
@@ -371,9 +403,7 @@ void GameScene::GenerateBlocks() {
 
 				// 同じ行に連続する、同じID・同じ必要人数の感圧板の右端を探す。
 				uint32_t endX = j;
-				while (endX + 1 < numBlockHorizontal &&
-				       mapChipField_->GetMapChipTypeByIndex(endX + 1, i) == MapChipType::kPushPlate &&
-				       mapChipField_->GetMapChipSubIDByIndex(endX + 1, i) == plateID &&
+				while (endX + 1 < numBlockHorizontal && mapChipField_->GetMapChipTypeByIndex(endX + 1, i) == MapChipType::kPushPlate && mapChipField_->GetMapChipSubIDByIndex(endX + 1, i) == plateID &&
 				       mapChipField_->GetRequiredActorCountByIndex(endX + 1, i) == requiredCount) {
 					++endX;
 				}
@@ -385,8 +415,7 @@ void GameScene::GenerateBlocks() {
 				const float plateWidth = static_cast<float>(endX - j + 1) * MapChipField::kBlockWidth;
 
 				PushPlate* plate = new PushPlate();
-				plate->Initialize(
-				    modelBlock_, &camera_, centerPosition, plateID, requiredCount, plateWidth);
+				plate->Initialize(modelBlock_, &camera_, centerPosition, plateID, requiredCount, plateWidth);
 				pressurePlates_.push_back(plate);
 				for (uint32_t plateX = j; plateX <= endX; ++plateX) {
 					worldTransformBlocks_[i][plateX] = nullptr;
@@ -400,6 +429,16 @@ void GameScene::GenerateBlocks() {
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
+			case MapChipType::kGoal: {
+				Goal* goal = new Goal();
+
+				goal->Initialize(modelBlock_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i));
+
+				goals_.push_back(goal);
+				worldTransformBlocks_[i][j] = nullptr;
+				break;
+			}
+
 			case MapChipType::kBlank:
 			default:
 				worldTransformBlocks_[i][j] = nullptr;
@@ -497,6 +536,11 @@ void GameScene::UpdateCloneBasePickup() {
 
 	// (以降、当たり判定と「拾う」入力を確認する処理は変更なし)
 	for (CloneBase* cloneBase : cloneBases_) {
+
+		if (cloneBase->GetState() == CloneBase::State::kTransformed) {
+			continue;
+		}
+
 		bool isColliding =
 		    CollisionUtility::IsCollisionBoxAndSphere(playerPos, playerHalfWidth, playerHalfHeight, playerHalfWidth, cloneBase->GetWorldTransform().translation_, CloneBase::kCollisionRadius);
 
@@ -530,6 +574,11 @@ void GameScene::CheckAllCollisions() {
 		float playerHalfHeight = player_->GetHeight() / 2.0f;
 
 		for (CloneBase* cloneBase : cloneBases_) {
+
+			if (cloneBase->GetState() == CloneBase::State::kTransformed) {
+				continue;
+			}
+
 			bool isColliding =
 			    CollisionUtility::IsCollisionBoxAndSphere(playerPos, playerHalfWidth, playerHalfHeight, playerHalfWidth, cloneBase->GetWorldTransform().translation_, CloneBase::kCollisionRadius);
 

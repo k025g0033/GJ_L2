@@ -84,6 +84,11 @@ public:
 	// 座標を直接設定する（クローンの素との当たり判定で押し出す時に使用）
 	void SetTranslation(const KamataEngine::Vector3& position) { worldTransform_.translation_ = position; }
 
+	// 水中状態
+	bool IsInWater() const { return isInWater_; }
+	// リスポーン機能
+	void Respawn(const KamataEngine::Vector3& position);
+
 private:
 	// マップチップによるフィールド
 	MapChipField* mapChipField_ = nullptr;

@@ -21,6 +21,7 @@ std::map<char, MapChipType> mapChipTypeTable = {
     {'W', MapChipType::kWater},
     {'S',MapChipType::kPushPlate},
     {'D',MapChipType::kDoor},
+    {'G',MapChipType::kGoal},
 };
 
 }
