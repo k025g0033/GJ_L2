@@ -75,6 +75,9 @@ public:
 	// 指定座標に置いたとき、ブロックと重なるかどうかを判定する
 	bool IsCollidingWithBlock(const KamataEngine::Vector3& position, MapChipField* mapChipField) const;
 
+	// 消滅通知
+	bool ConsumeWaterDestroyed();
+
 private:
 	// ワールド変換データ
 	KamataEngine::WorldTransform worldTransform_;
@@ -86,6 +89,12 @@ private:
 	// カメラ
 	KamataEngine::Camera* camera_ = nullptr;
 	Player* player_ = nullptr;
+
+	// 初期位置を保存
+	KamataEngine::Vector3 initialPosition_ = {};
+
+	// 消滅フラグ
+	bool wasDestroyedByWater_ = false;
 
 	// 現在の状態
 	State state_ = State::kBase;

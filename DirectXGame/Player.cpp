@@ -700,3 +700,20 @@ void Player::isObstacleCollisionLeft(CollisionMapInfo& info, const std::vector<M
 		}
 	}
 }
+
+void Player::Respawn(const Vector3& position) {
+	// 初期位置へ戻す
+	worldTransform_.translation_ = position;
+
+	// 移動速度をリセット
+	velocity_ = {};
+
+	// 状態をリセット
+	onGround_ = false;
+	isInWater_ = false;
+	wasInWater_ = false;
+	waterExitGraceFrames_ = 0;
+	turnTimer_ = 0.0f;
+
+	UpdateWorldTransform(worldTransform_);
+}
