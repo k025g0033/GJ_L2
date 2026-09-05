@@ -31,6 +31,15 @@ void SceneManager::Draw() {
 }
 
 void SceneManager::ChangeScene() {
+	// ステージ選択結果を削除前に保存
+	if (scene_ == Scene::kStageSelect) {
+		StageSelectScene* stageSelectScene = dynamic_cast<StageSelectScene*>(currentScene_);
+
+		if (stageSelectScene != nullptr) {
+			selectedStageNumber_ = stageSelectScene->GetSelectedStageNumber();
+		}
+	}
+
 	// 現在のシーンを解放
 	delete currentScene_;
 	currentScene_ = nullptr;
@@ -66,7 +75,7 @@ IScene* SceneManager::CreateScene(Scene scene) {
 	case Scene::kStageSelect:
 		return new StageSelectScene();
 	case Scene::kGame:
-		return new GameScene();
+		return new GameScene(selectedStageNumber_);
 	case Scene::kResult:
 		return new ResultScene();
 	default:
