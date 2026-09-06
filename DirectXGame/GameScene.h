@@ -48,6 +48,7 @@ private:
 
 	void UpdatePressurePlates();
 	void UpdateDoors();
+	void UpdateLazers();
 
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
