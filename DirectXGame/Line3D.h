@@ -5,9 +5,9 @@
 #endif
 
 #include "KamataEngine.h"
+#include "MapChipField.h"
 #include <array>
-
-class MapChipField;
+#include <vector>
 
 // ブロックで最大2回反射する3Dの線
 class Line3D {
@@ -17,7 +17,8 @@ public:
 	void Initialize();
 	void Update(
 	    const KamataEngine::Vector3& origin, const KamataEngine::Camera& camera, MapChipField* mapChipField,
-	    bool canFire, bool isClone);
+	    const std::vector<MapChipField::Rect>& reflectingRects,
+	    const std::vector<MapChipField::Rect>& blockingRects, bool canFire, bool isClone);
 	void Draw(const KamataEngine::Camera& camera);
 	bool IsActive() const { return linePath_.segmentCount > 0; }
 	bool IsCloneLine() const { return isCloneLine_; }
@@ -38,7 +39,10 @@ private:
 	};
 
 	KamataEngine::Vector3 GetMouseDirection(const KamataEngine::Vector3& origin, const KamataEngine::Camera& camera) const;
-	Path CalculatePath(const KamataEngine::Vector3& origin, const KamataEngine::Vector3& direction, MapChipField* mapChipField) const;
+	Path CalculatePath(
+	    const KamataEngine::Vector3& origin, const KamataEngine::Vector3& direction, MapChipField* mapChipField,
+	    const std::vector<MapChipField::Rect>& reflectingRects,
+	    const std::vector<MapChipField::Rect>& blockingRects) const;
 	float GetPathLength(const Path& path) const;
 	void DrawPath(
 	    const Path& path, const KamataEngine::Camera& camera, KamataEngine::ObjectColor* color,

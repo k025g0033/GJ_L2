@@ -6,12 +6,24 @@
 
 using namespace KamataEngine;
 
-void Lazer::Initialize(Model* model, Camera* camera, const Vector3& start, const Vector3& end) {
+void Lazer::Initialize(Model* model, Camera* camera, const Vector3& start, const Vector3& end, uint8_t id) {
 	assert(model);
 	assert(camera);
 
 	model_ = model;
 	camera_ = camera;
+	id_ = id;
+	isActive_ = true;
+
+	// 両端のLマスを含むレーザー全体を、プレイヤー用の障害物矩形にする。
+	const float minX = start.x < end.x ? start.x : end.x;
+	const float maxX = start.x > end.x ? start.x : end.x;
+	const float minY = start.y < end.y ? start.y : end.y;
+	const float maxY = start.y > end.y ? start.y : end.y;
+	collisionRect_.left = minX - MapChipField::kBlockWidth / 2.0f;
+	collisionRect_.right = maxX + MapChipField::kBlockWidth / 2.0f;
+	collisionRect_.bottom = minY - MapChipField::kBlockHeight / 2.0f;
+	collisionRect_.top = maxY + MapChipField::kBlockHeight / 2.0f;
 
 	worldTransform_.Initialize();
 
@@ -50,4 +62,9 @@ void Lazer::Initialize(Model* model, Camera* camera, const Vector3& start, const
 
 void Lazer::Update() { UpdateWorldTransform(worldTransform_); }
 
-void Lazer::Draw() { model_->Draw(worldTransform_, *camera_); }
+void Lazer::Draw() {
+	if (!isActive_) {
+		return;
+	}
+	model_->Draw(worldTransform_, *camera_);
+}

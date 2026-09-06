@@ -125,6 +125,7 @@ void GameScene::Update() {
 	Player* activePlayer = controlledClone_ ? controlledClone_->GetPlayer() : player_;
 	UpdatePressurePlates();
 	UpdateDoors();
+	UpdateLazers();
 
 	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
 	std::vector<MapChipField::Rect> cloneBaseRects;
@@ -141,18 +142,32 @@ void GameScene::Update() {
 		cloneBaseRects.push_back(cloneBase->GetRect());
 	}
 
-	// ドアを「障害物」として扱うための矩形一覧を作る
+	// 閉じているドアを障害物かつ接続線の反射面として扱う。
+	std::vector<MapChipField::Rect> closedDoorRects;
 	for (const Door* door : doors_) {
 		if (door->IsOpen()) {
 			continue;
 		}
-		cloneBaseRects.push_back(door->GetRect());
+		const MapChipField::Rect doorRect = door->GetRect();
+		cloneBaseRects.push_back(doorRect);
+		closedDoorRects.push_back(doorRect);
+	}
+
+	// レーザーは通常プレイヤーだけを止める。クローンへ渡す障害物一覧には追加しない。
+	std::vector<MapChipField::Rect> activeLazerRects;
+	std::vector<MapChipField::Rect> playerObstacleRects = cloneBaseRects;
+	for (const Lazer* lazer : lazers_) {
+		if (lazer->IsActive()) {
+			const MapChipField::Rect rect = lazer->GetRect();
+			activeLazerRects.push_back(rect);
+			playerObstacleRects.push_back(rect);
+		}
 	}
 
 	// プレイヤーの更新
 	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire;
-	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, cloneBaseRects);
+	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects);
 
 	// ゴールの更新
 	for (Goal* goal : goals_) {
@@ -244,7 +259,9 @@ void GameScene::Update() {
 		// camera_.translation_ = {7.7f, 7.0f, -11.0f};
 	}
 
-	line3D_->Update(activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, activePlayer->IsOnGround(), controlledClone_ != nullptr);
+	line3D_->Update(
+	    activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, closedDoorRects, activeLazerRects,
+	    activePlayer->IsOnGround(), controlledClone_ != nullptr);
 
 	if (controlledClone_ == nullptr && line3D_->IsActive() && !line3D_->IsCloneLine()) {
 		for (CloneBase* cloneBase : cloneBases_) {
@@ -454,7 +471,7 @@ void GameScene::GenerateBlocks() {
 		}
 
 		Lazer* lazer = new Lazer();
-		lazer->Initialize(modelLazer_, &camera_, positions.front(), positions.back());
+		lazer->Initialize(modelLazer_, &camera_, positions.front(), positions.back(), subID);
 		lazers_.push_back(lazer);
 	}
 }
@@ -643,5 +660,18 @@ void GameScene::UpdateDoors() {
 		}
 		door->SetOpen(shouldOpen);
 		door->Update();
+	}
+}
+
+void GameScene::UpdateLazers() {
+	for (Lazer* lazer : lazers_) {
+		bool shouldDisable = false;
+		for (const PushPlate* plate : pressurePlates_) {
+			if (plate->GetID() == lazer->GetID() && plate->IsPushed()) {
+				shouldDisable = true;
+				break;
+			}
+		}
+		lazer->SetActive(!shouldDisable);
 	}
 }

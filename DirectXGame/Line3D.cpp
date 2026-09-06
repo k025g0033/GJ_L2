@@ -88,13 +88,15 @@ void Line3D::Initialize() {
 }
 
 void Line3D::Update(
-	const Vector3& origin, const Camera& camera, MapChipField* mapChipField, bool canFire, bool isClone) {
+	const Vector3& origin, const Camera& camera, MapChipField* mapChipField,
+	const std::vector<MapChipField::Rect>& reflectingRects,
+	const std::vector<MapChipField::Rect>& blockingRects, bool canFire, bool isClone) {
 	if (Input::GetInstance()->TriggerKey(DIK_Q)) {
 		isPredictionVisible_ = !isPredictionVisible_;
 	}
 
 	Vector3 direction = GetMouseDirection(origin, camera);
-	Path fullPath = CalculatePath(origin, direction, mapChipField);
+	Path fullPath = CalculatePath(origin, direction, mapChipField, reflectingRects, blockingRects);
 	predictionPath_ = fullPath;
 	if (predictionPath_.segmentCount > 2) {
 		predictionPath_.segmentCount = 2;
@@ -165,13 +167,37 @@ Vector3 Line3D::GetMouseDirection(const Vector3& origin, const Camera& camera) c
 	return direction;
 }
 
-Line3D::Path Line3D::CalculatePath(const Vector3& origin, const Vector3& initialDirection, MapChipField* mapChipField) const {
+Line3D::Path Line3D::CalculatePath(
+	const Vector3& origin, const Vector3& initialDirection, MapChipField* mapChipField,
+	const std::vector<MapChipField::Rect>& reflectingRects,
+	const std::vector<MapChipField::Rect>& blockingRects) const {
 	Path path;
 	Vector3 currentOrigin = origin;
 	Vector3 direction = initialDirection;
 
 	for (int reflectionCount = 0; reflectionCount <= 2; ++reflectionCount) {
 		BlockHit nearestHit;
+		float nearestBlockingDistance = std::numeric_limits<float>::max();
+
+		// 閉じている扉は通常ブロックと同じ反射面として扱う。
+		for (const MapChipField::Rect& rect : reflectingRects) {
+			float distance = 0.0f;
+			Vector3 normal{};
+			if (RayAabb(currentOrigin, direction, rect, distance, normal) && distance < nearestHit.distance) {
+				nearestHit.isHit = true;
+				nearestHit.distance = distance;
+				nearestHit.normal = normal;
+			}
+		}
+
+		// レーザーは壁と違って反射せず、接触位置で接続線を止める。
+		for (const MapChipField::Rect& rect : blockingRects) {
+			float distance = 0.0f;
+			Vector3 normal{};
+			if (RayAabb(currentOrigin, direction, rect, distance, normal) && distance < nearestBlockingDistance) {
+				nearestBlockingDistance = distance;
+			}
+		}
 
 		for (uint32_t y = 0; y < MapChipField::kNumBlockVertical; ++y) {
 			for (uint32_t x = 0; x < MapChipField::kNumBlockHorizontal; ++x) {
@@ -190,9 +216,13 @@ Line3D::Path Line3D::CalculatePath(const Vector3& origin, const Vector3& initial
 			}
 		}
 
-		float segmentDistance = nearestHit.isHit ? std::min(nearestHit.distance, kMaxTravelDistance) : kMaxTravelDistance;
+		const bool isBlocked = nearestBlockingDistance < nearestHit.distance && nearestBlockingDistance < kMaxTravelDistance;
+		float segmentDistance = isBlocked ? nearestBlockingDistance : (nearestHit.isHit ? std::min(nearestHit.distance, kMaxTravelDistance) : kMaxTravelDistance);
 		Vector3 end = currentOrigin + direction * segmentDistance;
 		path.segments[path.segmentCount++] = {currentOrigin, end};
+		if (isBlocked) {
+			break;
+		}
 		if (!nearestHit.isHit || nearestHit.distance >= kMaxTravelDistance || reflectionCount == 2) {
 			break;
 		}
