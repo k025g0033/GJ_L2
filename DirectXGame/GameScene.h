@@ -7,6 +7,7 @@
 #include "Lazer.h"
 #include "Line3D.h"
 #include "MapChipField.h"
+#include "MouseCursor.h"
 #include "Player.h"
 #include "PushPlate.h"
 #include "Skydome.h"
@@ -117,6 +118,18 @@ private:
 
 	// プレイヤーとクローンの素の当たり判定、スペースキーで持つ処理の更新
 	void UpdateCloneBasePickup();
+
+	///// ----- クローンの素を投げる処理 ----- /////
+	// マウスカーソル方向へ、持っているクローンの素を投げる
+	void ThrowHeldCloneBase();
+
+	// マウスカーソル表示（AL3_評価課題02から流用）
+	MouseCursor* mouseCursor_ = nullptr;
+
+	// 投げる力（距離に関わらず常に一定。ImGuiで調整可能）
+	float throwPower_ = 0.3f;
+	// 投げる力の上限（ImGuiスライダーの範囲用）
+	static inline const float kMaxThrowPower = 0.6f;
 
 	int stageNumber_ = 1;
 

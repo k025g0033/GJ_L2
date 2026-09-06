@@ -31,13 +31,18 @@ public:
 	    MapChipField* mapChipField, const KamataEngine::Vector3& position);
 
 	// 更新
-	void Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects);
+	void Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects, const MapChipField::Rect& playerRect);
+
 
 	// 描画
 	void Draw();
 
 	// 線がつながり、自機と同じ形のクローンに変形させる
-	void Transform() { state_ = State::kTransformed; }
+	// 変形前（素の状態）の現在位置をそのまま引き継ぐ
+	void Transform() {
+		player_->SetTranslation(worldTransform_.translation_);
+		state_ = State::kTransformed;
+	}
 
 	// 素の状態に戻す（デバッグ用）
 	void ResetToBase() { state_ = State::kBase; }
@@ -57,10 +62,18 @@ public:
 	///// ----- 持つ・投げる（仮実装） ----- /////
 	// プレイヤーに持たれているか
 	bool IsHeld() const { return isHeld_; }
-	// 持たれた状態にする
-	void PickUp() { isHeld_ = true; }
+	// 持たれた状態にする（投げた後の物理も止める）
+	void PickUp() {
+		isHeld_ = true;
+		isThrown_ = false;
+		throwVelocity_ = {};
+	}
 	// 持たれていない状態に戻す（投げた/離した時）
 	void Release() { isHeld_ = false; }
+	// 指定した初速で投げる（放物線運動を開始する）
+	void Throw(const KamataEngine::Vector3& velocity);
+	// 投げられて（重力が働いて）いる最中か
+	bool IsThrown() const { return isThrown_; }
 
 	// 当たり判定に使う球の半径（見た目のスケール(kBaseScale)に合わせた値）
 	static inline const float kCollisionRadius = 0.5f;
@@ -79,6 +92,9 @@ public:
 	bool ConsumeWaterDestroyed();
 
 private:
+	// 投げられて飛んでいる間の物理更新（重力・着地判定）
+	void UpdateThrowPhysics(const MapChipField::Rect& playerRect);
+
 	// ワールド変換データ
 	KamataEngine::WorldTransform worldTransform_;
 
@@ -99,6 +115,9 @@ private:
 	// 現在の状態
 	State state_ = State::kBase;
 
+	// マップチップフィールド（投げた後の着地判定に使用）
+	MapChipField* mapChipField_ = nullptr;
+
 	// プレイヤーに持たれているか（仮実装）
 	bool isHeld_ = false;
 
@@ -109,4 +128,16 @@ private:
 	// 見た目は仮で球体だが、当たり判定は自機と同じく立方体として扱う
 	static inline const float kWidth = 0.8f;
 	static inline const float kHeight = 0.8f;
+
+	///// ----- 投げる処理 ----- /////
+	// 投げられて飛んでいる間の速度
+	KamataEngine::Vector3 throwVelocity_ = {};
+	// 投げられて（重力が働いて）いる状態か
+	bool isThrown_ = false;
+	// 投げた後にかかる重力加速度
+	static inline const float kThrowGravity = 0.02f;
+	// 落下速度の上限
+	static inline const float kThrowMaxFallSpeed = 0.5f;
+	// 着地判定のすき間（誤差吸収用）
+	static inline const float kLandingBlank = 0.02f;
 };

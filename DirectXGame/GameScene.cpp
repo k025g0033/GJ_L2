@@ -42,6 +42,7 @@ GameScene::~GameScene() {
 	goals_.clear();
 
 	delete debugCamera_;
+	delete mouseCursor_;
 
 	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
 		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
@@ -106,9 +107,17 @@ void GameScene::Initialize() {
 
 	// デバッグカメラの生成
 	debugCamera_ = new DebugCamera(1280, 720);
+
+	// マウスカーソル表示（AL3_評価課題02から流用）
+	mouseCursor_ = new MouseCursor();
+	mouseCursor_->Initialize(&camera_);
 }
 
 void GameScene::Update() {
+	// マウスカーソルの更新（投げる方向の計算、表示に使用）
+	if (mouseCursor_ != nullptr) {
+		mouseCursor_->Update();
+	}
 #ifdef USE_IMGUI
 	ImGui::Begin("Background");
 	ImGui::RadioButton("Skydome", &backgroundMode_, 0);
@@ -126,7 +135,7 @@ void GameScene::Update() {
 	UpdatePressurePlates();
 	UpdateDoors();
 	UpdateLazers();
-
+	
 	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
 	std::vector<MapChipField::Rect> cloneBaseRects;
 	for (CloneBase* cloneBase : cloneBases_) {
@@ -165,7 +174,8 @@ void GameScene::Update() {
 	}
 
 	// プレイヤーの更新
-	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && Input::GetInstance()->IsTriggerMouse(0);
+	// クローンの素を持っている間はリンク線を発射できないようにする
+	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && !isHoldingCloneBase_ && Input::GetInstance()->IsTriggerMouse(0);
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire;
 	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects);
 
@@ -198,9 +208,16 @@ void GameScene::Update() {
 	// プレイヤーとクローンの素の当たり判定、スペースキーで持つ処理（仮実装）
 	UpdateCloneBasePickup();
 
+	// 自機の当たり判定矩形（投げたクローンの素が自機の上に乗れるようにするため）
+	MapChipField::Rect playerRect;
+	playerRect.left = player_->GetWorldTransform().translation_.x - player_->GetWidth() / 2.0f;
+	playerRect.right = player_->GetWorldTransform().translation_.x + player_->GetWidth() / 2.0f;
+	playerRect.bottom = player_->GetWorldTransform().translation_.y - player_->GetHeight() / 2.0f;
+	playerRect.top = player_->GetWorldTransform().translation_.y + player_->GetHeight() / 2.0f;
+
 	// クローンの素の更新（複数配置に対応）
 	for (CloneBase* cloneBase : cloneBases_) {
-		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, cloneBaseRects);
+		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, cloneBaseRects, playerRect);
 
 		if (cloneBase->ConsumeWaterDestroyed()) {
 			// 消滅したクローンを操作していた場合
@@ -259,9 +276,11 @@ void GameScene::Update() {
 		// camera_.translation_ = {7.7f, 7.0f, -11.0f};
 	}
 
+	// クローンの素を持っている間はリンク線を発射できないようにする
+	bool canFireLine = activePlayer->IsOnGround() && !isHoldingCloneBase_;
 	line3D_->Update(
 	    activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, closedDoorRects, activeLazerRects,
-	    activePlayer->IsOnGround(), controlledClone_ != nullptr);
+	    canFireLine, controlledClone_ != nullptr);
 
 	if (controlledClone_ == nullptr && line3D_->IsActive() && !line3D_->IsCloneLine()) {
 		for (CloneBase* cloneBase : cloneBases_) {
@@ -340,6 +359,11 @@ void GameScene::Draw() {
 	}
 
 	Model::PostDraw();
+
+	// 3Dモデルより手前へマウスカーソルの円を描画する
+	if (mouseCursor_ != nullptr) {
+		mouseCursor_->Draw();
+	}
 }
 
 void GameScene::GenerateBlocks() {
@@ -489,6 +513,10 @@ void GameScene::ShowCloneBaseManagerImGui() {
 	ImGui::Text("Holding CloneBase: %s", isHoldingCloneBase_ ? "True" : "False");
 	ImGui::Separator();
 
+	// 投げる力を調整する（距離に関わらず常にこの力で投げる）
+	ImGui::SliderFloat("Throw Power", &throwPower_, 0.0f, kMaxThrowPower);
+	ImGui::Separator();
+
 	if (cloneBases_.empty()) {
 		// まだ1体も配置されていない場合
 		ImGui::Text("No clone bases placed");
@@ -536,6 +564,12 @@ void GameScene::UpdateCloneBasePickup() {
 
 	// クローンの素を持っている間は、プレイヤーの正面に隙間なくくっつける
 	if (isHoldingCloneBase_ && heldCloneBase_) {
+		// 持っている間にスペースキーを押したら、マウスカーソル方向へ投げる
+		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+			ThrowHeldCloneBase();
+			return;
+		}
+
 		bool directionChanged = (player_->GetLRDirection() != previousDirection);
 
 		Vector3 targetPosition = ComputeHeldCloneBasePosition();
@@ -576,6 +610,32 @@ void GameScene::UpdateCloneBasePickup() {
 
 		break;
 	}
+}
+
+///// ----- クローンの素を投げる処理 ----- /////
+// マウスカーソルの方向へ、持っているクローンの素を投げる
+void GameScene::ThrowHeldCloneBase() {
+	const Vector3& origin = heldCloneBase_->GetWorldTransform().translation_;
+
+	// マウスカーソルのワールド座標との差分から、投げる「方向」だけを求める（Z成分は無視する）
+	Vector3 toMouse = mouseCursor_->GetWorldPosition() - origin;
+	toMouse.z = 0.0f;
+	float distance = Length(toMouse);
+
+	// カーソルが自機とほぼ同じ位置にある場合は、向いている方向へ投げる
+	Vector3 direction;
+	if (distance > 0.0001f) {
+		direction = toMouse / distance;
+	} else {
+		direction = (player_->GetLRDirection() == Player::LRDirection::kRight) ? Vector3{1.0f, 0.0f, 0.0f} : Vector3{-1.0f, 0.0f, 0.0f};
+	}
+
+	// 力はカーソルまでの距離に関係なく、常に一定（ImGuiのThrowPowerで調整）
+	heldCloneBase_->Throw(direction * throwPower_);
+	heldCloneBase_->Release();
+
+	isHoldingCloneBase_ = false;
+	heldCloneBase_ = nullptr;
 }
 
 ///// ----- 全ての当たり判定を行う ----- /////
