@@ -264,11 +264,17 @@ void GameScene::Update() {
 	    activePlayer->IsOnGround(), controlledClone_ != nullptr);
 
 	if (controlledClone_ == nullptr && line3D_->IsActive() && !line3D_->IsCloneLine()) {
+
 		for (CloneBase* cloneBase : cloneBases_) {
 			if (line3D_->IsTouchingSphere(cloneBase->GetWorldTransform().translation_, CloneBase::kCollisionRadius)) {
+
 				cloneBase->Transform();
 				controlledClone_ = cloneBase;
 				cameraController_->SetTarget(cloneBase->GetPlayer());
+
+				// クローンに当たった線を消す
+				line3D_->ResetLine();
+
 				break;
 			}
 		}
