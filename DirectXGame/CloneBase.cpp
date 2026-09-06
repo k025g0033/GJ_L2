@@ -12,6 +12,7 @@ void CloneBase::Initialize(
 	modelBase_ = modelBase;
 	modelClone_ = modelClone;
 	camera_ = camera;
+	mapChipField_ = mapChipField;
 
 	worldTransform_.Initialize();
 	worldTransform_.translation_ = position;
@@ -25,36 +26,85 @@ void CloneBase::Initialize(
 	player_->SetMapChipField(mapChipField);
 }
 
-void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects) {
+void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects, const MapChipField::Rect& playerRect) {
 	if (state_ == State::kTransformed) {
 		player_->Update(isControlled, obstacleRects);
 
-			if (player_->IsInWater()) {
-			// プレイヤー型クローンを初期位置へ戻す
+		if (player_->IsInWater()) {
 			player_->Respawn(initialPosition_);
-
-			// 球体のクローンの素も初期位置へ戻す
 			worldTransform_.translation_ = initialPosition_;
 			worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
-
-			// 見た目をプレイヤー型から球体へ戻す
 			state_ = State::kBase;
-
-			// GameSceneへ消滅を通知
 			wasDestroyedByWater_ = true;
-
 			UpdateWorldTransform(worldTransform_);
 		}
-
 		return;
 	}
 
+	// 投げられている（＝重力が働いている）間は、毎フレーム着地判定をやり直す。
+	// こうしておくと、自機の上に乗った後で自機が動いた時に、支えがなくなって自然に落下を再開する。
+	if (isThrown_) {
+		UpdateThrowPhysics(playerRect);
+	}
+
 	// 変形状態に応じてスケールを切り替える
-	// （素：球体を1マスに収めるスケール／変形後：自機と同じ等身大スケール）
 	float scale = (state_ == State::kTransformed) ? 1.0f : kBaseScale;
 	worldTransform_.scale_ = {scale, scale, scale};
 
 	UpdateWorldTransform(worldTransform_);
+}
+
+///// ----- 投げられて飛んでいる間の物理更新 ----- /////
+void CloneBase::UpdateThrowPhysics(const MapChipField::Rect& playerRect) {
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+
+	// 重力を加える（落下速度に上限を設ける）
+	throwVelocity_.y = (std::max)(throwVelocity_.y - kThrowGravity, -kThrowMaxFallSpeed);
+
+	Vector3 nextPosition = worldTransform_.translation_ + throwVelocity_;
+
+	// 下降中のみ着地判定を行う（上昇中はブロックにぶつかるかどうかだけ見る）
+	if (throwVelocity_.y <= 0.0f) {
+		float nowBottom = worldTransform_.translation_.y - halfHeight;
+		float nextBottom = nextPosition.y - halfHeight;
+		bool overlapPlayerX = !(nextPosition.x + halfWidth <= playerRect.left || nextPosition.x - halfWidth >= playerRect.right);
+
+		/// --- 自機の頭の上に着地する ---
+		if (overlapPlayerX && nowBottom >= playerRect.top - kLandingBlank && nextBottom <= playerRect.top) {
+			worldTransform_.translation_.x = nextPosition.x;
+			worldTransform_.translation_.y = playerRect.top + halfHeight;
+			throwVelocity_.y = 0.0f;
+			// 着地したら横方向の勢いも止める（そのままだと滑り続けてしまうため）
+			throwVelocity_.x = 0.0f;
+			return;
+		}
+
+		/// --- ブロックの上に着地する（左下・右下の2点で判定） ---
+		if (mapChipField_ != nullptr) {
+			MapChipField::IndexSet indexLeft = mapChipField_->GetMapChipIndexByPosition({nextPosition.x - halfWidth, nextBottom, nextPosition.z});
+			MapChipField::IndexSet indexRight = mapChipField_->GetMapChipIndexByPosition({nextPosition.x + halfWidth, nextBottom, nextPosition.z});
+			bool hitLeft = mapChipField_->GetMapChipTypeByIndex(indexLeft.xIndex, indexLeft.yIndex) == MapChipType::kBlock;
+			bool hitRight = mapChipField_->GetMapChipTypeByIndex(indexRight.xIndex, indexRight.yIndex) == MapChipType::kBlock;
+			if (hitLeft || hitRight) {
+				MapChipField::IndexSet hitIndex = hitLeft ? indexLeft : indexRight;
+				MapChipField::Rect blockRect = mapChipField_->GetRectByIndex(hitIndex.xIndex, hitIndex.yIndex);
+				worldTransform_.translation_.x = nextPosition.x;
+				worldTransform_.translation_.y = blockRect.top + halfHeight;
+				throwVelocity_.y = 0.0f;
+				// 着地したら横方向の勢いも止める（そのままだと滑り続けてしまうため）
+				throwVelocity_.x = 0.0f;
+				return;
+			}
+		}
+	} else if (mapChipField_ != nullptr && IsCollidingWithBlock(nextPosition, mapChipField_)) {
+		// 上昇中にブロックへ頭をぶつけたら、その場で速度だけ止める（仮実装）
+		throwVelocity_.y = 0.0f;
+		nextPosition.y = worldTransform_.translation_.y;
+	}
+
+	// 左右方向のブロック衝突は今回は考慮していない（仮実装。必要になったら追加する）
+	worldTransform_.translation_ = nextPosition;
 }
 
 void CloneBase::Draw() {
@@ -84,6 +134,12 @@ bool CloneBase::IsCollidingWithBlock(const Vector3& position, MapChipField* mapC
 	}
 
 	return false;
+}
+
+///// ----- 投げる処理 ----- /////
+void CloneBase::Throw(const Vector3& velocity) {
+	throwVelocity_ = velocity;
+	isThrown_ = true;
 }
 
 bool CloneBase::ConsumeWaterDestroyed() {
