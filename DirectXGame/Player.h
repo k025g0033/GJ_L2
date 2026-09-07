@@ -62,6 +62,12 @@ public:
 
 	KamataEngine::Vector3 CornerPosition(const KamataEngine::Vector3& center, Corner corner);
 
+	// 中心から見た左右それぞれの半幅を取得する
+	// 通常時は左右とも kWidth/2 で対称だが、持っている間は「背中側」は kWidth/2 のまま固定し、
+	// 「向いている方向側」だけを GetWidth() まで伸ばす（＝広がった分は全部前方向に付く）
+	float GetLeftHalfWidth() const;
+	float GetRightHalfWidth() const;
+
 	// 指定した移動量だけ進んだ場合の4つの角の座標をまとめて計算して返す（共通化関数）
 	// ※斜め移動時にX・Y各方向の当たり判定が影響し合わないよう、各判定関数の中で
 	//   実際に使うのは判定対象の軸の移動量だけになるよう別途計算しなおしている
@@ -99,6 +105,10 @@ public:
 	// ジャンプ可能かどうかを設定する（クローンはジャンプできないようにするために使用）
 	void SetCanJump(bool canJump) { canJump_ = canJump; }
 	bool GetCanJump() const { return canJump_; }
+
+	// 持っている間だけ使うモデルを設定する（未設定、または今の仮実装のように通常モデルと同じものを渡した場合は
+	// 見た目上は変わらない。将来的に専用モデルを用意したら、これを差し替えるだけで良い）
+	void SetHoldingModel(KamataEngine::Model* model) { holdingModel_ = model; }
 
 	// 現在向いている方向を取得（クローンの素をどちら側に持つか判定するのに使用）
 	LRDirection GetLRDirection() const { return lrDirection_; }
@@ -158,10 +168,13 @@ private:
 
 	// クローンの素を持っている間だけ、当たり判定の横幅をこちらに差し替える（ImGuiで調整可能）
 	bool isHolding_ = false;
-	float holdingWidth_ = 1.2f;
+	float holdingWidth_ = 1.0f;
 
 	// ジャンプできるか（通常の自機はtrue、クローンはfalseにする）
 	bool canJump_ = true;
+
+	// 持っている間だけ使うモデル（未設定ならmodel_をそのまま使う）
+	KamataEngine::Model* holdingModel_ = nullptr;
 
 	// 着地時の速度減衰率
 	static inline const float kAttenuationLanding = 0.5f;

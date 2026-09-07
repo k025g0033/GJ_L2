@@ -116,6 +116,9 @@ void GameScene::Initialize() {
 	// クローンの素を持っている間だけ表示する、投げる方向を示すUI（円＋三角形）
 	throwAimIndicator_ = new ThrowAimIndicator();
 	throwAimIndicator_->Initialize(&camera_);
+
+	// 持っている間に使うモデル（今は通常モデルを流用。専用モデルを用意したら差し替える）
+	player_->SetHoldingModel(modelPlayer_);
 }
 
 void GameScene::Update() {
@@ -202,7 +205,7 @@ void GameScene::Update() {
 
 	UpdateKeys(player_);
 	UpdateDoors();
-	CheckDoorGoal(player_);
+	CheckDoorGoal(activePlayer);
 
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
@@ -226,8 +229,8 @@ void GameScene::Update() {
 
 	// 自機の当たり判定矩形（投げたクローンの素が自機の上に乗れるようにするため）
 	MapChipField::Rect playerRect;
-	playerRect.left = player_->GetWorldTransform().translation_.x - player_->GetWidth() / 2.0f;
-	playerRect.right = player_->GetWorldTransform().translation_.x + player_->GetWidth() / 2.0f;
+	playerRect.left = player_->GetWorldTransform().translation_.x - player_->GetLeftHalfWidth();
+	playerRect.right = player_->GetWorldTransform().translation_.x + player_->GetRightHalfWidth();
 	playerRect.bottom = player_->GetWorldTransform().translation_.y - player_->GetHeight() / 2.0f;
 	playerRect.top = player_->GetWorldTransform().translation_.y + player_->GetHeight() / 2.0f;
 
@@ -343,7 +346,11 @@ void GameScene::Draw() {
 	}
 
 	// クローンの素の描画（球体、または線接続後は自機と同じ形）
+	// 持たれている間は表示しない（代わりに自機側が「持っている状態」の見た目を担当する）
 	for (CloneBase* cloneBase : cloneBases_) {
+		if (cloneBase->IsHeld()) {
+			continue;
+		}
 		cloneBase->Draw();
 	}
 
@@ -412,16 +419,18 @@ void GameScene::Draw() {
 void GameScene::DrawPlayerCollisionWireframe() {
 #ifdef USE_IMGUI
 	const Vector3& pos = player_->GetWorldTransform().translation_;
-	float halfWidth = player_->GetWidth() / 2.0f;
+	// 持っている間は左右非対称（向いている方向側だけが伸びる）になるので、左右別々に半幅を取る
+	float leftHalfWidth = player_->GetLeftHalfWidth();
+	float rightHalfWidth = player_->GetRightHalfWidth();
 	float halfHeight = player_->GetHeight() / 2.0f;
 	// 奥行き(Z)は実際の当たり判定には使っていないため、見た目を立方体に近づけるための仮の値として高さと同じにする
 	float halfDepth = halfHeight;
 
 	Vector3 corners[8] = {
-	    {pos.x - halfWidth, pos.y - halfHeight, pos.z - halfDepth}, {pos.x + halfWidth, pos.y - halfHeight, pos.z - halfDepth},
-	    {pos.x + halfWidth, pos.y + halfHeight, pos.z - halfDepth}, {pos.x - halfWidth, pos.y + halfHeight, pos.z - halfDepth},
-	    {pos.x - halfWidth, pos.y - halfHeight, pos.z + halfDepth}, {pos.x + halfWidth, pos.y - halfHeight, pos.z + halfDepth},
-	    {pos.x + halfWidth, pos.y + halfHeight, pos.z + halfDepth}, {pos.x - halfWidth, pos.y + halfHeight, pos.z + halfDepth},
+	    {pos.x - leftHalfWidth, pos.y - halfHeight, pos.z - halfDepth}, {pos.x + rightHalfWidth, pos.y - halfHeight, pos.z - halfDepth},
+	    {pos.x + rightHalfWidth, pos.y + halfHeight, pos.z - halfDepth}, {pos.x - leftHalfWidth, pos.y + halfHeight, pos.z - halfDepth},
+	    {pos.x - leftHalfWidth, pos.y - halfHeight, pos.z + halfDepth}, {pos.x + rightHalfWidth, pos.y - halfHeight, pos.z + halfDepth},
+	    {pos.x + rightHalfWidth, pos.y + halfHeight, pos.z + halfDepth}, {pos.x - leftHalfWidth, pos.y + halfHeight, pos.z + halfDepth},
 	};
 
 	// 持っている間は色を変えて、今どちらの状態かひと目でわかるようにする
@@ -601,7 +610,7 @@ void GameScene::ShowCloneBaseManagerImGui() {
 	// 自機の当たり判定が今どちらのサイズになっているか（Normal / Holding）を表示する
 	ImGui::Text("Player Hitbox Mode: %s (Width: %.2f)", player_->IsHolding() ? "Holding" : "Normal", player_->GetWidth());
 	// 持っている間の当たり判定の横幅を調整する（縦方向はkHeightのまま変えない）
-	ImGui::SliderFloat("Holding Width", &player_->GetHoldingWidthRef(), 1.0f, 2.0f);
+	ImGui::SliderFloat("Holding Width", &player_->GetHoldingWidthRef(), 0.8f, 1.5f);
 	ImGui::Separator();
 
 	// 投げる力を調整する（距離に関わらず常にこの力で投げる）
@@ -648,10 +657,6 @@ void GameScene::ShowCloneBaseManagerImGui() {
 // プレイヤーとクローンの素（球体）の当たり判定を取り、当たっている間にスペースキーを押すと持つ。
 // 今は「触れていたら拾える」実装。将来的には自機を中心とした円の半径内なら拾えるようにする予定。
 void GameScene::UpdateCloneBasePickup() {
-	// 前フレームの向きを読み取ってから、今の向きで上書きしておく
-	Player::LRDirection previousDirection = previousPlayerDirection_;
-	previousPlayerDirection_ = player_->GetLRDirection();
-
 	isCollidingWithCloneBase_ = false;
 	canPickUpCloneBase_ = false;
 
@@ -659,7 +664,9 @@ void GameScene::UpdateCloneBasePickup() {
 	float playerHalfWidth = player_->GetWidth() / 2.0f;
 	float playerHalfHeight = player_->GetHeight() / 2.0f;
 
-	// クローンの素を持っている間は、プレイヤーの正面に隙間なくくっつける
+	// クローンの素を持っている間は、自機の「持っている状態」の見た目・当たり判定サイズで表現するため、
+	// クローンの素自体はもう画面には出さない（Draw側で非表示にしている）。
+	// 位置は投げる時の発射位置として使うだけなので、単純に自機の中心に合わせておけば十分。
 	if (isHoldingCloneBase_ && heldCloneBase_) {
 		// 持っている間にスペースキーを押したら、マウスカーソル方向へ投げる
 		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
@@ -667,19 +674,7 @@ void GameScene::UpdateCloneBasePickup() {
 			return;
 		}
 
-		bool directionChanged = (player_->GetLRDirection() != previousDirection);
-
-		Vector3 targetPosition = ComputeHeldCloneBasePosition();
-
-		// 方向転換した先にブロックがあるなら、旋回をキャンセルして元の向きに戻す
-		if (directionChanged && heldCloneBase_->IsCollidingWithBlock(targetPosition, mapChipField_)) {
-			player_->CancelTurn();
-			previousPlayerDirection_ = player_->GetLRDirection(); // 戻した向きを記録し直す
-			targetPosition = ComputeHeldCloneBasePosition();      // 戻した向きで座標を再計算
-		}
-
-		// ブロックにめり込まないよう、当たり判定を取りながら目標位置へ移動させる
-		heldCloneBase_->MoveHeldTo(targetPosition);
+		heldCloneBase_->SetTranslation(playerPos);
 		return;
 	}
 
@@ -757,44 +752,24 @@ void GameScene::CheckAllCollisions() {
 	}
 }
 
-///// ----- 持っているクローンの素の追従位置を計算する ----- /////
-Vector3 GameScene::ComputeHeldCloneBasePosition() const {
-	const Vector3& playerPos = player_->GetWorldTransform().translation_;
-	// 持っている間の当たり判定拡張(GetWidth())とは切り離し、見た目の追従位置は常に通常幅を基準にする
-	float playerHalfWidth = Player::GetNormalWidth() / 2.0f;
-	float cloneHalfWidth = heldCloneBase_->GetWidth() / 2.0f;
-
-	// 向いている方向 (+1: 右, -1: 左)
-	float direction = (player_->GetLRDirection() == Player::LRDirection::kRight) ? 1.0f : -1.0f;
-
-	// 自機の正面に、隙間なくくっつく位置
-	float offsetX = direction * (playerHalfWidth + cloneHalfWidth);
-
-	return playerPos + Vector3(offsetX, 0.0f, 0.0f);
-}
 
 void GameScene::UpdatePressurePlates() {
-	// 本体プレイヤー
 	std::vector<Player*> actors = {player_};
-
-	 // 変身前のクローンの素
-	std::vector<MapChipField::Rect> cloneBaseRects;
-
-	 for (CloneBase* cloneBase : cloneBases_) {
+	// 変身前のクローンの素（球体）はPlayerではないので、矩形として別に渡す
+	std::vector<MapChipField::Rect> cloneBaseRectsForPlate;
+	for (CloneBase* cloneBase : cloneBases_) {
 		if (cloneBase->GetState() == CloneBase::State::kTransformed) {
-
-			// 変身済みならPlayerとして数える
 			actors.push_back(cloneBase->GetPlayer());
-
-		} else if (!cloneBase->IsHeld()) {
-
-			// 持っていないクローンの素だけ数える
-			cloneBaseRects.push_back(cloneBase->GetRect());
+			continue;
 		}
+		// 持たれている間は自機の中に位置しているだけなので、感圧板の判定には含めない
+		if (cloneBase->IsHeld()) {
+			continue;
+		}
+		cloneBaseRectsForPlate.push_back(cloneBase->GetRect());
 	}
-
 	for (PushPlate* plate : pressurePlates_) {
-		plate->Update(actors, cloneBaseRects);
+		plate->Update(actors, cloneBaseRectsForPlate);
 	}
 }
 

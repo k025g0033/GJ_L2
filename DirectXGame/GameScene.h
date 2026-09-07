@@ -38,12 +38,6 @@ public:
 	// 全ての当たり判定を行う
 	void CheckAllCollisions();
 
-	// クローンの素を持っているときの追従先座標を計算する
-	KamataEngine::Vector3 ComputeHeldCloneBasePosition() const;
-
-	// 前フレームの自機の向き（方向転換を検出するために保持）
-	Player::LRDirection previousPlayerDirection_ = Player::LRDirection::kRight;
-
 private:
 	std::vector<PushPlate*> pressurePlates_;
 	std::vector<Door*> doors_;
