@@ -19,6 +19,9 @@ void CloneBase::Initialize(
 	worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
 	initialPosition_ = position; // 初期位置を保存
 
+	chargeColor_.Initialize();
+	chargeColor_.SetColor({0.2f, 0.7f, 1.0f, 1.0f});
+
 	state_ = State::kBase;
 
 	player_ = new Player();
@@ -29,6 +32,16 @@ void CloneBase::Initialize(
 }
 
 void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects, const MapChipField::Rect& playerRect) {
+	
+	 // 帯電時間を減らす
+	if (isCharged_) {
+		--chargeTimer_;
+
+		if (chargeTimer_ <= 0) {
+			Discharge();
+		}
+	}
+
 	if (state_ == State::kTransformed) {
 		player_->Update(isControlled, obstacleRects);
 
@@ -329,9 +342,12 @@ std::array<KamataEngine::Vector3, CloneBase::kNumCorner> CloneBase::GetCalculate
 
 void CloneBase::Draw() {
 	if (state_ == State::kTransformed) {
-		player_->Draw();
+		if (isCharged_) {
+			player_->Draw(&chargeColor_);
+		} else {
+			player_->Draw();
+		}
 	} else {
-		// 素の状態は球体で描画する
 		modelBase_->Draw(worldTransform_, *camera_);
 	}
 }

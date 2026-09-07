@@ -33,7 +33,7 @@ public:
 
 	void Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects);
 
-	void Draw();
+	void Draw(KamataEngine::ObjectColor* objectColor = nullptr);
 
 	void Move();
 

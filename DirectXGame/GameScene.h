@@ -14,6 +14,7 @@
 #include "ThrowAimIndicator.h"
 #include <vector>
 #include "Key.h"
+#include "ElectricBullet.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -81,6 +82,9 @@ private:
 	KamataEngine::Model* modelPlayerLeftArm_ = nullptr;
 	KamataEngine::Model* modelPlayerRightArm_ = nullptr;
 	Line3D* line3D_ = nullptr;
+	// 電撃弾モデル
+	std::vector<ElectricBullet*> electricBullets_;
+	KamataEngine::Model* modelElectricBullet_ = nullptr;
 	// 背景スプライト
 	KamataEngine::Sprite* backgroundSprite_ = nullptr;
 	uint32_t backgroundTextureHandle_ = 0;
@@ -139,6 +143,9 @@ private:
 
 	// クローンの素を持っている間だけ表示する、投げる方向を示すUI（円＋三角形）
 	ThrowAimIndicator* throwAimIndicator_ = nullptr;
+
+	// 電気弾発射
+	void FireElectricBullet();
 
 	int stageNumber_ = 1;
 };

@@ -102,6 +102,20 @@ public:
 	// 消滅通知
 	bool ConsumeWaterDestroyed();
 
+	void Charge() {
+		isCharged_ = true;
+		chargeTimer_ = static_cast<int>(chargeDurationSeconds_ * kFramesPerSecond);
+	}
+	void Discharge() {
+		isCharged_ = false;
+		chargeTimer_ = 0;
+	}
+	bool IsCharged() const { return isCharged_; }
+
+	float GetChargeRemainingSeconds() const { return static_cast<float>(chargeTimer_) / 60.0f; }
+	static float& GetChargeDurationSecondsRef() { return chargeDurationSeconds_; }
+	static float GetChargeDurationSeconds() { return chargeDurationSeconds_; }
+
 private:
 	// 角
 	enum Corner {
@@ -151,8 +165,20 @@ private:
 	// 初期位置を保存
 	KamataEngine::Vector3 initialPosition_ = {};
 
+	// 色
+	KamataEngine::ObjectColor chargeColor_;
+
 	// 消滅フラグ
 	bool wasDestroyedByWater_ = false;
+
+	// 帯電フラグ
+	bool isCharged_ = false;
+	// 帯電時間
+	int chargeTimer_ = 0;
+	// 全クローン共通の帯電時間（秒）。ImGuiから変更する。
+	static inline float chargeDurationSeconds_ = 5.0f;
+	static inline const float kFramesPerSecond = 60.0f;
+
 
 	// 現在の状態
 	State state_ = State::kBase;

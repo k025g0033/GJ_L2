@@ -7,8 +7,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <numbers>
 #include <cmath>
+#include <numbers>
 
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;
@@ -85,6 +85,9 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 	UpdateWorldTransform(worldTransform_);
 }
 
+void Player::Draw(ObjectColor* objectColor) {
+	// 3Dモデルを描画
+	model_->Draw(worldTransform_, *camera_, objectColor);
 void Player::Draw() {
 	// ベースモデルを描画（持っている間はholdingModel_があればそちらを使う。未設定ならmodel_のまま）
 	// ※ベースモデル自体が未設定（nullptr）の場合は、追加パーツ（頭・腕など）だけで見た目を構成する
