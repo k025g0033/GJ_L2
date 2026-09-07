@@ -198,6 +198,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClCompile Include="Skydome.cpp" />
     <ClCompile Include="StageSelectScene.cpp" />
     <ClCompile Include="Taya.cpp" />
+    <ClCompile Include="ThrowAimIndicator.cpp" />
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="Vector3.cpp" />
     <ClCompile Include="WorldTransformConfig.cpp" />
@@ -223,6 +224,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClInclude Include="Skydome.h" />
     <ClInclude Include="StageSelectScene.h" />
     <ClInclude Include="Taya.h" />
+    <ClInclude Include="ThrowAimIndicator.h" />
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="Vector3.h" />
     <ClInclude Include="WorldTransformConfig.h" />
