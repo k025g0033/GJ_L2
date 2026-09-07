@@ -2,6 +2,7 @@
 
 #include "KamataEngine.h"
 #include "Player.h"
+#include "MapChipField.h"
 #include <cstdint>
 #include <vector>
 
@@ -11,13 +12,15 @@ public:
 	void Initialize(
 	    KamataEngine::Model* model, KamataEngine::Camera* camera, const KamataEngine::Vector3& position,
 	    uint8_t id, uint8_t requiredActorCount = 1, float width = 0.8f);
-	void Update(const std::vector<Player*>& actors);
+	void Update(const std::vector<Player*>& actors, const std::vector<MapChipField::Rect>& cloneBaseRects);
 	void Draw();
 
 	bool IsPushed() const { return isPushed_; }
 	uint8_t GetID() const { return id_; }
 	uint8_t GetRequiredActorCount() const { return requiredActorCount_; }
 	uint8_t GetCurrentActorCount() const { return currentActorCount_; }
+
+	bool IsStandingOn(const MapChipField::Rect& actorRect) const;
 
 private:
 	bool IsStandingOn(const Player* actor) const;

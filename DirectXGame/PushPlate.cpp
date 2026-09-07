@@ -23,13 +23,23 @@ void PushPlate::Initialize(
 	color_.SetColor(kIdleColor);
 }
 
-void PushPlate::Update(const std::vector<Player*>& actors) {
+void PushPlate::Update(const std::vector<Player*>& actors, const std::vector<MapChipField::Rect>& cloneBaseRects) {
 	currentActorCount_ = 0;
+
+	 // 本体プレイヤーと変身済みクローン
 	for (const Player* actor : actors) {
 		if (actor != nullptr && IsStandingOn(actor)) {
 			++currentActorCount_;
 		}
 	}
+
+	// 変身前のクローンの素
+	for (const MapChipField::Rect& rect : cloneBaseRects) {
+		if (IsStandingOn(rect)) {
+			++currentActorCount_;
+		}
+	}
+
 	isPushed_ = currentActorCount_ >= requiredActorCount_;
 
 	worldTransform_.scale_.y = isPushed_ ? kPushedHeight : kHeight;
@@ -54,3 +64,18 @@ bool PushPlate::IsStandingOn(const Player* actor) const {
 }
 
 void PushPlate::Draw() { model_->Draw(worldTransform_, *camera_, &color_); }
+
+bool PushPlate::IsStandingOn(const MapChipField::Rect& actorRect) const {
+
+	const Vector3& platePosition = worldTransform_.translation_;
+
+	float plateLeft = platePosition.x - width_ / 2.0f;
+	float plateRight = platePosition.x + width_ / 2.0f;
+	float plateTop = platePosition.y + kHeight / 2.0f;
+
+	bool overlapsX = actorRect.right > plateLeft && actorRect.left < plateRight;
+
+	bool touchesTop = std::abs(actorRect.bottom - plateTop) <= kStandingTolerance;
+
+	return overlapsX && touchesTop;
+}

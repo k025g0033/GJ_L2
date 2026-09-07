@@ -194,7 +194,7 @@ void GameScene::Update() {
 
 	UpdateKeys(player_);
 	UpdateDoors();
-	CheckDoorGoal(activePlayer);
+	CheckDoorGoal(player_);
 
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
@@ -715,14 +715,27 @@ MapChipField::Rect CloneBase::GetRect() const {
 }
 
 void GameScene::UpdatePressurePlates() {
+	// 本体プレイヤー
 	std::vector<Player*> actors = {player_};
-	for (CloneBase* cloneBase : cloneBases_) {
+
+	 // 変身前のクローンの素
+	std::vector<MapChipField::Rect> cloneBaseRects;
+
+	 for (CloneBase* cloneBase : cloneBases_) {
 		if (cloneBase->GetState() == CloneBase::State::kTransformed) {
+
+			// 変身済みならPlayerとして数える
 			actors.push_back(cloneBase->GetPlayer());
+
+		} else if (!cloneBase->IsHeld()) {
+
+			// 持っていないクローンの素だけ数える
+			cloneBaseRects.push_back(cloneBase->GetRect());
 		}
 	}
+
 	for (PushPlate* plate : pressurePlates_) {
-		plate->Update(actors);
+		plate->Update(actors, cloneBaseRects);
 	}
 }
 
