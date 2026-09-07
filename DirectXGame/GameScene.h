@@ -13,7 +13,7 @@
 #include "Skydome.h"
 #include "ThrowAimIndicator.h"
 #include <vector>
-#include "Goal.h"
+#include "Key.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -47,10 +47,14 @@ public:
 private:
 	std::vector<PushPlate*> pressurePlates_;
 	std::vector<Door*> doors_;
+	std::vector<Key*> keys_;
+
 
 	void UpdatePressurePlates();
 	void UpdateDoors();
 	void UpdateLazers();
+	void UpdateKeys(Player* activePlayer);
+	void CheckDoorGoal(const Player* activePlayer);
 
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
@@ -136,7 +140,4 @@ private:
 	ThrowAimIndicator* throwAimIndicator_ = nullptr;
 
 	int stageNumber_ = 1;
-
-	// ゴール
-	std::vector<Goal*> goals_;
 };

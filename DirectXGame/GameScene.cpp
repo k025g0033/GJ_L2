@@ -36,10 +36,10 @@ GameScene::~GameScene() {
 	}
 	doors_.clear();
 
-	for (Goal* goal : goals_) {
-		delete goal;
+	for (Key* key : keys_) {
+		delete key;
 	}
-	goals_.clear();
+	keys_.clear();
 
 	delete debugCamera_;
 	delete mouseCursor_;
@@ -189,14 +189,9 @@ void GameScene::Update() {
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire;
 	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects);
 
-	// ゴールの更新
-	for (Goal* goal : goals_) {
-		goal->Update(player_);
-
-		if (goal->IsReached()) {
-			isFinished_ = true;
-		}
-	}
+	UpdateKeys(player_);
+	UpdateDoors();
+	CheckDoorGoal(activePlayer);
 
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
@@ -356,13 +351,13 @@ void GameScene::Draw() {
 		plate->Draw();
 	}
 
+	for (Key* key : keys_) {
+		key->Draw();
+	}
+
 	// 扉の描画
 	for (Door* door : doors_) {
 		door->Draw();
-	}
-
-	for (Goal* goal : goals_) {
-		goal->Draw();
 	}
 
 	// 水の描画
@@ -491,12 +486,16 @@ void GameScene::GenerateBlocks() {
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
-			case MapChipType::kGoal: {
-				Goal* goal = new Goal();
+			case MapChipType::kKey: {
+				Key* key = new Key();
 
-				goal->Initialize(modelBlock_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i));
+				key->Initialize(
+					modelCloneBase_,
+					&camera_,
+					mapChipField_->GetMapChipPositionByIndex(j, i),
+					mapChipField_->GetMapChipSubIDByIndex(j, i));
 
-				goals_.push_back(goal);
+				keys_.push_back(key);
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
@@ -724,20 +723,6 @@ void GameScene::UpdatePressurePlates() {
 	}
 }
 
-void GameScene::UpdateDoors() {
-	for (Door* door : doors_) {
-		bool shouldOpen = false;
-		for (const PushPlate* plate : pressurePlates_) {
-			if (plate->GetID() == door->GetID() && plate->IsPushed()) {
-				shouldOpen = true;
-				break;
-			}
-		}
-		door->SetOpen(shouldOpen);
-		door->Update();
-	}
-}
-
 void GameScene::UpdateLazers() {
 	for (Lazer* lazer : lazers_) {
 		bool shouldDisable = false;
@@ -748,5 +733,39 @@ void GameScene::UpdateLazers() {
 			}
 		}
 		lazer->SetActive(!shouldDisable);
+	}
+}
+
+void GameScene::UpdateKeys(Player* activePlayer) {
+	for (Key* key : keys_) {
+		key->Update(activePlayer);
+	}
+}
+
+void GameScene::UpdateDoors() {
+	for (Door* door : doors_) {
+		bool shouldOpen = false;
+
+		for (const Key* key : keys_) {
+			if (key->GetID() == door->GetID() && key->IsCollected()) {
+
+				shouldOpen = true;
+				break;
+			}
+		}
+
+		door->SetOpen(shouldOpen);
+		door->Update();
+	}
+}
+
+void GameScene::CheckDoorGoal(const Player* activePlayer) {
+
+	for (const Door* door : doors_) {
+		if (door->IsOpen() && door->IsCollidingWithPlayer(activePlayer)) {
+
+			isFinished_ = true;
+			return;
+		}
 	}
 }

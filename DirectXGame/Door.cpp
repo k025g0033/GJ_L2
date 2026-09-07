@@ -32,3 +32,12 @@ MapChipField::Rect Door::GetRect() const {
 	    position.y + MapChipField::kBlockHeight / 2.0f,
 	};
 }
+
+bool Door::IsCollidingWithPlayer(const Player* player) const {
+	MapChipField::Rect rect = GetRect();
+
+	const Vector3& position = player->GetWorldTransform().translation_;
+
+	return position.x + player->GetWidth() / 2.0f > rect.left && position.x - player->GetWidth() / 2.0f < rect.right && position.y + player->GetHeight() / 2.0f > rect.bottom &&
+	       position.y - player->GetHeight() / 2.0f < rect.top;
+}
