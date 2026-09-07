@@ -8,6 +8,11 @@
 #include <map>
 #include <string>
 
+namespace {
+
+bool IsRectColliding(const MapChipField::Rect& a, const MapChipField::Rect& b) { return a.right > b.left && a.left < b.right && a.top > b.bottom && a.bottom < b.top; }
+} // namespace
+
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility; // 追加
 
@@ -40,6 +45,12 @@ GameScene::~GameScene() {
 		delete key;
 	}
 	keys_.clear();
+
+	for (ElectricBullet* bullet : electricBullets_) {
+		delete bullet;
+	}
+	electricBullets_.clear();
+	delete modelElectricBullet_;
 
 	delete debugCamera_;
 	delete mouseCursor_;
@@ -74,6 +85,8 @@ void GameScene::Initialize() {
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
 	// クローンの素モデル生成（球体）
 	modelCloneBase_ = Model::CreateSphere();
+	// 電気弾モデル生成
+	modelElectricBullet_ = KamataEngine::Model::CreateSphere();
 	// 背景スプライトの生成
 	backgroundTextureHandle_ = TextureManager::Load("uvChecker.png");
 	backgroundSprite_ = Sprite::Create(backgroundTextureHandle_, {0.0f, 0.0f});
@@ -145,10 +158,27 @@ void GameScene::Update() {
 
 	// 現在操作しているキャラクター（通常は自機、クローンを操作中はそのクローンの中のPlayer）
 	Player* activePlayer = controlledClone_ ? controlledClone_->GetPlayer() : player_;
+
+	// 帯電中の操作クローンから電気弾を発射
+	if (controlledClone_ != nullptr && controlledClone_->IsCharged() && Input::GetInstance()->TriggerKey(DIK_F)) {
+
+		FireElectricBullet();
+	}
+
+#ifdef _DEBUG
+	// 操作中のクローンをQキーで帯電させる
+	if (controlledClone_ && Input::GetInstance()->TriggerKey(DIK_E)) {
+
+		controlledClone_->Charge();
+
+		DebugText::GetInstance()->ConsolePrintf("Clone charged\n");
+	}
+#endif
+
 	UpdatePressurePlates();
 	UpdateDoors();
 	UpdateLazers();
-	
+
 	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
 	std::vector<MapChipField::Rect> cloneBaseRects;
 	// 変形済みクローンの矩形一覧（自機や他のクローンとの当たり判定にだけ使う。素・ドアとは別枠にしておく）
@@ -207,6 +237,42 @@ void GameScene::Update() {
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {
 		lazer->Update();
+	}
+
+	// 電気弾の更新と削除
+	for (auto it = electricBullets_.begin(); it != electricBullets_.end();) {
+
+		ElectricBullet* bullet = *it;
+		bullet->Update(mapChipField_);
+
+		// ブロックですでに消滅していなければ
+		if (!bullet->IsDead()) {
+			const MapChipField::Rect bulletRect = bullet->GetRect();
+
+			for (CloneBase* cloneBase : cloneBases_) {
+				// 発射した操作中クローンには当てない
+				if (cloneBase == controlledClone_) {
+					continue;
+				}
+
+				if (IsRectColliding(bulletRect, cloneBase->GetRect())) {
+
+					// 命中したクローンへ帯電を移す
+					cloneBase->Charge();
+
+					// 電気弾を消す
+					bullet->SetDead();
+					break;
+				}
+			}
+		}
+
+		if (bullet->IsDead()) {
+			delete bullet;
+			it = electricBullets_.erase(it);
+		} else {
+			++it;
+		}
 	}
 
 	// 水の更新
@@ -305,9 +371,7 @@ void GameScene::Update() {
 
 	// クローンの素を持っている間はリンク線を発射できないようにする
 	bool canFireLine = activePlayer->IsOnGround() && !isHoldingCloneBase_;
-	line3D_->Update(
-	    activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, closedDoorRects, activeLazerRects,
-	    canFireLine, controlledClone_ != nullptr);
+	line3D_->Update(activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, closedDoorRects, activeLazerRects, canFireLine, controlledClone_ != nullptr);
 
 	if (controlledClone_ == nullptr && line3D_->IsActive() && !line3D_->IsCloneLine()) {
 
@@ -391,6 +455,11 @@ void GameScene::Draw() {
 		}
 	}
 
+	// 電気弾の描画
+	for (ElectricBullet* bullet : electricBullets_) {
+		bullet->Draw();
+	}
+
 	Model::PostDraw();
 
 	// 3Dモデルより手前へマウスカーソルの円を描画する
@@ -418,10 +487,14 @@ void GameScene::DrawPlayerCollisionWireframe() {
 	float halfDepth = halfHeight;
 
 	Vector3 corners[8] = {
-	    {pos.x - halfWidth, pos.y - halfHeight, pos.z - halfDepth}, {pos.x + halfWidth, pos.y - halfHeight, pos.z - halfDepth},
-	    {pos.x + halfWidth, pos.y + halfHeight, pos.z - halfDepth}, {pos.x - halfWidth, pos.y + halfHeight, pos.z - halfDepth},
-	    {pos.x - halfWidth, pos.y - halfHeight, pos.z + halfDepth}, {pos.x + halfWidth, pos.y - halfHeight, pos.z + halfDepth},
-	    {pos.x + halfWidth, pos.y + halfHeight, pos.z + halfDepth}, {pos.x - halfWidth, pos.y + halfHeight, pos.z + halfDepth},
+	    {pos.x - halfWidth, pos.y - halfHeight, pos.z - halfDepth},
+        {pos.x + halfWidth, pos.y - halfHeight, pos.z - halfDepth},
+        {pos.x + halfWidth, pos.y + halfHeight, pos.z - halfDepth},
+	    {pos.x - halfWidth, pos.y + halfHeight, pos.z - halfDepth},
+        {pos.x - halfWidth, pos.y - halfHeight, pos.z + halfDepth},
+        {pos.x + halfWidth, pos.y - halfHeight, pos.z + halfDepth},
+	    {pos.x + halfWidth, pos.y + halfHeight, pos.z + halfDepth},
+        {pos.x - halfWidth, pos.y + halfHeight, pos.z + halfDepth},
 	};
 
 	// 持っている間は色を変えて、今どちらの状態かひと目でわかるようにする
@@ -555,11 +628,7 @@ void GameScene::GenerateBlocks() {
 			case MapChipType::kKey: {
 				Key* key = new Key();
 
-				key->Initialize(
-					modelCloneBase_,
-					&camera_,
-					mapChipField_->GetMapChipPositionByIndex(j, i),
-					mapChipField_->GetMapChipSubIDByIndex(j, i));
+				key->Initialize(modelCloneBase_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i), mapChipField_->GetMapChipSubIDByIndex(j, i));
 
 				keys_.push_back(key);
 				worldTransformBlocks_[i][j] = nullptr;
@@ -592,6 +661,9 @@ void GameScene::GenerateBlocks() {
 void GameScene::ShowCloneBaseManagerImGui() {
 #ifdef USE_IMGUI
 	ImGui::Begin("CloneBase Manager");
+	float& chargeDuration = CloneBase::GetChargeDurationSecondsRef();
+	ImGui::SliderFloat("Charge Duration", &chargeDuration, 0.5f, 30.0f, "%.1f sec");
+	ImGui::Separator();
 
 	// 当たり判定・拾えるかどうかの状態（仮実装）
 	ImGui::Text("Colliding With CloneBase: %s", isCollidingWithCloneBase_ ? "True" : "False");
@@ -625,7 +697,11 @@ void GameScene::ShowCloneBaseManagerImGui() {
 			const char* stateText = isTransformed ? "Transformed (Line Connected)" : "Base (Not Connected)";
 
 			ImGui::PushID(static_cast<int>(i));
-			ImGui::Text("C0[%zu] Pos:(%.1f, %.1f, %.1f) State:%s%s", i, pos.x, pos.y, pos.z, stateText, cloneBase->IsHeld() ? " [Held]" : "");
+			ImGui::Text("Clone[%zu] Pos:(%.1f, %.1f, %.1f)", i, pos.x, pos.y, pos.z);
+			ImGui::Text("State: %s%s", stateText, cloneBase->IsHeld() ? " [Held]" : "");
+			ImGui::Text(
+			    "Charged: %s / Remaining: %.1f sec", cloneBase->IsCharged() ? "YES" : "NO",
+			    cloneBase->GetChargeRemainingSeconds());
 			ImGui::SameLine();
 			if (isTransformed) {
 				if (ImGui::Button("Reset To Base (Debug)")) {
@@ -637,6 +713,7 @@ void GameScene::ShowCloneBaseManagerImGui() {
 				}
 			}
 			ImGui::PopID();
+			ImGui::Separator();
 		}
 	}
 
@@ -777,10 +854,10 @@ void GameScene::UpdatePressurePlates() {
 	// 本体プレイヤー
 	std::vector<Player*> actors = {player_};
 
-	 // 変身前のクローンの素
+	// 変身前のクローンの素
 	std::vector<MapChipField::Rect> cloneBaseRects;
 
-	 for (CloneBase* cloneBase : cloneBases_) {
+	for (CloneBase* cloneBase : cloneBases_) {
 		if (cloneBase->GetState() == CloneBase::State::kTransformed) {
 
 			// 変身済みならPlayerとして数える
@@ -843,4 +920,30 @@ void GameScene::CheckDoorGoal(const Player* activePlayer) {
 			return;
 		}
 	}
+}
+
+void GameScene::FireElectricBullet() {
+	if (controlledClone_ == nullptr || !controlledClone_->IsCharged()) {
+		return;
+	}
+
+	Player* clonePlayer = controlledClone_->GetPlayer();
+
+	Vector3 position = clonePlayer->GetWorldTransform().translation_;
+
+	float direction = clonePlayer->GetLRDirection() == Player::LRDirection::kRight ? 1.0f : -1.0f;
+
+	// クローンの正面から出す
+	position.x += direction * 0.6f;
+
+	Vector3 velocity = {direction * 0.2f, 0.0f, 0.0f};
+
+	ElectricBullet* bullet = new ElectricBullet();
+
+	bullet->Initialize(modelElectricBullet_, &camera_, position, velocity);
+
+	electricBullets_.push_back(bullet);
+
+	// 発射時に帯電を消費
+	controlledClone_->Discharge();
 }

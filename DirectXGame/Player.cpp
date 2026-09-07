@@ -7,8 +7,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <numbers>
 #include <cmath>
+#include <numbers>
 
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;
@@ -80,9 +80,9 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 	UpdateWorldTransform(worldTransform_);
 }
 
-void Player::Draw() {
+void Player::Draw(ObjectColor* objectColor) {
 	// 3Dモデルを描画
-	model_->Draw(worldTransform_, *camera_);
+	model_->Draw(worldTransform_, *camera_, objectColor);
 }
 
 void Player::Move() {
