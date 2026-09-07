@@ -136,6 +136,9 @@ void GameScene::Update() {
 	ImGui::End();
 #endif
 	if (controlledClone_ && Input::GetInstance()->IsTriggerMouse(1)) {
+		// 自機とのリンクを切ったら、クローンの素（球体）に戻す
+		// （現在位置を引き継ぎ、空中なら重力で落下を再開する）
+		controlledClone_->ResetToBase();
 		controlledClone_ = nullptr;
 		cameraController_->SetTarget(player_);
 	}

@@ -44,8 +44,15 @@ public:
 		state_ = State::kTransformed;
 	}
 
-	// 素の状態に戻す（デバッグ用）
-	void ResetToBase() { state_ = State::kBase; }
+	// 素の状態に戻す（自機とのリンクを切った時、またはデバッグ用）
+	// 変形中の現在位置をそのまま引き継ぎ、投げた時と同じ物理更新に任せることで
+	// 空中で切った場合は浮いたままにならず自然に落下し、地上で切った場合はその場に留まる
+	void ResetToBase() {
+		worldTransform_.translation_ = player_->GetWorldTransform().translation_;
+		state_ = State::kBase;
+		throwVelocity_ = {};
+		isThrown_ = true;
+	}
 
 	// 状態を取得
 	State GetState() const { return state_; }
