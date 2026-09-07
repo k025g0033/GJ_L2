@@ -3,6 +3,7 @@
 #include "MapChipField.h"
 #include "Player.h"
 
+#include <array>
 #include <vector>
 
 /// <summary>
@@ -66,6 +67,9 @@ public:
 	// 座標を直接設定する（プレイヤーが持っている間、追従させるために使用）
 	void SetTranslation(const KamataEngine::Vector3& position) { worldTransform_.translation_ = position; }
 
+	// 持たれている間、目標位置へ向けて移動する（ブロックにめり込まないよう当たり判定で移動量を制限する）
+	void MoveHeldTo(const KamataEngine::Vector3& targetPosition);
+
 	///// ----- 持つ・投げる（仮実装） ----- /////
 	// プレイヤーに持たれているか
 	bool IsHeld() const { return isHeld_; }
@@ -99,8 +103,39 @@ public:
 	bool ConsumeWaterDestroyed();
 
 private:
+	// 角
+	enum Corner {
+		kRightBottom, // 右下
+		kLeftBottom,  // 左下
+		kRightTop,    // 右上
+		kLeftTop,     // 左上
+
+		kNumCorner // 要素数
+	};
+
+	// ブロックとの当たり判定の結果（上下左右）
+	struct BlockCollisionResult {
+		bool isCeilingHit = false; // 天井との当たり判定
+		bool isGroundHit = false;  // 地面との当たり判定
+		bool isWallHit = false;    // 壁との当たり判定
+	};
+
 	// 投げられて飛んでいる間の物理更新（重力・着地判定）
 	void UpdateThrowPhysics(const MapChipField::Rect& playerRect);
+
+	///// ----- ブロックとの当たり判定（Player::isMapCollision系を参考に実装） ----- /////
+	// 指定した移動量に対して、上下左右のブロック衝突をまとめて判定し、めり込まないよう移動量を補正する
+	// ※X・Y各方向を独立して判定するため、斜め移動でもブロックへのめり込み・すり抜けが起きない
+	BlockCollisionResult CheckBlockCollision(KamataEngine::Vector3& moveAmount) const;
+	void CheckBlockCollisionTop(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result) const;
+	void CheckBlockCollisionBottom(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result) const;
+	void CheckBlockCollisionRight(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result) const;
+	void CheckBlockCollisionLeft(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result) const;
+
+	// 指定した中心座標から見た、指定した角の座標を計算する
+	KamataEngine::Vector3 CornerPosition(const KamataEngine::Vector3& center, Corner corner) const;
+	// 指定した移動量だけ進んだ場合の4つの角の座標をまとめて計算して返す
+	std::array<KamataEngine::Vector3, kNumCorner> GetCalculatedCorners(const KamataEngine::Vector3& moveAmount) const;
 
 	// ワールド変換データ
 	KamataEngine::WorldTransform worldTransform_;
@@ -135,6 +170,8 @@ private:
 	// 見た目は仮で球体だが、当たり判定は自機と同じく立方体として扱う
 	static inline const float kWidth = 0.8f;
 	static inline const float kHeight = 0.8f;
+	// ブロックにめり込まないための微小な余白（Playerのkblankと同じ考え方）
+	static inline const float kBlank = 0.02f;
 
 	///// ----- 投げる処理 ----- /////
 	// 投げられて飛んでいる間の速度

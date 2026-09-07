@@ -62,6 +62,11 @@ public:
 
 	KamataEngine::Vector3 CornerPosition(const KamataEngine::Vector3& center, Corner corner);
 
+	// 指定した移動量だけ進んだ場合の4つの角の座標をまとめて計算して返す（共通化関数）
+	// ※斜め移動時にX・Y各方向の当たり判定が影響し合わないよう、各判定関数の中で
+	//   実際に使うのは判定対象の軸の移動量だけになるよう別途計算しなおしている
+	std::array<KamataEngine::Vector3, kNumCorner> GetCalculatedCorners(const KamataEngine::Vector3& moveAmount);
+
 	bool IsOnGround() const { return onGround_; }
 
 	// 旋回を強制的にキャンセルし、逆方向へ戻す
@@ -73,8 +78,27 @@ public:
 	const KamataEngine::Vector3& GetVelocity() const { return velocity_; }
 
 	// 当たり判定サイズの取得（クローンの素との当たり判定などで使用）
-	float GetWidth() const { return kWidth; }
+	// 持っている状態(isHolding_)の間は、横幅だけholdingWidth_に差し替える
+	float GetWidth() const { return isHolding_ ? holdingWidth_ : kWidth; }
 	float GetHeight() const { return kHeight; }
+
+	// 持った状態に関係なく、常に通常時の横幅を返す（クローンの素の追従位置計算などで使用）
+	static float GetNormalWidth() { return kWidth; }
+
+	// クローンの素を持っている状態かどうかを設定する
+	// （持っている間は当たり判定の横幅が広がる。以前は自機の横にクローンの素(kBase)が
+	// 　並ぶことで見た目上横２マス分くらいになっていたが、それに代えて自機自身の
+	// 　当たり判定を少しだけ広げることで表現する）
+	void SetIsHolding(bool isHolding) { isHolding_ = isHolding; }
+	bool IsHolding() const { return isHolding_; }
+
+	// 持っている間の当たり判定の横幅（ImGuiのスライダーから直接書き換えられるよう参照を返す）
+	float& GetHoldingWidthRef() { return holdingWidth_; }
+	float GetHoldingWidth() const { return holdingWidth_; }
+
+	// ジャンプ可能かどうかを設定する（クローンはジャンプできないようにするために使用）
+	void SetCanJump(bool canJump) { canJump_ = canJump; }
+	bool GetCanJump() const { return canJump_; }
 
 	// 現在向いている方向を取得（クローンの素をどちら側に持つか判定するのに使用）
 	LRDirection GetLRDirection() const { return lrDirection_; }
@@ -131,6 +155,13 @@ private:
 	static inline const float kHeight = 0.8f;
 
 	static inline const float kBlank = 0.02f;
+
+	// クローンの素を持っている間だけ、当たり判定の横幅をこちらに差し替える（ImGuiで調整可能）
+	bool isHolding_ = false;
+	float holdingWidth_ = 1.2f;
+
+	// ジャンプできるか（通常の自機はtrue、クローンはfalseにする）
+	bool canJump_ = true;
 
 	// 着地時の速度減衰率
 	static inline const float kAttenuationLanding = 0.5f;

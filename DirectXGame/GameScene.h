@@ -109,6 +109,9 @@ private:
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
 	void ShowCloneBaseManagerImGui();
 
+	// 自機の当たり判定サイズをワイヤーフレームの箱で可視化する（Debugビルド/USE_IMGUI時のみ）
+	void DrawPlayerCollisionWireframe();
+
 	///// ----- クローンの素を持つ処理（仮実装） ----- /////
 	// プレイヤーといずれかのクローンの素が当たっているか
 	bool isCollidingWithCloneBase_ = false;

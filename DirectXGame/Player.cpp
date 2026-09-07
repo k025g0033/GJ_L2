@@ -97,7 +97,7 @@ void Player::Move() {
 	// 押しっぱなしで水面を抜けた場合も、そのフレームで成立する。
 	const bool preserveWaterExitMomentum = waterExitGraceFrames_ > 0;
 	if (waterExitGraceFrames_ > 0) {
-		if (Input::GetInstance()->PushKey(DIK_W)) {
+		if (canJump_ && Input::GetInstance()->PushKey(DIK_W)) {
 			velocity_.y = std::max(velocity_.y, kWaterExitJumpSpeed);
 			waterExitGraceFrames_ = 0;
 			onGround_ = false;
@@ -133,7 +133,7 @@ void Player::Move() {
 		velocity_.x = 0.0f;
 	}
 	if (onGround_) {
-		if (Input::GetInstance()->PushKey(DIK_W)) {
+		if (canJump_ && Input::GetInstance()->PushKey(DIK_W)) {
 			// ジャンプ初速
 			velocity_.y += kJumpAcceleration;
 		}
@@ -152,6 +152,11 @@ void Player::isMapCollision(CollisionMapInfo& info) {
 	isMapCollisionLeft(info);
 }
 
+// ※斜め移動（X・Y同時の移動）に対応するため、
+// 「ブロックがあるかどうか」の判定は移動後の角(斜め込み)で行うが、
+// 「実際にどこまで進めるか」を求める限界座標(limit)の計算は、判定している軸の移動量だけを使って
+// 現在のX(またはY)座標のまま求める。こうすることでX・Y各方向の判定が互いに影響し合わなくなり、
+// 斜めから侵入したときにブロックへめり込む・すり抜けることを防げる。
 void Player::isMapCollisionTop(CollisionMapInfo& info) {
 
 	// 上昇あり？
@@ -159,19 +164,8 @@ void Player::isMapCollisionTop(CollisionMapInfo& info) {
 		return;
 	}
 
-	// 移動前の4つの角の計算
-	std::array<Vector3, kNumCorner> positionsNow;
-
-	for (uint32_t i = 0; i < kNumCorner; ++i) {
-		positionsNow[i] = CornerPosition(worldTransform_.translation_, static_cast<Corner>(i));
-	}
-
-	// 移動後の4つの角の計算
-	std::array<Vector3, kNumCorner> positionsNew;
-
-	for (uint32_t i = 0; i < kNumCorner; ++i) {
-		positionsNew[i] = CornerPosition(worldTransform_.translation_ + info.moveVelocity, static_cast<Corner>(i));
-	}
+	// 移動後の4つの角の計算（ヒット判定用）
+	std::array<Vector3, kNumCorner> positionsNew = GetCalculatedCorners(info.moveVelocity);
 
 	MapChipType mapChipType;
 	MapChipType mapChipTypeNext;
@@ -198,23 +192,16 @@ void Player::isMapCollisionTop(CollisionMapInfo& info) {
 
 	// ブロックにヒット？
 	if (hit) {
+		// Y軸方向の移動量だけを使い、現在のX座標のままこの先どのマスに入るかを求める
+		Vector3 nextPos = worldTransform_.translation_;
+		nextPos.y += info.moveVelocity.y + (kHeight / 2.0f); // 中心 + 移動量 + 半径 = 未来の上端座標
+		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
 
-		// まずは左上をデフォルトとする
-		KamataEngine::Vector3 hitPosition = positionsNew[kLeftTop];
-		KamataEngine::Vector3 nowPosition = positionsNow[kLeftTop];
+		Vector3 nowPos = worldTransform_.translation_;
+		nowPos.y += (kHeight / 2.0f); // 中心 + 半径 = 現在の上端座標
+		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
 
-		// もし右上だけが当たっていた、あるいは右上がブロックなら右上の座標を使う
-		MapChipField::IndexSet indexRightTop = mapChipField_->GetMapChipIndexByPosition(positionsNew[kRightTop]);
-		if (mapChipField_->GetMapChipTypeByIndex(indexRightTop.xIndex, indexRightTop.yIndex) == MapChipType::kBlock) {
-			hitPosition = positionsNew[kRightTop];
-			nowPosition = positionsNow[kRightTop];
-		}
-
-		// めり込みを排除する方向に移動量を設定する
-		indexSet = mapChipField_->GetMapChipIndexByPosition(hitPosition);
-		// 現在座標が壁の外か判定
-		MapChipField::IndexSet indexSetNow;
-		indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPosition);
+		// 現在と未来でマス目（Yインデックス）をまたいだ場合のみ処理する
 		if (indexSetNow.yIndex != indexSet.yIndex) {
 			// めり込み先ブロックの範囲矩形
 			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
@@ -231,19 +218,8 @@ void Player::isMapCollisionBottom(CollisionMapInfo& info) {
 		return;
 	}
 
-	// 移動前の4つの角の計算
-	std::array<Vector3, kNumCorner> positionsNow;
-
-	for (uint32_t i = 0; i < kNumCorner; ++i) {
-		positionsNow[i] = CornerPosition(worldTransform_.translation_, static_cast<Corner>(i));
-	}
-
-	// 移動後の4つの角の計算
-	std::array<Vector3, kNumCorner> positionsNew;
-
-	for (uint32_t i = 0; i < kNumCorner; ++i) {
-		positionsNew[i] = CornerPosition(worldTransform_.translation_ + info.moveVelocity, static_cast<Corner>(i));
-	}
+	// 移動後の4つの角の計算（ヒット判定用）
+	std::array<Vector3, kNumCorner> positionsNew = GetCalculatedCorners(info.moveVelocity);
 
 	MapChipType mapChipType;
 	MapChipType mapChipTypeNext;
@@ -270,22 +246,16 @@ void Player::isMapCollisionBottom(CollisionMapInfo& info) {
 
 	// ブロックにヒット？
 	if (hit) {
-		// まずは左下をデフォルトとする
-		KamataEngine::Vector3 hitPosition = positionsNew[kLeftBottom];
-		KamataEngine::Vector3 nowPosition = positionsNow[kLeftBottom];
+		// Y軸方向の移動量だけを使い、現在のX座標のままこの先どのマスに入るかを求める
+		Vector3 nextPos = worldTransform_.translation_;
+		nextPos.y += info.moveVelocity.y - (kHeight / 2.0f); // 中心 + 移動量 - 半径 = 未来の下端座標
+		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
 
-		// もし右下だけが当たっていた、あるいは右下がブロックなら右下の座標を使う
-		MapChipField::IndexSet indexRightBottom = mapChipField_->GetMapChipIndexByPosition(positionsNew[kRightBottom]);
-		if (mapChipField_->GetMapChipTypeByIndex(indexRightBottom.xIndex, indexRightBottom.yIndex) == MapChipType::kBlock) {
-			hitPosition = positionsNew[kRightBottom];
-			nowPosition = positionsNow[kRightBottom];
-		}
+		Vector3 nowPos = worldTransform_.translation_;
+		nowPos.y -= (kHeight / 2.0f); // 中心 - 半径 = 現在の下端座標
+		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
 
-		// めり込みを排除する方向に移動量を設定する
-		indexSet = mapChipField_->GetMapChipIndexByPosition(hitPosition);
-		// 現在座標が壁の外か判定
-		MapChipField::IndexSet indexSetNow;
-		indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPosition);
+		// 現在と未来でマス目（Yインデックス）をまたいだ場合のみ処理する
 		if (indexSetNow.yIndex != indexSet.yIndex) {
 			// めり込み先ブロックの範囲矩形
 			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
@@ -302,19 +272,8 @@ void Player::isMapCollisionRight(CollisionMapInfo& info) {
 		return;
 	}
 
-	// 移動前の4つの角の計算
-	std::array<Vector3, kNumCorner> positionsNow;
-
-	for (uint32_t i = 0; i < kNumCorner; ++i) {
-		positionsNow[i] = CornerPosition(worldTransform_.translation_, static_cast<Corner>(i));
-	}
-
-	// 移動後の4つの角の計算
-	std::array<Vector3, kNumCorner> positionsNew;
-
-	for (uint32_t i = 0; i < kNumCorner; ++i) {
-		positionsNew[i] = CornerPosition(worldTransform_.translation_ + info.moveVelocity, static_cast<Corner>(i));
-	}
+	// 移動後の4つの角の計算（ヒット判定用）
+	std::array<Vector3, kNumCorner> positionsNew = GetCalculatedCorners(info.moveVelocity);
 
 	MapChipType mapChipType;
 	MapChipType mapChipTypeNext;
@@ -341,26 +300,20 @@ void Player::isMapCollisionRight(CollisionMapInfo& info) {
 
 	// ブロックにヒット？
 	if (hit) {
-		// まずは右上をデフォルトとする
-		KamataEngine::Vector3 hitPosition = positionsNew[kRightTop];
-		KamataEngine::Vector3 nowPosition = positionsNow[kRightTop];
+		// X軸方向の移動量だけを使い、現在のY座標のままこの先どのマスに入るかを求める
+		Vector3 nextPos = worldTransform_.translation_;
+		nextPos.x += info.moveVelocity.x + (GetWidth() / 2.0f); // 中心 + 移動量 + 半径 = 未来の右端座標
+		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
 
-		// もし右下だけが当たっていた、あるいは右下がブロックなら右下の座標を使う
-		MapChipField::IndexSet indexRightBottom = mapChipField_->GetMapChipIndexByPosition(positionsNew[kRightBottom]);
-		if (mapChipField_->GetMapChipTypeByIndex(indexRightBottom.xIndex, indexRightBottom.yIndex) == MapChipType::kBlock) {
-			hitPosition = positionsNew[kRightBottom];
-			nowPosition = positionsNow[kRightBottom];
-		}
+		Vector3 nowPos = worldTransform_.translation_;
+		nowPos.x += (GetWidth() / 2.0f); // 中心 + 半径 = 現在の右端座標
+		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
 
-		// めり込みを排除する方向に移動量を設定する
-		indexSet = mapChipField_->GetMapChipIndexByPosition(hitPosition);
-		// 現在座標が壁の外か判定
-		MapChipField::IndexSet indexSetNow;
-		indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPosition);
+		// 現在と未来でマス目（Xインデックス）をまたいだ場合のみ処理する
 		if (indexSetNow.xIndex != indexSet.xIndex) {
 			// めり込み先ブロックの範囲矩形
 			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
-			info.moveVelocity.x = std::max(rect.left - worldTransform_.translation_.x - kWidth / 2.0f - kBlank, 0.0f);
+			info.moveVelocity.x = std::max(rect.left - worldTransform_.translation_.x - GetWidth() / 2.0f - kBlank, 0.0f);
 			// 壁に当たったことを判定結果に記録する
 			info.isWallCollision = true;
 		}
@@ -373,19 +326,8 @@ void Player::isMapCollisionLeft(CollisionMapInfo& info) {
 		return;
 	}
 
-	// 移動前の4つの角の計算
-	std::array<Vector3, kNumCorner> positionsNow;
-
-	for (uint32_t i = 0; i < kNumCorner; ++i) {
-		positionsNow[i] = CornerPosition(worldTransform_.translation_, static_cast<Corner>(i));
-	}
-
-	// 移動後の4つの角の計算
-	std::array<Vector3, kNumCorner> positionsNew;
-
-	for (uint32_t i = 0; i < kNumCorner; ++i) {
-		positionsNew[i] = CornerPosition(worldTransform_.translation_ + info.moveVelocity, static_cast<Corner>(i));
-	}
+	// 移動後の4つの角の計算（ヒット判定用）
+	std::array<Vector3, kNumCorner> positionsNew = GetCalculatedCorners(info.moveVelocity);
 
 	MapChipType mapChipType;
 	MapChipType mapChipTypeNext;
@@ -412,26 +354,20 @@ void Player::isMapCollisionLeft(CollisionMapInfo& info) {
 
 	// ブロックにヒット？
 	if (hit) {
-		// まずは左上をデフォルトとする
-		KamataEngine::Vector3 hitPosition = positionsNew[kLeftTop];
-		KamataEngine::Vector3 nowPosition = positionsNow[kLeftTop];
+		// X軸方向の移動量だけを使い、現在のY座標のままこの先どのマスに入るかを求める
+		Vector3 nextPos = worldTransform_.translation_;
+		nextPos.x += info.moveVelocity.x - (GetWidth() / 2.0f); // 中心 + 移動量 - 半径 = 未来の左端座標
+		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
 
-		// もし右下だけが当たっていた、あるいは右下がブロックなら右下の座標を使う
-		MapChipField::IndexSet indexRightBottom = mapChipField_->GetMapChipIndexByPosition(positionsNew[kLeftBottom]);
-		if (mapChipField_->GetMapChipTypeByIndex(indexRightBottom.xIndex, indexRightBottom.yIndex) == MapChipType::kBlock) {
-			hitPosition = positionsNew[kLeftBottom];
-			nowPosition = positionsNow[kLeftBottom];
-		}
+		Vector3 nowPos = worldTransform_.translation_;
+		nowPos.x -= (GetWidth() / 2.0f); // 中心 - 半径 = 現在の左端座標
+		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
 
-		// めり込みを排除する方向に移動量を設定する
-		indexSet = mapChipField_->GetMapChipIndexByPosition(hitPosition);
-		// 現在座標が壁の外か判定
-		MapChipField::IndexSet indexSetNow;
-		indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPosition);
+		// 現在と未来でマス目（Xインデックス）をまたいだ場合のみ処理する
 		if (indexSetNow.xIndex != indexSet.xIndex) {
 			// めり込み先ブロックの範囲矩形
 			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
-			info.moveVelocity.x = std::min(rect.right - worldTransform_.translation_.x + kWidth / 2.0f + kBlank, 0.0f);
+			info.moveVelocity.x = std::min(rect.right - worldTransform_.translation_.x + GetWidth() / 2.0f + kBlank, 0.0f);
 			// 壁に当たったことを判定結果に記録する
 			info.isWallCollision = true;
 		}
@@ -439,14 +375,28 @@ void Player::isMapCollisionLeft(CollisionMapInfo& info) {
 }
 
 KamataEngine::Vector3 Player::CornerPosition(const KamataEngine::Vector3& center, Corner corner) {
+	// 横幅は持っている状態(isHolding_)なら広がった値(GetWidth())になる
 	Vector3 offsetTable[kNumCorner] = {
-	    {kWidth / 2.0f,  -kHeight / 2.0f, 0.0f}, // 右下
-	    {-kWidth / 2.0f, -kHeight / 2.0f, 0.0f}, // 左下
-	    {kWidth / 2.0f,  kHeight / 2.0f,  0.0f}, // 右上
-	    {-kWidth / 2.0f, kHeight / 2.0f,  0.0f}, // 左上
+	    {GetWidth() / 2.0f,  -kHeight / 2.0f, 0.0f}, // 右下
+	    {-GetWidth() / 2.0f, -kHeight / 2.0f, 0.0f}, // 左下
+	    {GetWidth() / 2.0f,  kHeight / 2.0f,  0.0f}, // 右上
+	    {-GetWidth() / 2.0f, kHeight / 2.0f,  0.0f}, // 左上
 	};
 
 	return center + offsetTable[static_cast<int>(corner)];
+}
+
+std::array<KamataEngine::Vector3, Player::kNumCorner> Player::GetCalculatedCorners(const KamataEngine::Vector3& moveAmount) {
+	std::array<Vector3, kNumCorner> positionsNew;
+
+	// 現在の座標 ＋ 指定された移動量 ＝ 未来の中心座標
+	Vector3 nextCenter = worldTransform_.translation_ + moveAmount;
+
+	for (uint32_t i = 0; i < kNumCorner; ++i) {
+		positionsNew[i] = CornerPosition(nextCenter, static_cast<Corner>(i));
+	}
+
+	return positionsNew;
 }
 
 void Player::isCollisionMove(const CollisionMapInfo& info) {
@@ -499,7 +449,7 @@ void Player::isOnGround(const CollisionMapInfo& info, const std::vector<MapChipF
 
 		// クローンの素の上に乗っているかも調べる
 		if (!hit) {
-			float halfWidth = kWidth / 2.0f;
+			float halfWidth = GetWidth() / 2.0f;
 			float left = worldTransform_.translation_.x - halfWidth;
 			float right = worldTransform_.translation_.x + halfWidth;
 			float playerBottom = worldTransform_.translation_.y - kHeight / 2.0f;
@@ -610,7 +560,7 @@ void Player::isObstacleCollisionTop(CollisionMapInfo& info, const std::vector<Ma
 		return;
 	}
 
-	float halfWidth = kWidth / 2.0f;
+	float halfWidth = GetWidth() / 2.0f;
 	float halfHeight = kHeight / 2.0f;
 	float nowLeft = worldTransform_.translation_.x - halfWidth;
 	float nowRight = worldTransform_.translation_.x + halfWidth;
@@ -634,7 +584,7 @@ void Player::isObstacleCollisionBottom(CollisionMapInfo& info, const std::vector
 		return;
 	}
 
-	float halfWidth = kWidth / 2.0f;
+	float halfWidth = GetWidth() / 2.0f;
 	float halfHeight = kHeight / 2.0f;
 	float nowLeft = worldTransform_.translation_.x - halfWidth;
 	float nowRight = worldTransform_.translation_.x + halfWidth;
@@ -658,7 +608,7 @@ void Player::isObstacleCollisionRight(CollisionMapInfo& info, const std::vector<
 		return;
 	}
 
-	float halfWidth = kWidth / 2.0f;
+	float halfWidth = GetWidth() / 2.0f;
 	float halfHeight = kHeight / 2.0f;
 	float nowBottom = worldTransform_.translation_.y - halfHeight;
 	float nowTop = worldTransform_.translation_.y + halfHeight;
@@ -682,7 +632,7 @@ void Player::isObstacleCollisionLeft(CollisionMapInfo& info, const std::vector<M
 		return;
 	}
 
-	float halfWidth = kWidth / 2.0f;
+	float halfWidth = GetWidth() / 2.0f;
 	float halfHeight = kHeight / 2.0f;
 	float nowBottom = worldTransform_.translation_.y - halfHeight;
 	float nowTop = worldTransform_.translation_.y + halfHeight;
