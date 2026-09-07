@@ -43,6 +43,7 @@ GameScene::~GameScene() {
 
 	delete debugCamera_;
 	delete mouseCursor_;
+	delete throwAimIndicator_;
 
 	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
 		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
@@ -111,12 +112,21 @@ void GameScene::Initialize() {
 	// マウスカーソル表示（AL3_評価課題02から流用）
 	mouseCursor_ = new MouseCursor();
 	mouseCursor_->Initialize(&camera_);
+
+	// クローンの素を持っている間だけ表示する、投げる方向を示すUI（円＋三角形）
+	throwAimIndicator_ = new ThrowAimIndicator();
+	throwAimIndicator_->Initialize(&camera_);
 }
 
 void GameScene::Update() {
 	// マウスカーソルの更新（投げる方向の計算、表示に使用）
 	if (mouseCursor_ != nullptr) {
 		mouseCursor_->Update();
+	}
+
+	// クローンの素を持っている間だけ、投げる方向を示すUI（円＋三角形）を更新する
+	if (isHoldingCloneBase_ && throwAimIndicator_ != nullptr) {
+		throwAimIndicator_->Update(player_->GetWorldTransform().translation_, mouseCursor_->GetWorldPosition());
 	}
 #ifdef USE_IMGUI
 	ImGui::Begin("Background");
@@ -370,6 +380,11 @@ void GameScene::Draw() {
 	if (mouseCursor_ != nullptr) {
 		mouseCursor_->Draw();
 	}
+
+	// クローンの素を持っている間だけ、投げる方向を示すUI（円＋三角形）を描画する
+	if (isHoldingCloneBase_ && throwAimIndicator_ != nullptr) {
+		throwAimIndicator_->Draw();
+	}
 }
 
 void GameScene::GenerateBlocks() {
@@ -521,6 +536,12 @@ void GameScene::ShowCloneBaseManagerImGui() {
 
 	// 投げる力を調整する（距離に関わらず常にこの力で投げる）
 	ImGui::SliderFloat("Throw Power", &throwPower_, 0.0f, kMaxThrowPower);
+
+	// 投げる方向を示すUI（円＋三角形）の大きさを調整する
+	if (throwAimIndicator_ != nullptr) {
+		ImGui::SliderFloat("Aim Circle Radius", &throwAimIndicator_->circleRadius_, 0.5f, 5.0f);
+		ImGui::SliderFloat("Aim Triangle Size", &throwAimIndicator_->triangleSize_, 10.0f, 150.0f);
+	}
 	ImGui::Separator();
 
 	if (cloneBases_.empty()) {
@@ -619,22 +640,10 @@ void GameScene::UpdateCloneBasePickup() {
 }
 
 ///// ----- クローンの素を投げる処理 ----- /////
-// マウスカーソルの方向へ、持っているクローンの素を投げる
+// 円周上の三角形がとがっている方向（ThrowAimIndicator）へ、持っているクローンの素を投げる
 void GameScene::ThrowHeldCloneBase() {
-	const Vector3& origin = heldCloneBase_->GetWorldTransform().translation_;
-
-	// マウスカーソルのワールド座標との差分から、投げる「方向」だけを求める（Z成分は無視する）
-	Vector3 toMouse = mouseCursor_->GetWorldPosition() - origin;
-	toMouse.z = 0.0f;
-	float distance = Length(toMouse);
-
-	// カーソルが自機とほぼ同じ位置にある場合は、向いている方向へ投げる
-	Vector3 direction;
-	if (distance > 0.0001f) {
-		direction = toMouse / distance;
-	} else {
-		direction = (player_->GetLRDirection() == Player::LRDirection::kRight) ? Vector3{1.0f, 0.0f, 0.0f} : Vector3{-1.0f, 0.0f, 0.0f};
-	}
+	// 三角形の向き（＝自機からマウスカーソルへ向かう方向）をそのまま投げる方向にする
+	Vector3 direction = throwAimIndicator_->GetThrowDirection();
 
 	// 力はカーソルまでの距離に関係なく、常に一定（ImGuiのThrowPowerで調整）
 	heldCloneBase_->Throw(direction * throwPower_);

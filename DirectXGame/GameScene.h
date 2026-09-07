@@ -11,6 +11,7 @@
 #include "Player.h"
 #include "PushPlate.h"
 #include "Skydome.h"
+#include "ThrowAimIndicator.h"
 #include <vector>
 #include "Goal.h"
 
@@ -130,6 +131,9 @@ private:
 	float throwPower_ = 0.3f;
 	// 投げる力の上限（ImGuiスライダーの範囲用）
 	static inline const float kMaxThrowPower = 0.6f;
+
+	// クローンの素を持っている間だけ表示する、投げる方向を示すUI（円＋三角形）
+	ThrowAimIndicator* throwAimIndicator_ = nullptr;
 
 	int stageNumber_ = 1;
 
