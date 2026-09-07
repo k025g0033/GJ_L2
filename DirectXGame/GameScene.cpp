@@ -151,13 +151,16 @@ void GameScene::Update() {
 	
 	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
 	std::vector<MapChipField::Rect> cloneBaseRects;
+	// 変形済みクローンの矩形一覧（自機や他のクローンとの当たり判定にだけ使う。素・ドアとは別枠にしておく）
+	std::vector<MapChipField::Rect> transformedCloneRects;
 	for (CloneBase* cloneBase : cloneBases_) {
 		if (cloneBase == heldCloneBase_) {
 			continue;
 		}
 
-		// 変身済みクローンは球体の障害物として扱わない
+		// 変身済みクローンは球体の障害物としてではなく、自機と同じ形の障害物として別枠で扱う
 		if (cloneBase->GetState() == CloneBase::State::kTransformed) {
+			transformedCloneRects.push_back(cloneBase->GetRect());
 			continue;
 		}
 
@@ -177,7 +180,9 @@ void GameScene::Update() {
 
 	// レーザーは通常プレイヤーだけを止める。クローンへ渡す障害物一覧には追加しない。
 	std::vector<MapChipField::Rect> activeLazerRects;
+	// 自機の障害物一覧（素・ドア・変形済みクローン・レーザー）
 	std::vector<MapChipField::Rect> playerObstacleRects = cloneBaseRects;
+	playerObstacleRects.insert(playerObstacleRects.end(), transformedCloneRects.begin(), transformedCloneRects.end());
 	for (const Lazer* lazer : lazers_) {
 		if (lazer->IsActive()) {
 			const MapChipField::Rect rect = lazer->GetRect();
@@ -185,6 +190,9 @@ void GameScene::Update() {
 			playerObstacleRects.push_back(rect);
 		}
 	}
+
+	// クローンの素を持っている間は、自機の当たり判定の横幅を広げる（ImGuiのHolding Widthで調整可能）
+	player_->SetIsHolding(isHoldingCloneBase_);
 
 	// プレイヤーの更新
 	// クローンの素を持っている間はリンク線を発射できないようにする
@@ -225,7 +233,18 @@ void GameScene::Update() {
 
 	// クローンの素の更新（複数配置に対応）
 	for (CloneBase* cloneBase : cloneBases_) {
-		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, cloneBaseRects, playerRect);
+		// この素専用の障害物一覧：共通の素・ドアに加えて、自機と「自分以外」の変形済みクローンを含める
+		// （自機と変形後クローンの当たり判定、クローン同士の当たり判定を成立させるため）
+		std::vector<MapChipField::Rect> obstacleRectsForClone = cloneBaseRects;
+		obstacleRectsForClone.push_back(playerRect);
+		for (CloneBase* other : cloneBases_) {
+			if (other == cloneBase || other->GetState() != CloneBase::State::kTransformed) {
+				continue;
+			}
+			obstacleRectsForClone.push_back(other->GetRect());
+		}
+
+		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, obstacleRectsForClone, playerRect);
 
 		if (cloneBase->ConsumeWaterDestroyed()) {
 			// 消滅したクローンを操作していた場合
@@ -383,6 +402,50 @@ void GameScene::Draw() {
 	if (isHoldingCloneBase_ && throwAimIndicator_ != nullptr) {
 		throwAimIndicator_->Draw();
 	}
+
+	// 自機の当たり判定サイズを可視化するワイヤーフレーム（Debugビルド/USE_IMGUIの時だけ表示）
+	DrawPlayerCollisionWireframe();
+}
+
+///// ----- 自機の当たり判定サイズを可視化するワイヤーフレーム ----- /////
+// ImGuiパネルと同じ扱い（USE_IMGUIが定義されるDebugビルドの時だけ表示される。Releaseでは何もしない）
+void GameScene::DrawPlayerCollisionWireframe() {
+#ifdef USE_IMGUI
+	const Vector3& pos = player_->GetWorldTransform().translation_;
+	float halfWidth = player_->GetWidth() / 2.0f;
+	float halfHeight = player_->GetHeight() / 2.0f;
+	// 奥行き(Z)は実際の当たり判定には使っていないため、見た目を立方体に近づけるための仮の値として高さと同じにする
+	float halfDepth = halfHeight;
+
+	Vector3 corners[8] = {
+	    {pos.x - halfWidth, pos.y - halfHeight, pos.z - halfDepth}, {pos.x + halfWidth, pos.y - halfHeight, pos.z - halfDepth},
+	    {pos.x + halfWidth, pos.y + halfHeight, pos.z - halfDepth}, {pos.x - halfWidth, pos.y + halfHeight, pos.z - halfDepth},
+	    {pos.x - halfWidth, pos.y - halfHeight, pos.z + halfDepth}, {pos.x + halfWidth, pos.y - halfHeight, pos.z + halfDepth},
+	    {pos.x + halfWidth, pos.y + halfHeight, pos.z + halfDepth}, {pos.x - halfWidth, pos.y + halfHeight, pos.z + halfDepth},
+	};
+
+	// 持っている間は色を変えて、今どちらの状態かひと目でわかるようにする
+	Vector4 color = player_->IsHolding() ? Vector4{1.0f, 0.5f, 0.0f, 1.0f} : Vector4{0.0f, 1.0f, 1.0f, 1.0f};
+
+	PrimitiveDrawer* drawer = PrimitiveDrawer::GetInstance();
+	drawer->SetCamera(&camera_);
+
+	// 手前の面
+	drawer->DrawLine3d(corners[0], corners[1], color);
+	drawer->DrawLine3d(corners[1], corners[2], color);
+	drawer->DrawLine3d(corners[2], corners[3], color);
+	drawer->DrawLine3d(corners[3], corners[0], color);
+	// 奥の面
+	drawer->DrawLine3d(corners[4], corners[5], color);
+	drawer->DrawLine3d(corners[5], corners[6], color);
+	drawer->DrawLine3d(corners[6], corners[7], color);
+	drawer->DrawLine3d(corners[7], corners[4], color);
+	// 手前と奥をつなぐ辺
+	drawer->DrawLine3d(corners[0], corners[4], color);
+	drawer->DrawLine3d(corners[1], corners[5], color);
+	drawer->DrawLine3d(corners[2], corners[6], color);
+	drawer->DrawLine3d(corners[3], corners[7], color);
+#endif
 }
 
 void GameScene::GenerateBlocks() {
@@ -534,6 +597,11 @@ void GameScene::ShowCloneBaseManagerImGui() {
 	ImGui::Text("Colliding With CloneBase: %s", isCollidingWithCloneBase_ ? "True" : "False");
 	ImGui::Text("Can Pick Up: %s", canPickUpCloneBase_ ? "True" : "False");
 	ImGui::Text("Holding CloneBase: %s", isHoldingCloneBase_ ? "True" : "False");
+
+	// 自機の当たり判定が今どちらのサイズになっているか（Normal / Holding）を表示する
+	ImGui::Text("Player Hitbox Mode: %s (Width: %.2f)", player_->IsHolding() ? "Holding" : "Normal", player_->GetWidth());
+	// 持っている間の当たり判定の横幅を調整する（縦方向はkHeightのまま変えない）
+	ImGui::SliderFloat("Holding Width", &player_->GetHoldingWidthRef(), 1.0f, 2.0f);
 	ImGui::Separator();
 
 	// 投げる力を調整する（距離に関わらず常にこの力で投げる）
@@ -610,7 +678,8 @@ void GameScene::UpdateCloneBasePickup() {
 			targetPosition = ComputeHeldCloneBasePosition();      // 戻した向きで座標を再計算
 		}
 
-		heldCloneBase_->SetTranslation(targetPosition);
+		// ブロックにめり込まないよう、当たり判定を取りながら目標位置へ移動させる
+		heldCloneBase_->MoveHeldTo(targetPosition);
 		return;
 	}
 
@@ -691,7 +760,8 @@ void GameScene::CheckAllCollisions() {
 ///// ----- 持っているクローンの素の追従位置を計算する ----- /////
 Vector3 GameScene::ComputeHeldCloneBasePosition() const {
 	const Vector3& playerPos = player_->GetWorldTransform().translation_;
-	float playerHalfWidth = player_->GetWidth() / 2.0f;
+	// 持っている間の当たり判定拡張(GetWidth())とは切り離し、見た目の追従位置は常に通常幅を基準にする
+	float playerHalfWidth = Player::GetNormalWidth() / 2.0f;
 	float cloneHalfWidth = heldCloneBase_->GetWidth() / 2.0f;
 
 	// 向いている方向 (+1: 右, -1: 左)
@@ -701,17 +771,6 @@ Vector3 GameScene::ComputeHeldCloneBasePosition() const {
 	float offsetX = direction * (playerHalfWidth + cloneHalfWidth);
 
 	return playerPos + Vector3(offsetX, 0.0f, 0.0f);
-}
-
-///// ----- 当たり判定用の矩形を取得する ----- /////
-MapChipField::Rect CloneBase::GetRect() const {
-	const Vector3& pos = worldTransform_.translation_;
-	MapChipField::Rect rect;
-	rect.left = pos.x - kWidth / 2.0f;
-	rect.right = pos.x + kWidth / 2.0f;
-	rect.bottom = pos.y - kHeight / 2.0f;
-	rect.top = pos.y + kHeight / 2.0f;
-	return rect;
 }
 
 void GameScene::UpdatePressurePlates() {
