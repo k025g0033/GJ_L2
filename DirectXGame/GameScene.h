@@ -39,12 +39,6 @@ public:
 	// 全ての当たり判定を行う
 	void CheckAllCollisions();
 
-	// クローンの素を持っているときの追従先座標を計算する
-	KamataEngine::Vector3 ComputeHeldCloneBasePosition() const;
-
-	// 前フレームの自機の向き（方向転換を検出するために保持）
-	Player::LRDirection previousPlayerDirection_ = Player::LRDirection::kRight;
-
 private:
 	std::vector<PushPlate*> pressurePlates_;
 	std::vector<Door*> doors_;
@@ -83,6 +77,10 @@ private:
 	KamataEngine::Model* modelWater_ = nullptr;
 	// クローンの素モデル（球体）
 	KamataEngine::Model* modelCloneBase_ = nullptr;
+	// 自機の追加パーツモデル（頭・左腕・右腕）。ベースモデルに重ねて描画する。
+	KamataEngine::Model* modelPlayerHead_ = nullptr;
+	KamataEngine::Model* modelPlayerLeftArm_ = nullptr;
+	KamataEngine::Model* modelPlayerRightArm_ = nullptr;
 	Line3D* line3D_ = nullptr;
 	// 電撃弾モデル
 	std::vector<ElectricBullet*> electricBullets_;

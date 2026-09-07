@@ -14,8 +14,8 @@ using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;
 
 void Player::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera, const KamataEngine::Vector3& position) {
-	// NILLポインタチェック
-	assert(model);
+	// modelはnullptrでも構わない（ベースモデルを使わず、SetExtraPartModelsで設定したパーツだけで
+	// 見た目を構成する場合。例：自機は頭・左腕・右腕のパーツのみで立方体のベースモデルは使わない）
 
 	// 引数の値をメンバ変数にコピー
 	model_ = model;
@@ -26,6 +26,8 @@ void Player::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera
 	// ワールド変換の初期化z
 	worldTransform_.Initialize();
 	worldTransform_.translation_ = position;
+	// モデルの表示スケールを反映（当たり判定サイズには影響しない、見た目だけの拡大縮小）
+	worldTransform_.scale_ = {modelScale_, modelScale_, modelScale_};
 }
 
 void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects) {
@@ -76,6 +78,9 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 		worldTransform_.rotation_.y = turnFirstRotationY_ + (destinationRotationY - turnFirstRotationY_) * t;
 	}
 
+	// モデルの表示スケールを反映（ImGuiで変更された場合もここで毎フレーム反映される）
+	worldTransform_.scale_ = {modelScale_, modelScale_, modelScale_};
+
 	// 行列を定数バッファに転送
 	UpdateWorldTransform(worldTransform_);
 }
@@ -83,6 +88,23 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 void Player::Draw(ObjectColor* objectColor) {
 	// 3Dモデルを描画
 	model_->Draw(worldTransform_, *camera_, objectColor);
+void Player::Draw() {
+	// ベースモデルを描画（持っている間はholdingModel_があればそちらを使う。未設定ならmodel_のまま）
+	// ※ベースモデル自体が未設定（nullptr）の場合は、追加パーツ（頭・腕など）だけで見た目を構成する
+	// 　ということなので、ここでは何も描画しない
+	Model* modelToDraw = (isHolding_ && holdingModel_ != nullptr) ? holdingModel_ : model_;
+	if (modelToDraw != nullptr) {
+		modelToDraw->Draw(worldTransform_, *camera_);
+	}
+
+	// 頭・腕など、ベースに重ねて描画する追加パーツ（設定されていれば）。
+	// 原点をワールド原点に合わせてエクスポートしてあるので、ベースと同じworldTransform_で
+	// そのまま描画するだけで正しい位置に組み合わさる。
+	for (Model* partModel : extraPartModels_) {
+		if (partModel != nullptr) {
+			partModel->Draw(worldTransform_, *camera_);
+		}
+	}
 }
 
 void Player::Move() {
@@ -302,18 +324,18 @@ void Player::isMapCollisionRight(CollisionMapInfo& info) {
 	if (hit) {
 		// X軸方向の移動量だけを使い、現在のY座標のままこの先どのマスに入るかを求める
 		Vector3 nextPos = worldTransform_.translation_;
-		nextPos.x += info.moveVelocity.x + (GetWidth() / 2.0f); // 中心 + 移動量 + 半径 = 未来の右端座標
+		nextPos.x += info.moveVelocity.x + GetRightHalfWidth(); // 中心 + 移動量 + 右半幅 = 未来の右端座標
 		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
 
 		Vector3 nowPos = worldTransform_.translation_;
-		nowPos.x += (GetWidth() / 2.0f); // 中心 + 半径 = 現在の右端座標
+		nowPos.x += GetRightHalfWidth(); // 中心 + 右半幅 = 現在の右端座標
 		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
 
 		// 現在と未来でマス目（Xインデックス）をまたいだ場合のみ処理する
 		if (indexSetNow.xIndex != indexSet.xIndex) {
 			// めり込み先ブロックの範囲矩形
 			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
-			info.moveVelocity.x = std::max(rect.left - worldTransform_.translation_.x - GetWidth() / 2.0f - kBlank, 0.0f);
+			info.moveVelocity.x = std::max(rect.left - worldTransform_.translation_.x - GetRightHalfWidth() - kBlank, 0.0f);
 			// 壁に当たったことを判定結果に記録する
 			info.isWallCollision = true;
 		}
@@ -356,18 +378,18 @@ void Player::isMapCollisionLeft(CollisionMapInfo& info) {
 	if (hit) {
 		// X軸方向の移動量だけを使い、現在のY座標のままこの先どのマスに入るかを求める
 		Vector3 nextPos = worldTransform_.translation_;
-		nextPos.x += info.moveVelocity.x - (GetWidth() / 2.0f); // 中心 + 移動量 - 半径 = 未来の左端座標
+		nextPos.x += info.moveVelocity.x - GetLeftHalfWidth(); // 中心 + 移動量 - 左半幅 = 未来の左端座標
 		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
 
 		Vector3 nowPos = worldTransform_.translation_;
-		nowPos.x -= (GetWidth() / 2.0f); // 中心 - 半径 = 現在の左端座標
+		nowPos.x -= GetLeftHalfWidth(); // 中心 - 左半幅 = 現在の左端座標
 		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
 
 		// 現在と未来でマス目（Xインデックス）をまたいだ場合のみ処理する
 		if (indexSetNow.xIndex != indexSet.xIndex) {
 			// めり込み先ブロックの範囲矩形
 			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
-			info.moveVelocity.x = std::min(rect.right - worldTransform_.translation_.x + GetWidth() / 2.0f + kBlank, 0.0f);
+			info.moveVelocity.x = std::min(rect.right - worldTransform_.translation_.x + GetLeftHalfWidth() + kBlank, 0.0f);
 			// 壁に当たったことを判定結果に記録する
 			info.isWallCollision = true;
 		}
@@ -375,15 +397,32 @@ void Player::isMapCollisionLeft(CollisionMapInfo& info) {
 }
 
 KamataEngine::Vector3 Player::CornerPosition(const KamataEngine::Vector3& center, Corner corner) {
-	// 横幅は持っている状態(isHolding_)なら広がった値(GetWidth())になる
+	// 左右非対称（持っている間は向いている方向側だけが伸びる）に対応するため、
+	// 右側の角はGetRightHalfWidth()、左側の角はGetLeftHalfWidth()を使う
 	Vector3 offsetTable[kNumCorner] = {
-	    {GetWidth() / 2.0f,  -kHeight / 2.0f, 0.0f}, // 右下
-	    {-GetWidth() / 2.0f, -kHeight / 2.0f, 0.0f}, // 左下
-	    {GetWidth() / 2.0f,  kHeight / 2.0f,  0.0f}, // 右上
-	    {-GetWidth() / 2.0f, kHeight / 2.0f,  0.0f}, // 左上
+	    {GetRightHalfWidth(),  -kHeight / 2.0f, 0.0f}, // 右下
+	    {-GetLeftHalfWidth(),  -kHeight / 2.0f, 0.0f}, // 左下
+	    {GetRightHalfWidth(),  kHeight / 2.0f,  0.0f}, // 右上
+	    {-GetLeftHalfWidth(),  kHeight / 2.0f,  0.0f}, // 左上
 	};
 
 	return center + offsetTable[static_cast<int>(corner)];
+}
+
+// 中心から見た左右それぞれの半幅
+// 通常時(isHolding_==false)はGetWidth()==kWidthなので、frontHalf==backHalf==kWidth/2となり
+// 今まで通りの左右対称になる。持っている間は「背中側」をkWidth/2に固定したまま、
+// 「向いている方向側」だけをGetWidth()まで伸ばす。
+float Player::GetLeftHalfWidth() const {
+	float backHalf = kWidth / 2.0f;
+	float frontHalf = GetWidth() - backHalf;
+	return (lrDirection_ == LRDirection::kRight) ? backHalf : frontHalf;
+}
+
+float Player::GetRightHalfWidth() const {
+	float backHalf = kWidth / 2.0f;
+	float frontHalf = GetWidth() - backHalf;
+	return (lrDirection_ == LRDirection::kRight) ? frontHalf : backHalf;
 }
 
 std::array<KamataEngine::Vector3, Player::kNumCorner> Player::GetCalculatedCorners(const KamataEngine::Vector3& moveAmount) {
@@ -449,9 +488,8 @@ void Player::isOnGround(const CollisionMapInfo& info, const std::vector<MapChipF
 
 		// クローンの素の上に乗っているかも調べる
 		if (!hit) {
-			float halfWidth = GetWidth() / 2.0f;
-			float left = worldTransform_.translation_.x - halfWidth;
-			float right = worldTransform_.translation_.x + halfWidth;
+			float left = worldTransform_.translation_.x - GetLeftHalfWidth();
+			float right = worldTransform_.translation_.x + GetRightHalfWidth();
 			float playerBottom = worldTransform_.translation_.y - kHeight / 2.0f;
 
 			for (const MapChipField::Rect& rect : obstacleRects) {
@@ -560,10 +598,9 @@ void Player::isObstacleCollisionTop(CollisionMapInfo& info, const std::vector<Ma
 		return;
 	}
 
-	float halfWidth = GetWidth() / 2.0f;
 	float halfHeight = kHeight / 2.0f;
-	float nowLeft = worldTransform_.translation_.x - halfWidth;
-	float nowRight = worldTransform_.translation_.x + halfWidth;
+	float nowLeft = worldTransform_.translation_.x - GetLeftHalfWidth();
+	float nowRight = worldTransform_.translation_.x + GetRightHalfWidth();
 	float nowTop = worldTransform_.translation_.y + halfHeight;
 
 	for (const MapChipField::Rect& rect : obstacleRects) {
@@ -584,10 +621,9 @@ void Player::isObstacleCollisionBottom(CollisionMapInfo& info, const std::vector
 		return;
 	}
 
-	float halfWidth = GetWidth() / 2.0f;
 	float halfHeight = kHeight / 2.0f;
-	float nowLeft = worldTransform_.translation_.x - halfWidth;
-	float nowRight = worldTransform_.translation_.x + halfWidth;
+	float nowLeft = worldTransform_.translation_.x - GetLeftHalfWidth();
+	float nowRight = worldTransform_.translation_.x + GetRightHalfWidth();
 	float nowBottom = worldTransform_.translation_.y - halfHeight;
 
 	for (const MapChipField::Rect& rect : obstacleRects) {
@@ -608,11 +644,10 @@ void Player::isObstacleCollisionRight(CollisionMapInfo& info, const std::vector<
 		return;
 	}
 
-	float halfWidth = GetWidth() / 2.0f;
 	float halfHeight = kHeight / 2.0f;
 	float nowBottom = worldTransform_.translation_.y - halfHeight;
 	float nowTop = worldTransform_.translation_.y + halfHeight;
-	float nowRight = worldTransform_.translation_.x + halfWidth;
+	float nowRight = worldTransform_.translation_.x + GetRightHalfWidth();
 
 	for (const MapChipField::Rect& rect : obstacleRects) {
 		if (nowTop <= rect.bottom || nowBottom >= rect.top) {
@@ -632,11 +667,10 @@ void Player::isObstacleCollisionLeft(CollisionMapInfo& info, const std::vector<M
 		return;
 	}
 
-	float halfWidth = GetWidth() / 2.0f;
 	float halfHeight = kHeight / 2.0f;
 	float nowBottom = worldTransform_.translation_.y - halfHeight;
 	float nowTop = worldTransform_.translation_.y + halfHeight;
-	float nowLeft = worldTransform_.translation_.x - halfWidth;
+	float nowLeft = worldTransform_.translation_.x - GetLeftHalfWidth();
 
 	for (const MapChipField::Rect& rect : obstacleRects) {
 		if (nowTop <= rect.bottom || nowBottom >= rect.top) {
