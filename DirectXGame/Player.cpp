@@ -14,8 +14,8 @@ using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;
 
 void Player::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera, const KamataEngine::Vector3& position) {
-	// NILLポインタチェック
-	assert(model);
+	// modelはnullptrでも構わない（ベースモデルを使わず、SetExtraPartModelsで設定したパーツだけで
+	// 見た目を構成する場合。例：自機は頭・左腕・右腕のパーツのみで立方体のベースモデルは使わない）
 
 	// 引数の値をメンバ変数にコピー
 	model_ = model;
@@ -26,6 +26,8 @@ void Player::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera
 	// ワールド変換の初期化z
 	worldTransform_.Initialize();
 	worldTransform_.translation_ = position;
+	// モデルの表示スケールを反映（当たり判定サイズには影響しない、見た目だけの拡大縮小）
+	worldTransform_.scale_ = {modelScale_, modelScale_, modelScale_};
 }
 
 void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects) {
@@ -76,14 +78,30 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 		worldTransform_.rotation_.y = turnFirstRotationY_ + (destinationRotationY - turnFirstRotationY_) * t;
 	}
 
+	// モデルの表示スケールを反映（ImGuiで変更された場合もここで毎フレーム反映される）
+	worldTransform_.scale_ = {modelScale_, modelScale_, modelScale_};
+
 	// 行列を定数バッファに転送
 	UpdateWorldTransform(worldTransform_);
 }
 
 void Player::Draw() {
-	// 3Dモデルを描画（持っている間はholdingModel_があればそちらを使う。未設定ならmodel_のまま）
+	// ベースモデルを描画（持っている間はholdingModel_があればそちらを使う。未設定ならmodel_のまま）
+	// ※ベースモデル自体が未設定（nullptr）の場合は、追加パーツ（頭・腕など）だけで見た目を構成する
+	// 　ということなので、ここでは何も描画しない
 	Model* modelToDraw = (isHolding_ && holdingModel_ != nullptr) ? holdingModel_ : model_;
-	modelToDraw->Draw(worldTransform_, *camera_);
+	if (modelToDraw != nullptr) {
+		modelToDraw->Draw(worldTransform_, *camera_);
+	}
+
+	// 頭・腕など、ベースに重ねて描画する追加パーツ（設定されていれば）。
+	// 原点をワールド原点に合わせてエクスポートしてあるので、ベースと同じworldTransform_で
+	// そのまま描画するだけで正しい位置に組み合わさる。
+	for (Model* partModel : extraPartModels_) {
+		if (partModel != nullptr) {
+			partModel->Draw(worldTransform_, *camera_);
+		}
+	}
 }
 
 void Player::Move() {

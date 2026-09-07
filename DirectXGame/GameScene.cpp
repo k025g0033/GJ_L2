@@ -24,6 +24,9 @@ GameScene::~GameScene() {
 	lazers_.clear();
 	delete modelLazer_;
 	delete modelCloneBase_;
+	delete modelPlayerHead_;
+	delete modelPlayerLeftArm_;
+	delete modelPlayerRightArm_;
 	delete backgroundSprite_;
 	delete mapChipField_;
 	for (PushPlate* plate : pressurePlates_) {
@@ -74,6 +77,11 @@ void GameScene::Initialize() {
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
 	// クローンの素モデル生成（球体）
 	modelCloneBase_ = Model::CreateSphere();
+	// 自機の追加パーツモデル生成（頭・左腕・右腕。Blender側で原点をワールド原点に合わせてあるので、
+	// ベースモデルと同じワールド変換でそのまま描画すれば正しい位置に組み合わさる）
+	modelPlayerHead_ = Model::CreateFromOBJ("player_head", true);
+	modelPlayerLeftArm_ = Model::CreateFromOBJ("player_leftArm", true);
+	modelPlayerRightArm_ = Model::CreateFromOBJ("player_rightArm", true);
 	// 背景スプライトの生成
 	backgroundTextureHandle_ = TextureManager::Load("uvChecker.png");
 	backgroundSprite_ = Sprite::Create(backgroundTextureHandle_, {0.0f, 0.0f});
@@ -117,8 +125,12 @@ void GameScene::Initialize() {
 	throwAimIndicator_ = new ThrowAimIndicator();
 	throwAimIndicator_->Initialize(&camera_);
 
-	// 持っている間に使うモデル（今は通常モデルを流用。専用モデルを用意したら差し替える）
-	player_->SetHoldingModel(modelPlayer_);
+	// 自機はもうベースモデル（旧player.obj、立方体）を使わず、頭・左腕・右腕のパーツだけで構成する。
+	// ※クローンの素（CloneBase内のPlayer）は今まで通りmodelPlayer_（立方体）だけで描画されるので、
+	// 　ここでは自機側だけ変更している。
+	// 持っている間に使うベースモデルも今は用意していないため未設定のまま（=描画されない）にしておく。
+	// 専用のholding用モデルを用意したら、ここでSetHoldingModelに渡して差し替える。
+	player_->SetExtraPartModels({modelPlayerHead_, modelPlayerLeftArm_, modelPlayerRightArm_});
 }
 
 void GameScene::Update() {
@@ -495,8 +507,12 @@ void GameScene::GenerateBlocks() {
 				// 座標をマップチップ番号で指定
 				Vector3 playerPosition = mapChipField_->GetMapChipPositionByIndex(j, i);
 				player_ = new Player();
-				player_->Initialize(modelPlayer_, &camera_, playerPosition);
+				// 自機はベースモデル（立方体）を持たず、頭・左腕・右腕のパーツだけで構成するので
+				// ベースモデルにはnullptrを渡す（クローンの素の方は今まで通りmodelPlayer_を使う）
+				player_->Initialize(nullptr, &camera_, playerPosition);
 				player_->SetMapChipField(mapChipField_);
+				// モデルの見た目を少し大きく表示する（当たり判定サイズは変わらない。ImGuiで調整可能）
+				player_->SetModelScale(1.5f);
 				break;
 			}
 			case MapChipType::kLazer: {
@@ -611,6 +627,8 @@ void GameScene::ShowCloneBaseManagerImGui() {
 	ImGui::Text("Player Hitbox Mode: %s (Width: %.2f)", player_->IsHolding() ? "Holding" : "Normal", player_->GetWidth());
 	// 持っている間の当たり判定の横幅を調整する（縦方向はkHeightのまま変えない）
 	ImGui::SliderFloat("Holding Width", &player_->GetHoldingWidthRef(), 0.8f, 1.5f);
+	// 自機モデルの見た目の大きさを調整する（当たり判定サイズには影響しない）
+	ImGui::SliderFloat("Player Model Scale", &player_->GetModelScaleRef(), 0.5f, 3.0f);
 	ImGui::Separator();
 
 	// 投げる力を調整する（距離に関わらず常にこの力で投げる）

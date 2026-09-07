@@ -76,6 +76,10 @@ private:
 	KamataEngine::Model* modelWater_ = nullptr;
 	// クローンの素モデル（球体）
 	KamataEngine::Model* modelCloneBase_ = nullptr;
+	// 自機の追加パーツモデル（頭・左腕・右腕）。ベースモデルに重ねて描画する。
+	KamataEngine::Model* modelPlayerHead_ = nullptr;
+	KamataEngine::Model* modelPlayerLeftArm_ = nullptr;
+	KamataEngine::Model* modelPlayerRightArm_ = nullptr;
 	Line3D* line3D_ = nullptr;
 	// 背景スプライト
 	KamataEngine::Sprite* backgroundSprite_ = nullptr;
