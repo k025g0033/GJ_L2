@@ -270,15 +270,18 @@ void GameScene::Update() {
 					continue;
 				}
 
-				if (IsRectColliding(bulletRect, cloneBase->GetRect())) {
-
-					// 命中したクローンへ帯電を移す
-					cloneBase->Charge();
-
-					// 電気弾を消す
-					bullet->SetDead();
-					break;
+				if (!IsRectColliding(bulletRect, cloneBase->GetRect())) {
+					continue;
 				}
+
+				// 当たった時点で弾は必ず消える（帯電できない相手でも弾は消費される）
+				bullet->SetDead();
+
+				// 帯電できる相手にだけ電気を渡す
+				if (cloneBase->CanBeCharged()) {
+					cloneBase->Charge();
+				}
+				break;
 			}
 		}
 
@@ -340,6 +343,13 @@ void GameScene::Update() {
 			}
 		}
 	}
+
+	// 帯電の受け渡し（接触）と、全員使い切った場合の周回リセット
+	UpdateChargeTransfer();
+	ResetChargeHistoryIfAllUsed();
+
+	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
+	ShowCloneBaseManagerImGui();
 
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
 	ShowCloneBaseManagerImGui();
@@ -935,4 +945,67 @@ void GameScene::FireElectricBullet() {
 
 	// 発射時に帯電を消費
 	controlledClone_->Discharge();
+}
+
+///// ----- 帯電の受け渡し（接触） ----- /////
+// 帯電しているクローン・素が、帯電していない素に触れると電気が移る。
+// 渡した側の電気は消え、受け取った側だけが帯電している状態になる。
+void GameScene::UpdateChargeTransfer() {
+	// このフレームの開始時点で帯電していたものだけを「渡す側」として確定させる。
+	// ※その場で移していくと、受け取った相手が同じフレーム中にさらに次へ渡してしまい、
+	// 　1フレームで電気が数珠つなぎに飛んでいってしまう
+	std::vector<CloneBase*> givers;
+	for (CloneBase* cloneBase : cloneBases_) {
+		if (cloneBase->IsCharged() && !cloneBase->IsHeld()) {
+			givers.push_back(cloneBase);
+		}
+	}
+
+	for (CloneBase* giver : givers) {
+		// 受け渡しの途中で自分の電気が無くなった場合は打ち切る
+		if (!giver->IsCharged()) {
+			continue;
+		}
+
+		for (CloneBase* receiver : cloneBases_) {
+			if (receiver == giver || receiver->IsHeld()) {
+				continue;
+			}
+
+			// この周回でまだ一度も帯電していない相手にだけ渡せる
+			if (!receiver->CanBeCharged()) {
+				continue;
+			}
+
+			if (!IsRectColliding(giver->GetRect(), receiver->GetRect())) {
+				continue;
+			}
+
+			// 電気を移す（渡した側からは消える）
+			receiver->Charge();
+			giver->Discharge();
+			break;
+		}
+	}
+}
+
+/// --- 帯電の周回リセット ---
+// 全てのクローン・素が帯電を使い終わったら（誰も帯電しておらず、全員が一度は帯電済み）、
+// 帯電履歴をまとめて消して、また最初のどれかが帯電できるようにする。
+// ※これがないと、ギミックを解くのに失敗した時点で二度と帯電できず詰んでしまう
+void GameScene::ResetChargeHistoryIfAllUsed() {
+	if (cloneBases_.empty()) {
+		return;
+	}
+
+	for (const CloneBase* cloneBase : cloneBases_) {
+		// まだ帯電中のものがいる、またはまだ一度も帯電していないものがいるならリセットしない
+		if (cloneBase->IsCharged() || !cloneBase->HasBeenCharged()) {
+			return;
+		}
+	}
+
+	for (CloneBase* cloneBase : cloneBases_) {
+		cloneBase->ResetChargeHistory();
+	}
 }
