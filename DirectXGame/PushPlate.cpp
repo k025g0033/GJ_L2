@@ -39,11 +39,15 @@ void PushPlate::Update(const std::vector<Player*>& actors, const std::vector<Map
 			++currentActorCount_;
 		}
 	}
+	const bool shouldBePushed = currentActorCount_ >= requiredActorCount_;
 
-	isPushed_ = currentActorCount_ >= requiredActorCount_;
+	if (shouldBePushed != isPushed_) {
+		isPushed_ = shouldBePushed;
 
-	worldTransform_.scale_.y = isPushed_ ? kPushedHeight : kHeight;
-	color_.SetColor(isPushed_ ? kPushedColor : kIdleColor);
+		behaviorRequest_ = isPushed_ ? Behavior::kPressing : Behavior::kReleasing;
+	}
+
+	UpdateBehavior();
 	UpdateWorldTransform(worldTransform_);
 }
 
@@ -78,4 +82,80 @@ bool PushPlate::IsStandingOn(const MapChipField::Rect& actorRect) const {
 	bool touchesTop = std::abs(actorRect.bottom - plateTop) <= kStandingTolerance;
 
 	return overlapsX && touchesTop;
+}
+
+void PushPlate::UpdateBehavior() {
+	if (behaviorRequest_) {
+		behavior_ = behaviorRequest_.value();
+
+		switch (behavior_) {
+		case Behavior::kIdle:
+			BehaviorIdleInitialize();
+			break;
+		case Behavior::kPressing:
+			BehaviorPressingInitialize();
+			break;
+		case Behavior::kPressed:
+			BehaviorPressedInitialize();
+			break;
+		case Behavior::kReleasing:
+			BehaviorReleasingInitialize();
+			break;
+		}
+
+		behaviorRequest_ = std::nullopt;
+	}
+
+	switch (behavior_) {
+	case Behavior::kIdle:
+		BehaviorIdleUpdate();
+		break;
+	case Behavior::kPressing:
+		BehaviorPressingUpdate();
+		break;
+	case Behavior::kPressed:
+		BehaviorPressedUpdate();
+		break;
+	case Behavior::kReleasing:
+		BehaviorReleasingUpdate();
+		break;
+	}
+}
+
+void PushPlate::BehaviorIdleInitialize() { worldTransform_.scale_.y = kHeight; }
+
+void PushPlate::BehaviorIdleUpdate() {}
+
+void PushPlate::BehaviorPressingInitialize() { behaviorTimer_ = 0.0f; }
+
+void PushPlate::BehaviorPressingUpdate() {
+	behaviorTimer_ += 1.0f / 60.0f;
+
+	float t = behaviorTimer_ / kAnimationDuration;
+	t = (std::min)(t, 1.0f);
+
+	worldTransform_.scale_.y = kHeight + (kPushedHeight - kHeight) * t;
+
+	if (t >= 1.0f) {
+		behaviorRequest_ = Behavior::kPressed;
+	}
+}
+
+void PushPlate::BehaviorPressedInitialize() { worldTransform_.scale_.y = kPushedHeight; }
+
+void PushPlate::BehaviorPressedUpdate() {}
+
+void PushPlate::BehaviorReleasingInitialize() { behaviorTimer_ = 0.0f; }
+
+void PushPlate::BehaviorReleasingUpdate() {
+	behaviorTimer_ += 1.0f / 60.0f;
+
+	float t = behaviorTimer_ / kAnimationDuration;
+	t = (std::min)(t, 1.0f);
+
+	worldTransform_.scale_.y = kPushedHeight + (kHeight - kPushedHeight) * t;
+
+	if (t >= 1.0f) {
+		behaviorRequest_ = Behavior::kIdle;
+	}
 }
