@@ -1,4 +1,5 @@
 #pragma once
+#include "BackGround.h"
 #include "CameraController.h"
 #include "CloneBase.h"
 #include "Door.h"
@@ -84,21 +85,24 @@ private:
 	KamataEngine::Model* modelSkydome_ = nullptr;
 	// 水モデル
 	KamataEngine::Model* modelWater_ = nullptr;
-	// クローンの素モデル（球体）
+	// クローンの素モデル（Resources/cloneObject）
 	KamataEngine::Model* modelCloneBase_ = nullptr;
+	// 鍵モデル（球体）
+	KamataEngine::Model* modelKey_ = nullptr;
 	// 自機の追加パーツモデル（頭・左腕・右腕）。ベースモデルに重ねて描画する。
 	KamataEngine::Model* modelPlayerHead_ = nullptr;
 	KamataEngine::Model* modelPlayerLeftArm_ = nullptr;
 	KamataEngine::Model* modelPlayerRightArm_ = nullptr;
+	// クローンの素を持っている間だけ使うパーツ（腕を上げた形＋抱えているクローン）
+	KamataEngine::Model* modelPlayerLeftArmHolding_ = nullptr;
+	KamataEngine::Model* modelPlayerRightArmHolding_ = nullptr;
+	KamataEngine::Model* modelPlayerHoldingClone_ = nullptr;
 	Line3D* line3D_ = nullptr;
 	// 電撃弾モデル
 	std::vector<ElectricBullet*> electricBullets_;
 	KamataEngine::Model* modelElectricBullet_ = nullptr;
-	// 背景スプライト
-	KamataEngine::Sprite* backgroundSprite_ = nullptr;
-	uint32_t backgroundTextureHandle_ = 0;
-	// 0: 天球、1: スプライト
-	int backgroundMode_ = 0;
+	// ステージごとの背景画像と、右から左へ流れる雲。
+	BackGround* background_ = nullptr;
 
 	// ポーズ表示
 	bool isPaused_ = false;

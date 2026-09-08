@@ -179,7 +179,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CameraController.cpp" />
-    <ClCompile Include="BackGround.cpp" />
+    
     <ClCompile Include="ChargePoint.cpp" />
     <ClCompile Include="CloneBase.cpp" />
     <ClCompile Include="Collision3D.cpp" />
@@ -192,7 +192,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClCompile Include="Key.cpp" />
     <ClCompile Include="Lazer.cpp" />
     <ClCompile Include="Line3D.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Generated\BackgroundCheck\ProbeMain.cpp" />
     <ClCompile Include="MapChipField.cpp" />
     <ClCompile Include="Matrix4x4.cpp" />
     <ClCompile Include="MouseCursor.cpp" />

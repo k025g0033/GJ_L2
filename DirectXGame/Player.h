@@ -85,32 +85,35 @@ public:
 
 	const KamataEngine::Vector3& GetVelocity() const { return velocity_; }
 
-	// 当たり判定サイズの取得（クローンの素との当たり判定などで使用）
-	// 持っている状態(isHolding_)の間は、横幅だけholdingWidth_に差し替える
-	float GetWidth() const { return isHolding_ ? holdingWidth_ : kWidth; }
+	// 当たり判定サイズの取得
+	// ※クローンの素を持っていても当たり判定のサイズは変わらない（常に通常時と同じ）
+	float GetWidth() const { return kWidth; }
 	float GetHeight() const { return kHeight; }
 
 	// 持った状態に関係なく、常に通常時の横幅を返す（クローンの素の追従位置計算などで使用）
 	static float GetNormalWidth() { return kWidth; }
 
+	// 当たり判定サイズ（ImGuiのスライダーから直接書き換えられるよう参照を返す）
+	// ※自機とクローンで共通の値なので、片方を変えるともう片方にも反映される
+	static float& GetWidthRef() { return kWidth; }
+	static float& GetHeightRef() { return kHeight; }
+
 	// クローンの素を持っている状態かどうかを設定する
-	// （持っている間は当たり判定の横幅が広がる。以前は自機の横にクローンの素(kBase)が
-	// 　並ぶことで見た目上横２マス分くらいになっていたが、それに代えて自機自身の
-	// 　当たり判定を少しだけ広げることで表現する）
+	// （当たり判定のサイズは変えず、見た目のモデルだけを持っている用に差し替える）
 	void SetIsHolding(bool isHolding) { isHolding_ = isHolding; }
 	bool IsHolding() const { return isHolding_; }
-
-	// 持っている間の当たり判定の横幅（ImGuiのスライダーから直接書き換えられるよう参照を返す）
-	float& GetHoldingWidthRef() { return holdingWidth_; }
-	float GetHoldingWidth() const { return holdingWidth_; }
 
 	// ジャンプ可能かどうかを設定する（クローンはジャンプできないようにするために使用）
 	void SetCanJump(bool canJump) { canJump_ = canJump; }
 	bool GetCanJump() const { return canJump_; }
 
-	// 持っている間だけ使うモデルを設定する（未設定、または今の仮実装のように通常モデルと同じものを渡した場合は
-	// 見た目上は変わらない。将来的に専用モデルを用意したら、これを差し替えるだけで良い）
+	// 持っている間だけ使うベースモデルを設定する（未設定ならmodel_をそのまま使う）
 	void SetHoldingModel(KamataEngine::Model* model) { holdingModel_ = model; }
+
+	// クローンの素を持っている間だけ使う追加パーツを設定する
+	// （腕を上げた形のモデルと、抱えているクローンのモデルをまとめて渡す想定）
+	// 未設定の場合は、持っている間もSetExtraPartModelsで渡した通常のパーツをそのまま使う。
+	void SetHoldingPartModels(const std::vector<KamataEngine::Model*>& models) { holdingPartModels_ = models; }
 
 	// 体のベースモデルに重ねて描画する追加パーツ（頭・腕など）を設定する
 	// ※Blender側で原点をワールド原点に合わせてエクスポートしてあるので、
@@ -178,15 +181,15 @@ private:
 	// ジャンプ初速 (上方向)
 	static inline const float kJumpAcceleration = 0.25f;
 
-	// キャラクターの当たり判定サイズ
-	static inline const float kWidth = 0.8f;
-	static inline const float kHeight = 0.8f;
+	// キャラクターの当たり判定サイズ（ImGuiで調整できるようconstにしていない）
+	// ※自機とクローンで共通の値。横幅は0.8だと少し広く感じたので0.7に狭めてある。
+	static inline float kWidth = 0.7f;
+	static inline float kHeight = 0.8f;
 
 	static inline const float kBlank = 0.02f;
 
-	// クローンの素を持っている間だけ、当たり判定の横幅をこちらに差し替える（ImGuiで調整可能）
+	// クローンの素を持っているか（当たり判定は変えず、見た目のモデルだけ差し替える）
 	bool isHolding_ = false;
-	float holdingWidth_ = 1.0f;
 
 	// ジャンプできるか（通常の自機はtrue、クローンはfalseにする）
 	bool canJump_ = true;
@@ -196,6 +199,9 @@ private:
 
 	// ベースモデルに重ねて描画する追加パーツ（頭・腕など）。未設定なら何も追加描画しない。
 	std::vector<KamataEngine::Model*> extraPartModels_;
+
+	// クローンの素を持っている間だけ使う追加パーツ。未設定ならextraPartModels_をそのまま使う。
+	std::vector<KamataEngine::Model*> holdingPartModels_;
 
 	// モデルの表示スケール（当たり判定サイズには影響せず、見た目の大きさだけを変える）
 	float modelScale_ = 1.0f;
