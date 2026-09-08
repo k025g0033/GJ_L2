@@ -211,6 +211,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClInclude Include="Collision3D.h" />
     <ClInclude Include="CollisionUtility.h" />
     <ClInclude Include="Door.h" />
+    <ClInclude Include="Easing.h" />
     <ClInclude Include="ElectricBullet.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="Goal.h" />
