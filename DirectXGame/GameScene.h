@@ -54,6 +54,8 @@ private:
 	void UpdateDoors();
 	void UpdateLazers();
 	void UpdateKeys(Player* activePlayer);
+	void StartGoalCameraCinematic(uint8_t keyID);
+	void UpdateGoalCameraCinematic();
 	// ゴール判定（渡されたキャラだけを対象にする。自機のみを渡すこと）
 	void CheckDoorGoal(const Player* goalPlayer);
 
@@ -75,6 +77,8 @@ private:
 	KamataEngine::Model* modelPlayer_ = nullptr;
 	// ブロックモデル
 	KamataEngine::Model* modelBlock_ = nullptr;
+	// ドアモデル
+	KamataEngine::Model* modelDoor_ = nullptr;
 	// 感圧板モデル（土台・押下部分）
 	KamataEngine::Model* modelPushPlateBase_ = nullptr;
 	KamataEngine::Model* modelPushPlateButton_ = nullptr;
@@ -86,6 +90,8 @@ private:
 	KamataEngine::Model* modelWater_ = nullptr;
 	// クローンの素モデル（球体）
 	KamataEngine::Model* modelCloneBase_ = nullptr;
+	// 鍵モデル
+	KamataEngine::Model* modelKey_ = nullptr;
 	// 自機の追加パーツモデル（頭・左腕・右腕）。ベースモデルに重ねて描画する。
 	KamataEngine::Model* modelPlayerHead_ = nullptr;
 	KamataEngine::Model* modelPlayerLeftArm_ = nullptr;
@@ -126,6 +132,24 @@ private:
 
 	// カメラ
 	KamataEngine::Camera camera_;
+
+	// 鍵取得時のゴール紹介カメラ
+	enum class GoalCameraPhase {
+		kFocus,
+		kFocusHold,
+		kReturn,
+	};
+	bool isGoalCameraCinematic_ = false;
+	GoalCameraPhase goalCameraPhase_ = GoalCameraPhase::kFocus;
+	float goalCameraTimer_ = 0.0f;
+	uint8_t goalCameraDoorID_ = 0;
+	KamataEngine::Vector3 goalCameraStart_{};
+	KamataEngine::Vector3 goalCameraFocus_{};
+	static inline const float kGoalCameraFocusDuration = 0.6f;
+	static inline const float kGoalCameraFocusHoldDuration = 0.75f;
+	static inline const float kGoalCameraReturnDuration = 0.7f;
+	// ドアを画面中央より少し下へ置き、床下が見えないようにする高さ。
+	static inline const float kGoalCameraFloorViewOffsetY = 2.5f;
 	// デバッグカメラ
 	KamataEngine::DebugCamera* debugCamera_ = nullptr;
 	// デバッグカメラ有効

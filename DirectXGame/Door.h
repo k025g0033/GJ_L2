@@ -36,12 +36,16 @@ private:
 	float behaviorTimer_ = 0.0f;
 
 	KamataEngine::Vector3 closedPosition_{};
-	KamataEngine::Vector3 openPosition_{};
+	KamataEngine::Vector3 hingePosition_{};
+	float closedRotationY_ = 0.0f;
+	float openRotationY_ = 0.0f;
 
-	static inline const float kAnimationDuration = 0.4f;
-	static inline const float kOpenDistance = 1.5f;
+	static inline const float kAnimationDuration = 0.55f;
+	static inline const float kCollisionCenterOffsetY = 0.5f;
+	static inline const float kDoorHalfWidth = 0.5f;
 
 	void UpdateBehavior();
+	void ApplyHingeRotation(float rotationY);
 
 	void BehaviorClosedInitialize();
 	void BehaviorClosedUpdate();
@@ -63,5 +67,6 @@ private:
 	KamataEngine::Camera* camera_ = nullptr;
 	uint8_t id_ = 0;
 	bool isOpen_ = false;
-	static inline const KamataEngine::Vector4 kClosedColor = {0.75f, 0.08f, 0.12f, 1.0f};
+	// 色はDoor.pngをそのまま使用する。
+	static inline const KamataEngine::Vector4 kClosedColor = {1.0f, 1.0f, 1.0f, 1.0f};
 };
