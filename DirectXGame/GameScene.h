@@ -162,5 +162,7 @@ private:
 	void UpdateChargeSources();
 	void UpdateElectricPlatforms();
 
+	float chargeEffectTime_ = 0.0f;
+
 	int stageNumber_ = 1;
 };

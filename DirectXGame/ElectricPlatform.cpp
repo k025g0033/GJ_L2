@@ -2,6 +2,7 @@
 #include "WorldTransformConfig.h"
 #include "math/MathUtility.h"
 #include <cassert>
+#include <cmath>
 
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;
@@ -17,6 +18,9 @@ void ElectricPlatform::Initialize(
 	moveStep_ = end - start;
 	forwardTarget_ = start;
 	id_ = id;
+
+	behavior_ = Behavior::kIdle;
+	effectTimer_ = 0.0f;
 
 	worldTransform_.Initialize();
 	worldTransform_.translation_ = start_;
@@ -43,11 +47,23 @@ void ElectricPlatform::Update() {
 			Normalize(difference);
 			worldTransform_.translation_ = worldTransform_.translation_ + difference * kMoveSpeed;
 		}
+
+		if (distance <= kMoveSpeed) {
+			worldTransform_.translation_ = forwardTarget_;
+			isMovingForward_ = false;
+			returnWaitTimer_ = kReturnWaitFrames;
+
+			behavior_ = Behavior::kWaiting;
+		}
 	} else if (returnWaitTimer_ > 0) {
 		// 最後の移動が完了してから一定時間その場に留まる。
 		--returnWaitTimer_;
 		if (returnWaitTimer_ == 0) {
 			isReturning_ = true;
+		}
+		if (returnWaitTimer_ == 0) {
+			isReturning_ = true;
+			behavior_ = Behavior::kReturning;
 		}
 	} else if (isReturning_) {
 		// 待機時間中に再帯電しなかった場合は始点へ戻る。
@@ -62,10 +78,55 @@ void ElectricPlatform::Update() {
 			Normalize(difference);
 			worldTransform_.translation_ = worldTransform_.translation_ + difference * kMoveSpeed;
 		}
+		if (distance <= kMoveSpeed) {
+			worldTransform_.translation_ = start_;
+			forwardTarget_ = start_;
+			isReturning_ = false;
+
+			behavior_ = Behavior::kIdle;
+		}
 	}
 
 	moveDelta_ = worldTransform_.translation_ - previousPosition;
-	color_.SetColor(IsCharged() ? kChargedColor : kIdleColor);
+	
+	effectTimer_ += 1.0f / 60.0f;
+
+	Vector4 displayColor = kIdleColor;
+
+	switch (behavior_) {
+	case Behavior::kIdle:
+		displayColor = kIdleColor;
+		break;
+
+	case Behavior::kMoving: {
+		// 移動中は青白くゆっくり明滅
+		const float pulse = (std::sin(effectTimer_ * 8.0f) + 1.0f) * 0.5f;
+
+		displayColor = {
+		    kChargedColor.x * (0.7f + pulse * 0.3f),
+		    kChargedColor.y * (0.7f + pulse * 0.3f),
+		    kChargedColor.z * (0.7f + pulse * 0.3f),
+		    1.0f,
+		};
+		break;
+	}
+
+	case Behavior::kWaiting:
+		// 帰還0.5秒前から素早く点滅
+		if (returnWaitTimer_ <= kReturnWarningFrames) {
+			const bool isBright = (returnWaitTimer_ / 5) % 2 == 0;
+			displayColor = isBright ? kChargedColor : kIdleColor;
+		} else {
+			displayColor = kWaitingColor;
+		}
+		break;
+
+	case Behavior::kReturning:
+		displayColor = kReturningColor;
+		break;
+	}
+
+	color_.SetColor(displayColor);
 	UpdateWorldTransform(worldTransform_);
 }
 
@@ -81,6 +142,9 @@ void ElectricPlatform::Charge() {
 	isMovingForward_ = true;
 	isReturning_ = false;
 	returnWaitTimer_ = 0;
+
+	behavior_ = Behavior::kMoving;
+	effectTimer_ = 0.0f;
 }
 
 MapChipField::Rect ElectricPlatform::GetRect() const {

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <numbers>
+#include <cmath>
 
 using namespace KamataEngine;
 
@@ -14,6 +15,8 @@ void Lazer::Initialize(Model* model, Camera* camera, const Vector3& start, const
 	camera_ = camera;
 	id_ = id;
 	isActive_ = true;
+	color_.Initialize();
+	color_.SetColor({1.0f, 0.1f, 0.1f, 1.0f});
 
 	// 両端のLマスを含むレーザー全体を、プレイヤー用の障害物矩形にする。
 	const float minX = start.x < end.x ? start.x : end.x;
@@ -57,14 +60,132 @@ void Lazer::Initialize(Model* model, Camera* camera, const Vector3& start, const
 		assert(false && "L0 must be placed horizontally or vertically");
 	}
 
+	// 向きと長さを設定し終えた後のスケールを、再出現時の基準として保存する。
+	baseScale_ = worldTransform_.scale_;
+
 	UpdateWorldTransform(worldTransform_);
 }
 
-void Lazer::Update() { UpdateWorldTransform(worldTransform_); }
+void Lazer::Update() {
+	UpdateBehavior();
+	UpdateWorldTransform(worldTransform_);
+}
 
 void Lazer::Draw() {
-	if (!isActive_) {
+	if (behavior_ == Behavior::kInactive) {
 		return;
 	}
-	model_->Draw(worldTransform_, *camera_);
+
+	model_->Draw(worldTransform_, *camera_, &color_);
+}
+
+void Lazer::SetActive(bool isActive) {
+	if (desiredActive_ == isActive) {
+		return;
+	}
+
+	desiredActive_ = isActive;
+
+	if (desiredActive_) {
+		behaviorRequest_ = Behavior::kAppearing;
+	} else {
+		behaviorRequest_ = Behavior::kDisappearing;
+	}
+}
+
+void Lazer::UpdateBehavior() {
+	if (behaviorRequest_) {
+		behavior_ = behaviorRequest_.value();
+
+		switch (behavior_) {
+		case Behavior::kActive:
+			BehaviorActiveInitialize();
+			break;
+		case Behavior::kDisappearing:
+			BehaviorDisappearingInitialize();
+			break;
+		case Behavior::kInactive:
+			BehaviorInactiveInitialize();
+			break;
+		case Behavior::kAppearing:
+			BehaviorAppearingInitialize();
+			break;
+		}
+
+		behaviorRequest_ = std::nullopt;
+	}
+
+	switch (behavior_) {
+	case Behavior::kActive:
+		BehaviorActiveUpdate();
+		break;
+	case Behavior::kDisappearing:
+		BehaviorDisappearingUpdate();
+		break;
+	case Behavior::kInactive:
+		BehaviorInactiveUpdate();
+		break;
+	case Behavior::kAppearing:
+		BehaviorAppearingUpdate();
+		break;
+	}
+}
+
+void Lazer::BehaviorActiveInitialize() {
+	isActive_ = true;
+	worldTransform_.scale_ = baseScale_;
+}
+
+void Lazer::BehaviorActiveUpdate() {
+	effectTime_ += 1.0f / 60.0f;
+
+	const float pulse = (std::sin(effectTime_ * 8.0f) + 1.0f) * 0.5f;
+
+	color_.SetColor({
+	    1.0f,
+	    0.05f + pulse * 0.25f,
+	    0.05f + pulse * 0.15f,
+	    1.0f,
+	});
+}
+
+void Lazer::BehaviorDisappearingInitialize() { behaviorTimer_ = 0.0f; }
+
+void Lazer::BehaviorDisappearingUpdate() {
+	behaviorTimer_ += 1.0f / 60.0f;
+
+	float t = behaviorTimer_ / kAnimationDuration;
+	t = (std::min)(t, 1.0f);
+
+	worldTransform_.scale_.x = baseScale_.x * (1.0f - t);
+	worldTransform_.scale_.z = baseScale_.z * (1.0f - t);
+
+	if (t >= 1.0f) {
+		isActive_ = false;
+		behaviorRequest_ = Behavior::kInactive;
+	}
+}
+
+void Lazer::BehaviorInactiveInitialize() {
+	worldTransform_.scale_.x = 0.0f;
+	worldTransform_.scale_.z = 0.0f;
+}
+
+void Lazer::BehaviorInactiveUpdate() {}
+
+void Lazer::BehaviorAppearingInitialize() { behaviorTimer_ = 0.0f; }
+
+void Lazer::BehaviorAppearingUpdate() {
+	behaviorTimer_ += 1.0f / 60.0f;
+
+	float t = behaviorTimer_ / kAnimationDuration;
+	t = (std::min)(t, 1.0f);
+
+	worldTransform_.scale_.x = baseScale_.x * t;
+	worldTransform_.scale_.z = baseScale_.z * t;
+
+	if (t >= 1.0f) {
+		isActive_ = true;
+		behaviorRequest_ = Behavior::kActive;
+	}
 }

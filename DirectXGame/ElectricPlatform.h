@@ -20,6 +20,24 @@ public:
 	const KamataEngine::Vector3& GetMoveDelta() const { return moveDelta_; }
 
 private:
+
+	/// 演出 ///
+	enum class Behavior {
+		kIdle,      // 初期位置で待機
+		kMoving,    // 通電して前進
+		kWaiting,   // 移動後、帰還まで待機
+		kReturning, // 初期位置へ帰還
+	};
+
+	Behavior behavior_ = Behavior::kIdle;
+	// 演出用
+	float effectTimer_ = 0.0f;
+	static inline const KamataEngine::Vector4 kWaitingColor = {0.3f, 0.9f, 1.0f, 1.0f};
+	static inline const KamataEngine::Vector4 kReturningColor = {0.2f, 0.45f, 0.55f, 1.0f};
+	static inline const int kReturnWarningFrames = 30;
+
+	/// ///
+
 	KamataEngine::Model* model_ = nullptr;
 	KamataEngine::Camera* camera_ = nullptr;
 	KamataEngine::WorldTransform worldTransform_;
