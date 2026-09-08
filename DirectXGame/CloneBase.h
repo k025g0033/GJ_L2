@@ -200,7 +200,7 @@ private:
 
 	// 投げられて飛んでいる間の物理更新（重力・着地判定）
 	void UpdateThrowPhysics(
-	    const MapChipField::Rect& playerRect,
+	    const MapChipField::Rect& playerRect, const std::vector<MapChipField::Rect>& obstacleRects,
 	    const std::vector<MapChipField::Rect>& oneWayPlatformRects);
 
 	///// ----- 変形アニメーション ----- /////
