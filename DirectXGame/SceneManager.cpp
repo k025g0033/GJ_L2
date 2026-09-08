@@ -20,6 +20,23 @@ void SceneManager::Initialize() {
 void SceneManager::Update() {
 	currentScene_->Update();
 
+	// 現在のステージを最初から読み直す
+	if (currentScene_->GetReloadRequested()) {
+		delete currentScene_;
+		currentScene_ = CreateScene(scene_);
+		currentScene_->Initialize();
+		return;
+	}
+
+	// ゲームシーンからステージセレクトへ戻る
+	if (currentScene_->GetStageSelectRequested()) {
+		delete currentScene_;
+		scene_ = Scene::kStageSelect;
+		currentScene_ = CreateScene(scene_);
+		currentScene_->Initialize();
+		return;
+	}
+
 	// 現在のシーンが終了要求を出したら次のシーンへ切り替える
 	if (currentScene_->IsFinished()) {
 		ChangeScene();

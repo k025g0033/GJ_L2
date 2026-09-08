@@ -48,6 +48,13 @@ GameScene::~GameScene() {
 	delete modelPlayerLeftArm_;
 	delete modelPlayerRightArm_;
 	delete backgroundSprite_;
+	delete pauseEscSprite_;
+	delete pausePoseGuideSprite_;
+	delete pauseOverlaySprite_;
+	delete pauseTitleSprite_;
+	for (Sprite* sprite : pauseMenuSprites_) {
+		delete sprite;
+	}
 	delete mapChipField_;
 	for (PushPlate* plate : pressurePlates_) {
 		delete plate;
@@ -127,6 +134,28 @@ void GameScene::Initialize() {
 	backgroundSprite_ = Sprite::Create(backgroundTextureHandle_, {0.0f, 0.0f});
 	backgroundSprite_->SetSize({1280.0f, 720.0f});
 
+	// 左上のポーズ操作案内と、停止中に表示する画面を生成
+	pauseEscTextureHandle_ = TextureManager::Load("Pause/Esc.png");
+	pausePoseTextureHandle_ = TextureManager::Load("Pause/Pose.png");
+	pauseOverlayTextureHandle_ = TextureManager::Load("white1x1.png");
+	pauseEscSprite_ = Sprite::Create(pauseEscTextureHandle_, {8.0f, 8.0f});
+	pauseEscSprite_->SetSize({40.0f, 40.0f});
+	pausePoseGuideSprite_ = Sprite::Create(pausePoseTextureHandle_, {52.0f, 8.0f});
+	pausePoseGuideSprite_->SetSize({40.0f, 40.0f});
+	pauseOverlaySprite_ = Sprite::Create(pauseOverlayTextureHandle_, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.65f});
+	pauseOverlaySprite_->SetSize({1280.0f, 720.0f});
+	pauseTitleSprite_ = Sprite::Create(pausePoseTextureHandle_, {512.0f, 232.0f});
+	pauseTitleSprite_->SetPosition({512.0f, 80.0f});
+	pauseTitleSprite_->SetSize({256.0f, 128.0f});
+
+	const std::array<std::string, 4> pauseMenuPaths = {
+	    "Pause/Return.png", "Pause/Restart.png", "Pause/StageSelect.png", "Pause/Settings.png"};
+	for (int i = 0; i < static_cast<int>(pauseMenuSprites_.size()); ++i) {
+		pauseMenuTextureHandles_[i] = TextureManager::Load(pauseMenuPaths[i]);
+		pauseMenuSprites_[i] = Sprite::Create(pauseMenuTextureHandles_[i], {512.0f, 240.0f + 80.0f * i});
+		pauseMenuSprites_[i]->SetSize({256.0f, 64.0f});
+	}
+
 	// マップチップフィールドの初期化と生成
 	std::string mapPath = "Resources/map/map_" + std::to_string(stageNumber_) + ".csv";
 
@@ -174,6 +203,38 @@ void GameScene::Initialize() {
 }
 
 void GameScene::Update() {
+	// ESCでポーズを切り替える。停止中は以降のゲーム処理を更新しない。
+	if (Input::GetInstance()->TriggerKey(DIK_ESCAPE)) {
+		isPaused_ = !isPaused_;
+		if (isPaused_) {
+			selectedPauseItem_ = 0;
+		}
+	}
+	if (isPaused_) {
+		if (Input::GetInstance()->TriggerKey(DIK_W)) {
+			selectedPauseItem_ = (selectedPauseItem_ + 3) % 4;
+		}
+		if (Input::GetInstance()->TriggerKey(DIK_S)) {
+			selectedPauseItem_ = (selectedPauseItem_ + 1) % 4;
+		}
+		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+			switch (selectedPauseItem_) {
+			case 0: // もどる
+				isPaused_ = false;
+				break;
+			case 1: // リスタート
+				reloadRequested_ = true;
+				break;
+			case 2: // ステージセレクト
+				stageSelectRequested_ = true;
+				break;
+			case 3: // 設定（設定内容は後で実装）
+				break;
+			}
+		}
+		return;
+	}
+
 	// マウスカーソルの更新（投げる方向の計算、表示に使用）
 	if (mouseCursor_ != nullptr) {
 		mouseCursor_->Update();
@@ -565,6 +626,21 @@ void GameScene::Draw() {
 
 	// 自機の当たり判定サイズを可視化するワイヤーフレーム（Debugビルド/USE_IMGUIの時だけ表示）
 	DrawPlayerCollisionWireframe();
+
+	// 常時表示する小さなポーズ操作案内
+	Sprite::PreDraw();
+	if (isPaused_) {
+		pauseOverlaySprite_->Draw();
+		pauseTitleSprite_->Draw();
+		for (Sprite* sprite : pauseMenuSprites_) {
+			sprite->Draw();
+		}
+		DebugText::GetInstance()->Print(">", 480.0f, 258.0f + 80.0f * selectedPauseItem_, 1.5f);
+		DebugText::GetInstance()->DrawAll();
+	}
+	pauseEscSprite_->Draw();
+	pausePoseGuideSprite_->Draw();
+	Sprite::PostDraw();
 }
 
 ///// ----- 自機の当たり判定サイズを可視化するワイヤーフレーム ----- /////
