@@ -22,13 +22,14 @@ private:
 
 	bool isFinished_ = false;
 
-	// 1~3のステージを選択
+	// タイトルとステージ1～10を選択
 	int selectedStageNumber_ = 1;
 	int previousStageNumber_ = 1;
 	bool isAnimating_ = false;
 	float animationTime_ = 0.0f;
 	static inline const int kMinStageNumber = 0;
-	static inline const int kMaxStageNumber = 6;
+	static inline const int kMaxStageNumber = 10;
+	static inline const int kMaxPlayableStageNumber = 6;
 	static inline const int kStageSpriteCount = kMaxStageNumber + 1;
 	std::array<uint32_t, kStageSpriteCount> stageTextureHandles_{};
 	std::array<KamataEngine::Sprite*, kStageSpriteCount> stageSprites_{};

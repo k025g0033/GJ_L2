@@ -3,6 +3,7 @@
 #include "CollisionUtility.h"
 #include "WorldTransformConfig.h"
 #include "math/MathUtility.h"
+#include <algorithm>
 #include <cassert>
 #include <cmath> // std::abs
 #include <map>
@@ -27,6 +28,20 @@ MapChipField::Rect ExpandRect(const MapChipField::Rect& rect, float margin) { re
 // 少しだけ広げた矩形で判定して、隣り合っていれば「接触している」とみなす。
 const float kChargeContactMargin = 0.1f;
 
+float SmoothStep(float t) {
+	t = std::clamp(t, 0.0f, 1.0f);
+	return t * t * (3.0f - 2.0f * t);
+}
+
+KamataEngine::Vector3 LerpVector3(
+    const KamataEngine::Vector3& start, const KamataEngine::Vector3& end, float t) {
+	return {
+	    start.x + (end.x - start.x) * t,
+	    start.y + (end.y - start.y) * t,
+	    start.z + (end.z - start.z) * t,
+	};
+}
+
 // ステージごとのカメラ設定ファイル
 const char* kCameraSettingsCsvPath = "Resources/map/camera.csv";
 } // namespace
@@ -40,6 +55,7 @@ GameScene::~GameScene() {
 	// 解放
 	delete modelPlayer_;
 	delete modelBlock_;
+	delete modelDoor_;
 	delete modelPushPlateBase_;
 	delete modelPushPlateButton_;
 	delete modelSkydome_;
@@ -122,6 +138,8 @@ void GameScene::Initialize() {
 	// modelPlayer_ = Model::CreateFromOBJ("player", true);
 	// ブロックモデル生成
 	modelBlock_ = Model::CreateFromOBJ("block", true);
+	// ドア専用モデル
+	modelDoor_ = Model::CreateFromOBJ("Door", true);
 	// 感圧板の土台と、上下する押下部分
 	modelPushPlateBase_ = Model::CreateFromOBJ("PushPlateBase", true);
 	modelPushPlateButton_ = Model::CreateFromOBJ("PushPlateButton", true);
@@ -355,6 +373,17 @@ void GameScene::Update() {
 		closedDoorRects.push_back(doorRect);
 	}
 
+	// 未取得の鍵は、自機・クローンのどちらも通り抜けられない障害物にする。
+	std::vector<MapChipField::Rect> keyObstacleRects;
+	for (const Key* key : keys_) {
+		if (key->IsCollected()) {
+			continue;
+		}
+		const MapChipField::Rect keyRect = key->GetRect();
+		keyObstacleRects.push_back(keyRect);
+		cloneBaseRects.push_back(keyRect);
+	}
+
 	// 電動足場は停止中・移動中に関係なく、プレイヤーとクローンが乗れる障害物にする。
 	for (const ElectricPlatform* platform : electricPlatforms_) {
 		cloneBaseRects.push_back(platform->GetRect());
@@ -385,9 +414,10 @@ void GameScene::Update() {
 	// プレイヤーの更新
 	// クローンの素を持っている間、変形アニメーション中はリンク線を発射できないようにする
 	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && !isHoldingCloneBase_ && !isAnyCloneAnimating && Input::GetInstance()->IsTriggerMouse(0);
-	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire && !isAnyCloneAnimating;
+	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire && !isAnyCloneAnimating && !isGoalCameraCinematic_;
 	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects, oneWayPlatformRects);
 
+	// 鍵を取得できるのは自機だけ。操作中のクローンは触れても取得しない。
 	UpdateKeys(player_);
 	UpdateDoors();
 	// ゴール判定は自機だけが対象（クローンが扉に触れてもクリアにはしない）
@@ -481,6 +511,7 @@ void GameScene::Update() {
 		// 　自分と自分がぶつかることになり、素同士の当たり判定が成立していなかった。
 		// 　ここで自分だけを除いて組み直すことで、素同士・素とクローン・素と自機のすべてが有効になる。
 		std::vector<MapChipField::Rect> obstacleRectsForClone = closedDoorRects;
+		obstacleRectsForClone.insert(obstacleRectsForClone.end(), keyObstacleRects.begin(), keyObstacleRects.end());
 		obstacleRectsForClone.push_back(playerRect);
 		for (CloneBase* other : cloneBases_) {
 			// 自分自身と、自機に持たれている素は障害物に含めない
@@ -532,8 +563,12 @@ void GameScene::Update() {
 	// 天球の更新
 	skydome_->Update();
 
-	// カメラの更新
-	cameraController_->Update();
+	// 鍵取得演出中だけ通常の追従を止め、ゴール紹介用のカメラを動かす。
+	if (isGoalCameraCinematic_) {
+		UpdateGoalCameraCinematic();
+	} else {
+		cameraController_->Update();
+	}
 
 	// ブロックの更新
 	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
@@ -570,7 +605,7 @@ void GameScene::Update() {
 	}
 
 	// プレイヤー操作中かつ、クローンの素を持っていない間だけリンク線を発射できる
-	bool canFireLine = controlledClone_ == nullptr && activePlayer->IsOnGround() && !isHoldingCloneBase_ && !isAnyCloneAnimating;
+	bool canFireLine = controlledClone_ == nullptr && activePlayer->IsOnGround() && !isHoldingCloneBase_ && !isAnyCloneAnimating && !isGoalCameraCinematic_;
 	line3D_->Update(
 	    activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, closedDoorRects, activeLazerRects,
 	    canFireLine, controlledClone_ != nullptr);
@@ -979,7 +1014,7 @@ void GameScene::GenerateBlocks() {
 			}
 			case MapChipType::kDoor: {
 				Door* door = new Door();
-				door->Initialize(modelBlock_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i), mapChipField_->GetMapChipSubIDByIndex(j, i));
+				door->Initialize(modelDoor_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i), mapChipField_->GetMapChipSubIDByIndex(j, i));
 				doors_.push_back(door);
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
@@ -1290,8 +1325,76 @@ void GameScene::UpdateLazers() {
 
 void GameScene::UpdateKeys(Player* activePlayer) {
 	for (Key* key : keys_) {
+		const bool wasCollected = key->IsCollected();
 		key->Update(activePlayer);
+		if (!wasCollected && key->IsCollected()) {
+			StartGoalCameraCinematic(key->GetID());
+		}
 	}
+}
+
+void GameScene::StartGoalCameraCinematic(uint8_t keyID) {
+	if (isGoalCameraCinematic_) {
+		return;
+	}
+
+	const Door* targetDoor = nullptr;
+	for (const Door* door : doors_) {
+		if (door->GetID() == keyID) {
+			targetDoor = door;
+			break;
+		}
+	}
+	if (targetDoor == nullptr) {
+		return;
+	}
+
+	isGoalCameraCinematic_ = true;
+	goalCameraPhase_ = GoalCameraPhase::kFocus;
+	goalCameraTimer_ = 0.0f;
+	goalCameraDoorID_ = keyID;
+	goalCameraStart_ = camera_.translation_;
+
+	const MapChipField::Rect doorRect = targetDoor->GetRect();
+	goalCameraFocus_ = {
+	    (doorRect.left + doorRect.right) * 0.5f,
+	    doorRect.bottom + kGoalCameraFloorViewOffsetY,
+	    (std::max)(goalCameraStart_.z, -10.0f),
+	};
+}
+
+void GameScene::UpdateGoalCameraCinematic() {
+	goalCameraTimer_ += 1.0f / 60.0f;
+
+	switch (goalCameraPhase_) {
+	case GoalCameraPhase::kFocus: {
+		const float t = SmoothStep(goalCameraTimer_ / kGoalCameraFocusDuration);
+		camera_.translation_ = LerpVector3(goalCameraStart_, goalCameraFocus_, t);
+		if (goalCameraTimer_ >= kGoalCameraFocusDuration) {
+			goalCameraPhase_ = GoalCameraPhase::kFocusHold;
+			goalCameraTimer_ = 0.0f;
+		}
+		break;
+	}
+	case GoalCameraPhase::kFocusHold:
+		camera_.translation_ = goalCameraFocus_;
+		if (goalCameraTimer_ >= kGoalCameraFocusHoldDuration) {
+			goalCameraPhase_ = GoalCameraPhase::kReturn;
+			goalCameraTimer_ = 0.0f;
+		}
+		break;
+	case GoalCameraPhase::kReturn: {
+		const float t = SmoothStep(goalCameraTimer_ / kGoalCameraReturnDuration);
+		camera_.translation_ = LerpVector3(goalCameraFocus_, goalCameraStart_, t);
+		if (goalCameraTimer_ >= kGoalCameraReturnDuration) {
+			camera_.translation_ = goalCameraStart_;
+			isGoalCameraCinematic_ = false;
+		}
+		break;
+	}
+	}
+
+	camera_.UpdateMatrix();
 }
 
 void GameScene::UpdateDoors() {
@@ -1300,8 +1403,11 @@ void GameScene::UpdateDoors() {
 
 		for (const Key* key : keys_) {
 			if (key->GetID() == door->GetID() && key->IsCollected()) {
-
-				shouldOpen = true;
+				// 今紹介しているドアだけは、ズームが終わるまで開き始めない。
+				const bool isWaitingForCamera = isGoalCameraCinematic_ &&
+				                                goalCameraPhase_ == GoalCameraPhase::kFocus &&
+				                                door->GetID() == goalCameraDoorID_;
+				shouldOpen = !isWaitingForCamera;
 				break;
 			}
 		}

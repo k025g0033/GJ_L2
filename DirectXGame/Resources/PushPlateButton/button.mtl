@@ -10,7 +10,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd white1x1.png
+map_Kd button_orange.png
 
 newmtl マテリアル
 Ns 422.499969
@@ -21,4 +21,4 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 3
-map_Kd white1x1.png
+map_Kd button_orange.png

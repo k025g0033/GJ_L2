@@ -80,6 +80,7 @@ private:
 	static inline const float kButtonModelTop = 0.346196f;
 	static inline const float kButtonPressedOffset = -0.12f;
 	static inline const float kStandingTolerance = 0.15f;
-	static inline const KamataEngine::Vector4 kBaseColor = {0.13f, 0.17f, 0.22f, 1.0f};
-	static inline const KamataEngine::Vector4 kButtonColor = {0.80f, 0.38f, 0.06f, 1.0f};
+	// Blenderのマテリアル色はテクスチャ側で再現するため、コード側では色を掛けない。
+	static inline const KamataEngine::Vector4 kBaseColor = {1.0f, 1.0f, 1.0f, 1.0f};
+	static inline const KamataEngine::Vector4 kButtonColor = {1.0f, 1.0f, 1.0f, 1.0f};
 };
