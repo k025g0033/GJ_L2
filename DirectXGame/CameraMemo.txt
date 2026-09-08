@@ -1,0 +1,96 @@
+■ カメラ仕様メモ
+
+【0. 全体の考え方】
+・カメラは自機にもクローンにも追従しない。
+　ステージごとにCSVで決めた位置に固定して置く。
+・スクロールを有効にした軸（X / Y）だけが、自機の座標に合わせて動く。
+　クローンを操作している間も、基準は常に自機のまま変わらない。
+・関係するファイル:
+　　CameraController.h / CameraController.cpp … カメラ本体
+　　Resources/map/camera.csv                  … ステージごとの設定
+　　GameScene::ShowCameraImGui()              … ImGuiの「Camera」パネル
+
+【1. 設定ファイル（Resources/map/camera.csv）】
+1行が1ステージぶんの設定。項目の順番は以下の15個。
+
+  stage,
+  posX, posY, posZ,
+  rotX, rotY, rotZ,
+  scrollX, scrollOffsetX, scrollMinX, scrollMaxX,
+  scrollY, scrollOffsetY, scrollMinY, scrollMaxY
+
+・stage           … ステージ番号（1以上）。map_<番号>.csv と対応させる。
+・posX/posY/posZ  … カメラの固定位置。
+　　　　　　　　　　スクロールを有効にした軸では、この値は使われない。
+・rotX/rotY/rotZ  … カメラの角度。ラジアンではなく「度」で書く。
+・scrollX         … 1でX方向のスクロールあり、0でなし。
+・scrollOffsetX   … 自機のX座標に対するカメラのずれ。
+　　　　　　　　　　マイナスにすると自機が画面の右寄りになる。
+・scrollMinX      … カメラX座標の下限。
+・scrollMaxX      … カメラX座標の上限。
+　　　　　　　　　　Min >= Max のときは範囲制限をかけない。
+・scrollY 以降    … 上記のY方向版。考え方はまったく同じ。
+
+書き方のルール:
+・'#' で始まる行と空行はコメントとして読み飛ばす。
+・項目が足りない行は、足りないぶんが既定値のままになる。
+　（列を後ろに増やしても、古い書式のCSVがそのまま読める）
+・camera.csv が存在しなくてもエラーにはならず、全ステージが既定値で動く。
+・CSVに書かれていないステージ番号も既定値で作られるので、
+　ステージを増やしたときは ImGui で調整して保存すればよい。
+
+既定値:
+・位置 {11, 6, -15}、角度 {0, 0, 0}、スクロールなし。
+
+【2. スクロールの計算】
+スクロールを有効にした軸は、毎フレーム次のように決まる。
+
+  カメラ座標 = 自機の座標 + scrollOffset
+  （scrollMin < scrollMax のときだけ、その範囲に収める）
+
+・求めた位置へ即座に飛ぶのではなく、補間して少しずつ近づける。
+　なめらかさは CameraController.h の kScrollInterpolationRate（0.2）で調整する。
+　1.0にすると補間なしで即座に追いつく。
+・スクロールを有効にしていない軸は、補間せずCSVの値をそのまま入れる。
+・奥行き(Z)は常に固定で、スクロールの対象にしていない。
+・ステージ開始時（Reset）は補間せず、いきなり目標位置へ置く。
+
+使い分けの例:
+・1画面で完結するステージ … scrollX=0, scrollY=0（完全固定）
+・横に長いステージ         … scrollX=1。scrollMinX/MaxXでステージの端を決める。
+・縦に長いステージ         … scrollY=1。
+・両方長いステージ         … 両方1にする。
+
+【3. ImGuiでの調整（Cameraパネル）】
+Debugビルド（USE_IMGUI）のときだけ「Camera」パネルが出る。
+
+・Position / Rotation (deg) … 位置と角度をドラッグで調整する。
+・Scroll X / Scroll Y 一式  … スクロールの有無、ずれ、範囲を調整する。
+・Current                   … 今のカメラ座標の表示（確認用）。
+・Save To CSV               … 今の全ステージぶんの設定を camera.csv に書き戻す。
+　　　　　　　　　　　　　　　次回起動時はこの値から始まる。
+・Reload From CSV           … ファイルから読み直して、その場で反映する。
+
+注意:
+・調整した結果は Save To CSV を押すまでファイルに残らない。
+・保存はいま読み込まれている全ステージぶんが対象。
+　別のステージの設定も一緒に書き出される。
+
+【4. 実装メモ】
+・CameraController::Update()
+　　毎フレーム、設定から位置を決めてカメラへ入れ、UpdateMatrix()する。
+・CameraController::CalculateCameraPosition()
+　　CSVの位置を土台に、スクロールを有効にした軸だけ自機基準で上書きする。
+・CameraController::SetTarget()
+　　スクロールの基準にするキャラを渡す。GameScene側で自機だけを渡している。
+　　クローンにリンクしても差し替えないこと（差し替えるとカメラが
+　　クローンを追ってしまい、「追従しない」という仕様から外れる）。
+・角度はCSVもImGuiも「度」で扱い、カメラへ入れる直前にラジアンへ変換している。
+　ImGuiで直感的に触れるようにするため。
+
+【5. 以前の仕様（参考）】
+・もとは自機を追従するカメラだった。
+　　targetOffset_ {0, 4.5, -15} を足した位置へ補間しながら追いかけ、
+　　margin と movableArea_ で移動範囲を制限していた。
+・追従・margin・movableArea_ は廃止した。
+　ステージごとに見せたい構図が違うため、CSVで直接指定する方式に変えた。

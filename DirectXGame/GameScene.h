@@ -136,8 +136,17 @@ private:
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
 	void ShowCloneBaseManagerImGui();
 
-	// 自機の当たり判定サイズをワイヤーフレームの箱で可視化する（Debugビルド/USE_IMGUI時のみ）
-	void DrawPlayerCollisionWireframe();
+	// ImGui上でこのステージのカメラ設定を調整するパネルを表示する
+	void ShowCameraImGui();
+
+	// 自機・クローン・クローンの素の当たり判定をワイヤーフレームの箱で可視化する
+	// （Debugビルド/USE_IMGUI時のみ）
+	void DrawCollisionWireframes();
+	// 矩形1つぶんのワイヤーフレームの箱を描く
+	void DrawRectWireframe(const MapChipField::Rect& rect, float centerZ, float halfDepth, const KamataEngine::Vector4& color);
+
+	// カメラ設定の保存結果をImGuiに出すための文字列
+	const char* cameraSaveMessage_ = "";
 
 	///// ----- クローンの素を持つ処理（仮実装） ----- /////
 	// プレイヤーといずれかのクローンの素が当たっているか

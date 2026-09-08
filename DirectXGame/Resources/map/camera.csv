@@ -1,0 +1,10 @@
+# ステージごとのカメラ設定
+# stage,posX,posY,posZ,rotX,rotY,rotZ,scrollX,scrollOffsetX,scrollMinX,scrollMaxX,scrollY,scrollOffsetY,scrollMinY,scrollMaxY
+# rotX/Y/Zは角度(度)。scrollX/scrollYは1でその軸のスクロールあり、0でなし。
+# scrollOffsetX/Yは自機に対するカメラのずれ。Min >= Max なら範囲制限なし。
+# スクロールを有効にした軸では、posX/posYの値は使われない。
+1,11,6,-15,0,0,0,0,0,0,0,0,0,0,0
+2,11,6,-15,0,0,0,0,0,0,0,0,0,0,0
+3,11,6,-15,0,0,0,1,0,11,89,0,0,0,0
+4,11,6,-15,0,0,0,0,0,0,0,0,0,0,0
+5,11,6,-15,0,0,0,0,0,0,0,0,0,0,0
