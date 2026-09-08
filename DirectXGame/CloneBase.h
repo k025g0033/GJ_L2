@@ -102,15 +102,32 @@ public:
 	// 消滅通知
 	bool ConsumeWaterDestroyed();
 
+	///// ----- 帯電 ----- /////
+	// 帯電させる（この周回で一度帯電した記録も同時に残す）
 	void Charge() {
 		isCharged_ = true;
+		hasBeenCharged_ = true;
 		chargeTimer_ = static_cast<int>(chargeDurationSeconds_ * kFramesPerSecond);
 	}
+
 	void Discharge() {
 		isCharged_ = false;
 		chargeTimer_ = 0;
 	}
+
 	bool IsCharged() const { return isCharged_; }
+
+	// 今から帯電できるか
+	// 「まだ帯電しておらず」かつ「この周回でまだ一度も帯電していない」場合だけ受け取れる。
+	// ※これがないと、帯電した相手と接触しっぱなしの間ずっと電気を往復させて
+	// 　時間切れを無限に先延ばしできてしまう
+	bool CanBeCharged() const { return !isCharged_ && !hasBeenCharged_; }
+
+	// この周回で一度でも帯電したか
+	bool HasBeenCharged() const { return hasBeenCharged_; }
+
+	// 帯電履歴をリセットする（全員が帯電を終えた時に、GameScene側からまとめて呼ぶ）
+	void ResetChargeHistory() { hasBeenCharged_ = false; }
 
 	float GetChargeRemainingSeconds() const { return static_cast<float>(chargeTimer_) / 60.0f; }
 	static float& GetChargeDurationSecondsRef() { return chargeDurationSeconds_; }
@@ -210,4 +227,8 @@ private:
 	static inline const float kThrowMaxFallSpeed = 0.5f;
 	// 着地判定のすき間（誤差吸収用）
 	static inline const float kLandingBlank = 0.02f;
+
+	///// ----- 帯電 ----- /////
+	// この周回で一度でも帯電したか（一度使ったクローンは、全員が使い終わるまで再帯電できない）
+	bool hasBeenCharged_ = false;
 };

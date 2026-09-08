@@ -144,8 +144,15 @@ private:
 	// クローンの素を持っている間だけ表示する、投げる方向を示すUI（円＋三角形）
 	ThrowAimIndicator* throwAimIndicator_ = nullptr;
 
+	///// ----- クローン帯電関連 ----- /////
 	// 電気弾発射
 	void FireElectricBullet();
+
+	/// --- 帯電の受け渡し ---
+	// 帯電しているクローンが、帯電していないクローンの素に触れた時に電気を移す
+	void UpdateChargeTransfer();
+	// 全員が帯電を使い終わっていたら、帯電履歴をまとめてリセットする
+	void ResetChargeHistoryIfAllUsed();
 
 	int stageNumber_ = 1;
 };

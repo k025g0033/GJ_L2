@@ -7,8 +7,7 @@ using namespace KamataEngine::MathUtility;
 
 CloneBase::~CloneBase() { delete player_; }
 
-void CloneBase::Initialize(
-	Model* modelBase, Model* modelClone, Camera* camera, MapChipField* mapChipField, const Vector3& position) {
+void CloneBase::Initialize(Model* modelBase, Model* modelClone, Camera* camera, MapChipField* mapChipField, const Vector3& position) {
 	modelBase_ = modelBase;
 	modelClone_ = modelClone;
 	camera_ = camera;
@@ -32,8 +31,8 @@ void CloneBase::Initialize(
 }
 
 void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects, const MapChipField::Rect& playerRect) {
-	
-	 // 帯電時間を減らす
+
+	// 帯電時間を減らす
 	if (isCharged_) {
 		--chargeTimer_;
 
@@ -341,14 +340,13 @@ std::array<KamataEngine::Vector3, CloneBase::kNumCorner> CloneBase::GetCalculate
 }
 
 void CloneBase::Draw() {
+	// 帯電中は色を変える クローンの素、クローン共通
+	ObjectColor* color = isCharged_ ? &chargeColor_ : nullptr;
+
 	if (state_ == State::kTransformed) {
-		if (isCharged_) {
-			player_->Draw(&chargeColor_);
-		} else {
-			player_->Draw();
-		}
+		player_->Draw(color);
 	} else {
-		modelBase_->Draw(worldTransform_, *camera_);
+		modelBase_->Draw(worldTransform_, *camera_,color);
 	}
 }
 

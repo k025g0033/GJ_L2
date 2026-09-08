@@ -86,15 +86,12 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 }
 
 void Player::Draw(ObjectColor* objectColor) {
-	// 3Dモデルを描画
-	model_->Draw(worldTransform_, *camera_, objectColor);
-void Player::Draw() {
 	// ベースモデルを描画（持っている間はholdingModel_があればそちらを使う。未設定ならmodel_のまま）
 	// ※ベースモデル自体が未設定（nullptr）の場合は、追加パーツ（頭・腕など）だけで見た目を構成する
 	// 　ということなので、ここでは何も描画しない
 	Model* modelToDraw = (isHolding_ && holdingModel_ != nullptr) ? holdingModel_ : model_;
 	if (modelToDraw != nullptr) {
-		modelToDraw->Draw(worldTransform_, *camera_);
+		modelToDraw->Draw(worldTransform_, *camera_, objectColor);
 	}
 
 	// 頭・腕など、ベースに重ねて描画する追加パーツ（設定されていれば）。
@@ -102,7 +99,7 @@ void Player::Draw() {
 	// そのまま描画するだけで正しい位置に組み合わさる。
 	for (Model* partModel : extraPartModels_) {
 		if (partModel != nullptr) {
-			partModel->Draw(worldTransform_, *camera_);
+			partModel->Draw(worldTransform_, *camera_, objectColor);
 		}
 	}
 }
