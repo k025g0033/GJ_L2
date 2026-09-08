@@ -85,6 +85,15 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 	UpdateWorldTransform(worldTransform_);
 }
 
+///// ----- モデルの表示スケール ----- /////
+// Update()を通さずに、その場でスケールを反映する。
+// 変形アニメーション中はUpdate()を呼ばない（＝動かさない）ので、こちらで見た目だけを更新する。
+void Player::SetModelScaleImmediate(float scale) {
+	modelScale_ = scale;
+	worldTransform_.scale_ = {modelScale_, modelScale_, modelScale_};
+	UpdateWorldTransform(worldTransform_);
+}
+
 void Player::Draw(ObjectColor* objectColor) {
 	// ベースモデルを描画（持っている間はholdingModel_があればそちらを使う。未設定ならmodel_のまま）
 	// ※ベースモデル自体が未設定（nullptr）の場合は、追加パーツ（頭・腕など）だけで見た目を構成する

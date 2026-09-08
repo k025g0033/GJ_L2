@@ -122,6 +122,10 @@ public:
 	// ImGuiのスライダーから直接書き換えられるよう参照を返す
 	float& GetModelScaleRef() { return modelScale_; }
 
+	// モデルの表示スケールを即座に反映する（Update()を呼ばずに見た目だけを変えたい時に使用）
+	// クローンの変形アニメーションのように、動かさずにスケールだけ変化させる場合に使う
+	void SetModelScaleImmediate(float scale);
+
 	// 現在向いている方向を取得（クローンの素をどちら側に持つか判定するのに使用）
 	LRDirection GetLRDirection() const { return lrDirection_; }
 
