@@ -111,7 +111,7 @@ void CloneBase::Update(
 	// 投げられている（＝重力が働いている）間は、毎フレーム着地判定をやり直す。
 	// こうしておくと、自機の上に乗った後で自機が動いた時に、支えがなくなって自然に落下を再開する。
 	if (isThrown_) {
-		UpdateThrowPhysics(playerRect, oneWayPlatformRects);
+		UpdateThrowPhysics(playerRect, obstacleRects, oneWayPlatformRects);
 	}
 
 	// 素の状態の表示スケール
@@ -283,7 +283,7 @@ void CloneBase::UpdateTransformAnimation() {
 
 ///// ----- 投げられて飛んでいる間の物理更新 ----- /////
 void CloneBase::UpdateThrowPhysics(
-    const MapChipField::Rect& playerRect,
+    const MapChipField::Rect& playerRect, const std::vector<MapChipField::Rect>& obstacleRects,
     const std::vector<MapChipField::Rect>& oneWayPlatformRects) {
 	float halfWidth = kWidth / 2.0f;
 	float halfHeight = kHeight / 2.0f;
