@@ -17,6 +17,7 @@
 #include "ElectricBullet.h"
 #include "ChargePoint.h"
 #include "ElectricPlatform.h"
+#include <array>
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -35,6 +36,8 @@ public:
 
 	// 終了フラグの取得
 	bool IsFinished() const override { return isFinished_; }
+	bool GetReloadRequested() const override { return reloadRequested_; }
+	bool GetStageSelectRequested() const override { return stageSelectRequested_; }
 
 	void GenerateBlocks();
 
@@ -92,6 +95,21 @@ private:
 	uint32_t backgroundTextureHandle_ = 0;
 	// 0: 天球、1: スプライト
 	int backgroundMode_ = 0;
+
+	// ポーズ表示
+	bool isPaused_ = false;
+	uint32_t pauseEscTextureHandle_ = 0;
+	uint32_t pausePoseTextureHandle_ = 0;
+	uint32_t pauseOverlayTextureHandle_ = 0;
+	KamataEngine::Sprite* pauseEscSprite_ = nullptr;
+	KamataEngine::Sprite* pausePoseGuideSprite_ = nullptr;
+	KamataEngine::Sprite* pauseOverlaySprite_ = nullptr;
+	KamataEngine::Sprite* pauseTitleSprite_ = nullptr;
+	std::array<uint32_t, 4> pauseMenuTextureHandles_{};
+	std::array<KamataEngine::Sprite*, 4> pauseMenuSprites_{};
+	int selectedPauseItem_ = 0;
+	bool reloadRequested_ = false;
+	bool stageSelectRequested_ = false;
 
 	std::vector<ChargePoint*> chargePoints_;
 	std::vector<ElectricPlatform*> electricPlatforms_;

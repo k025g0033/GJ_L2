@@ -23,5 +23,8 @@ public:
 	// リロード要求グラフ
 	virtual bool GetReloadRequested() const { return false; }
 
+	// ステージセレクトへ戻る要求
+	virtual bool GetStageSelectRequested() const { return false; }
+
 private:
 };
