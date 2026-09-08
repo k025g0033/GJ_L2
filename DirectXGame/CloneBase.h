@@ -36,7 +36,9 @@ public:
 	    MapChipField* mapChipField, const KamataEngine::Vector3& position);
 
 	// 更新
-	void Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects, const MapChipField::Rect& playerRect);
+	void Update(
+	    bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects, const MapChipField::Rect& playerRect,
+	    const std::vector<MapChipField::Rect>& oneWayPlatformRects = {});
 
 
 	// 描画
@@ -197,7 +199,9 @@ private:
 	};
 
 	// 投げられて飛んでいる間の物理更新（重力・着地判定）
-	void UpdateThrowPhysics(const MapChipField::Rect& playerRect, const std::vector<MapChipField::Rect>& obstacleRects);
+	void UpdateThrowPhysics(
+	    const MapChipField::Rect& playerRect,
+	    const std::vector<MapChipField::Rect>& oneWayPlatformRects);
 
 	///// ----- 変形アニメーション ----- /////
 	// 素 <-> クローンの変形アニメーションを1フレーム分進める

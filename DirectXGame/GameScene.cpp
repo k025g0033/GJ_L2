@@ -37,6 +37,8 @@ GameScene::~GameScene() {
 	// 解放
 	delete modelPlayer_;
 	delete modelBlock_;
+	delete modelPushPlateBase_;
+	delete modelPushPlateButton_;
 	delete modelSkydome_;
 	for (Lazer* lazer : lazers_) {
 		delete lazer;
@@ -113,6 +115,9 @@ void GameScene::Initialize() {
 	// modelPlayer_ = Model::CreateFromOBJ("player", true);
 	// ブロックモデル生成
 	modelBlock_ = Model::CreateFromOBJ("block", true);
+	// 感圧板の土台と、上下する押下部分
+	modelPushPlateBase_ = Model::CreateFromOBJ("PushPlateBase", true);
+	modelPushPlateButton_ = Model::CreateFromOBJ("PushPlateButton", true);
 	// レーザーモデル生成
 	modelLazer_ = Model::CreateFromOBJ("Lazer", true);
 	// 水モデルの生成
@@ -341,6 +346,12 @@ void GameScene::Update() {
 		cloneBaseRects.push_back(platform->GetRect());
 	}
 
+	// 感圧板は横から通れる一方通行床として、通常障害物とは分けて扱う。
+	std::vector<MapChipField::Rect> oneWayPlatformRects;
+	for (const PushPlate* plate : pressurePlates_) {
+		oneWayPlatformRects.push_back(plate->GetRect());
+	}
+
 	// レーザーは通常プレイヤーだけを止める。クローンへ渡す障害物一覧には追加しない。
 	std::vector<MapChipField::Rect> activeLazerRects;
 	// 自機の障害物一覧（素・ドア・変形済みクローン・レーザー）
@@ -361,7 +372,7 @@ void GameScene::Update() {
 	// クローンの素を持っている間、変形アニメーション中はリンク線を発射できないようにする
 	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && !isHoldingCloneBase_ && !isAnyCloneAnimating && Input::GetInstance()->IsTriggerMouse(0);
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire && !isAnyCloneAnimating;
-	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects);
+	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects, oneWayPlatformRects);
 
 	UpdateKeys(player_);
 	UpdateDoors();
@@ -465,7 +476,7 @@ void GameScene::Update() {
 			obstacleRectsForClone.push_back(other->GetRect());
 		}
 
-		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, obstacleRectsForClone, playerRect);
+		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, obstacleRectsForClone, playerRect, oneWayPlatformRects);
 
 		if (cloneBase->ConsumeWaterDestroyed()) {
 			// 消滅したクローンを操作していた場合
@@ -862,7 +873,7 @@ void GameScene::GenerateBlocks() {
 				const float plateWidth = static_cast<float>(endX - j + 1) * MapChipField::kBlockWidth;
 
 				PushPlate* plate = new PushPlate();
-				plate->Initialize(modelBlock_, &camera_, centerPosition, plateID, requiredCount, plateWidth);
+				plate->Initialize(modelPushPlateBase_, modelPushPlateButton_, &camera_, centerPosition, plateID, requiredCount, plateWidth);
 				pressurePlates_.push_back(plate);
 				for (uint32_t plateX = j; plateX <= endX; ++plateX) {
 					worldTransformBlocks_[i][plateX] = nullptr;

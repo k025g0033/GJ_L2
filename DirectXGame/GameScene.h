@@ -75,6 +75,9 @@ private:
 	KamataEngine::Model* modelPlayer_ = nullptr;
 	// ブロックモデル
 	KamataEngine::Model* modelBlock_ = nullptr;
+	// 感圧板モデル（土台・押下部分）
+	KamataEngine::Model* modelPushPlateBase_ = nullptr;
+	KamataEngine::Model* modelPushPlateButton_ = nullptr;
 	// レーザーモデル
 	KamataEngine::Model* modelLazer_ = nullptr;
 	// 天球モデル

@@ -30,7 +30,9 @@ void Player::Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera
 	worldTransform_.scale_ = {modelScale_, modelScale_, modelScale_};
 }
 
-void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects) {
+void Player::Update(
+    bool canMove, const std::vector<MapChipField::Rect>& obstacleRects,
+    const std::vector<MapChipField::Rect>& oneWayPlatformRects) {
 
 	CheckInWater();
 	if (canMove) {
@@ -45,18 +47,36 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 	// 移動量に速度をコピー
 	collisionInfo.moveVelocity = velocity_;
 
+	// 感圧板は小さな段差として自動で乗り上げる。
+	// クローンはジャンプできないため、横から重なった場合も上面まで持ち上げる。
+	constexpr float kPushPlateStepHeight = 0.4f;
+	const float currentBottom = worldTransform_.translation_.y - kHeight / 2.0f;
+	const float nextLeft = worldTransform_.translation_.x + collisionInfo.moveVelocity.x - GetLeftHalfWidth();
+	const float nextRight = worldTransform_.translation_.x + collisionInfo.moveVelocity.x + GetRightHalfWidth();
+	for (const MapChipField::Rect& rect : oneWayPlatformRects) {
+		const bool overlapsX = nextRight > rect.left && nextLeft < rect.right;
+		const float stepHeight = rect.top - currentBottom;
+		if (overlapsX && stepHeight > 0.0f && stepHeight <= kPushPlateStepHeight) {
+			collisionInfo.moveVelocity.y = (std::max)(collisionInfo.moveVelocity.y, stepHeight + kBlank);
+		}
+	}
+
 	/// --- マップ衝突チェック ---
 	isMapCollision(collisionInfo);
 
 	// クローンの素など、ブロック以外の障害物との当たり判定
 	// ブロックで補正した後の移動量に対してさらに補正する
 	isObstacleCollision(collisionInfo, obstacleRects);
+	// 感圧板は横・下からは通過し、下降時だけ上面へ着地する。
+	isObstacleCollisionBottom(collisionInfo, oneWayPlatformRects);
 
 	isCollisionMove(collisionInfo);
 
 	isHitCeiling(collisionInfo);
 
-	isOnGround(collisionInfo, obstacleRects);
+	std::vector<MapChipField::Rect> groundRects = obstacleRects;
+	groundRects.insert(groundRects.end(), oneWayPlatformRects.begin(), oneWayPlatformRects.end());
+	isOnGround(collisionInfo, groundRects);
 
 	isHitWall(collisionInfo);
 

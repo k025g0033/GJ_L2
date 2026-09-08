@@ -7,8 +7,9 @@
 using namespace KamataEngine;
 
 void PushPlate::Initialize(
-    Model* model, Camera* camera, const Vector3& position, uint8_t id, uint8_t requiredActorCount, float width) {
-	model_ = model;
+    Model* baseModel, Model* buttonModel, Camera* camera, const Vector3& position, uint8_t id, uint8_t requiredActorCount, float width) {
+	baseModel_ = baseModel;
+	buttonModel_ = buttonModel;
 	camera_ = camera;
 	id_ = id;
 	requiredActorCount_ = std::max<uint8_t>(requiredActorCount, 1);
@@ -19,8 +20,23 @@ void PushPlate::Initialize(
 	worldTransform_.translation_.y -= 0.45f;
 	worldTransform_.scale_ = {width_, kHeight, 0.8f};
 	UpdateWorldTransform(worldTransform_);
-	color_.Initialize();
-	color_.SetColor(kIdleColor);
+
+	// Blenderで作ったモデルのサイズをそのまま使用する。
+	baseWorldTransform_.Initialize();
+	baseWorldTransform_.translation_ = position;
+	baseWorldTransform_.translation_.y -= 0.5f;
+	baseWorldTransform_.scale_ = {width_ / 2.0f, 1.0f, 0.5f};
+	UpdateWorldTransform(baseWorldTransform_);
+
+	buttonWorldTransform_.Initialize();
+	buttonWorldTransform_.translation_ = baseWorldTransform_.translation_;
+	buttonWorldTransform_.scale_ = baseWorldTransform_.scale_;
+	UpdateWorldTransform(buttonWorldTransform_);
+
+	baseColor_.Initialize();
+	baseColor_.SetColor(kBaseColor);
+	buttonColor_.Initialize();
+	buttonColor_.SetColor(kButtonColor);
 }
 
 void PushPlate::Update(const std::vector<Player*>& actors, const std::vector<MapChipField::Rect>& cloneBaseRects) {
@@ -49,39 +65,53 @@ void PushPlate::Update(const std::vector<Player*>& actors, const std::vector<Map
 
 	UpdateBehavior();
 	UpdateWorldTransform(worldTransform_);
+	UpdateWorldTransform(baseWorldTransform_);
+	UpdateWorldTransform(buttonWorldTransform_);
 }
 
 bool PushPlate::IsStandingOn(const Player* actor) const {
 	const Vector3& actorPosition = actor->GetWorldTransform().translation_;
-	const Vector3& platePosition = worldTransform_.translation_;
 
 	const float actorLeft = actorPosition.x - actor->GetWidth() / 2.0f;
 	const float actorRight = actorPosition.x + actor->GetWidth() / 2.0f;
 	const float actorBottom = actorPosition.y - actor->GetHeight() / 2.0f;
-	const float plateLeft = platePosition.x - width_ / 2.0f;
-	const float plateRight = platePosition.x + width_ / 2.0f;
-	const float plateTop = platePosition.y + kHeight / 2.0f;
+	const MapChipField::Rect plateRect = GetRect();
+	const float plateLeft = plateRect.left;
+	const float plateRight = plateRect.right;
+	const float plateTop = plateRect.top;
 
 	const bool overlapsX = actorRight > plateLeft && actorLeft < plateRight;
 	const bool touchesTop = std::abs(actorBottom - plateTop) <= kStandingTolerance;
 	return overlapsX && touchesTop;
 }
 
-void PushPlate::Draw() { model_->Draw(worldTransform_, *camera_, &color_); }
+void PushPlate::Draw() {
+	baseModel_->Draw(baseWorldTransform_, *camera_, &baseColor_);
+	buttonModel_->Draw(buttonWorldTransform_, *camera_, &buttonColor_);
+}
 
 bool PushPlate::IsStandingOn(const MapChipField::Rect& actorRect) const {
-
-	const Vector3& platePosition = worldTransform_.translation_;
-
-	float plateLeft = platePosition.x - width_ / 2.0f;
-	float plateRight = platePosition.x + width_ / 2.0f;
-	float plateTop = platePosition.y + kHeight / 2.0f;
+	const MapChipField::Rect plateRect = GetRect();
+	float plateLeft = plateRect.left;
+	float plateRight = plateRect.right;
+	float plateTop = plateRect.top;
 
 	bool overlapsX = actorRect.right > plateLeft && actorRect.left < plateRight;
 
 	bool touchesTop = std::abs(actorRect.bottom - plateTop) <= kStandingTolerance;
 
 	return overlapsX && touchesTop;
+}
+
+MapChipField::Rect PushPlate::GetRect() const {
+	const float baseTop = baseWorldTransform_.translation_.y + kBaseModelTop;
+	const float buttonTop = buttonWorldTransform_.translation_.y + kButtonModelTop;
+	return {
+	    baseWorldTransform_.translation_.x - width_ / 2.0f,
+	    baseWorldTransform_.translation_.x + width_ / 2.0f,
+	    baseWorldTransform_.translation_.y,
+	    (std::max)(baseTop, buttonTop),
+	};
 }
 
 void PushPlate::UpdateBehavior() {
@@ -122,7 +152,7 @@ void PushPlate::UpdateBehavior() {
 	}
 }
 
-void PushPlate::BehaviorIdleInitialize() { worldTransform_.scale_.y = kHeight; }
+void PushPlate::BehaviorIdleInitialize() { buttonWorldTransform_.translation_.y = baseWorldTransform_.translation_.y; }
 
 void PushPlate::BehaviorIdleUpdate() {}
 
@@ -134,14 +164,14 @@ void PushPlate::BehaviorPressingUpdate() {
 	float t = behaviorTimer_ / kAnimationDuration;
 	t = (std::min)(t, 1.0f);
 
-	worldTransform_.scale_.y = kHeight + (kPushedHeight - kHeight) * t;
+	buttonWorldTransform_.translation_.y = baseWorldTransform_.translation_.y + kButtonPressedOffset * t;
 
 	if (t >= 1.0f) {
 		behaviorRequest_ = Behavior::kPressed;
 	}
 }
 
-void PushPlate::BehaviorPressedInitialize() { worldTransform_.scale_.y = kPushedHeight; }
+void PushPlate::BehaviorPressedInitialize() { buttonWorldTransform_.translation_.y = baseWorldTransform_.translation_.y + kButtonPressedOffset; }
 
 void PushPlate::BehaviorPressedUpdate() {}
 
@@ -153,7 +183,7 @@ void PushPlate::BehaviorReleasingUpdate() {
 	float t = behaviorTimer_ / kAnimationDuration;
 	t = (std::min)(t, 1.0f);
 
-	worldTransform_.scale_.y = kPushedHeight + (kHeight - kPushedHeight) * t;
+	buttonWorldTransform_.translation_.y = baseWorldTransform_.translation_.y + kButtonPressedOffset * (1.0f - t);
 
 	if (t >= 1.0f) {
 		behaviorRequest_ = Behavior::kIdle;
