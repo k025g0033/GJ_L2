@@ -213,15 +213,37 @@ void GameScene::Update() {
 		isPaused_ = !isPaused_;
 		if (isPaused_) {
 			selectedPauseItem_ = 0;
+			pauseSelectionAnimationTime_ = 0.0f;
 		}
 	}
 	if (isPaused_) {
+		pauseSelectionAnimationTime_ += 1.0f / 60.0f;
 		if (Input::GetInstance()->TriggerKey(DIK_W)) {
 			selectedPauseItem_ = (selectedPauseItem_ + 3) % 4;
+			pauseSelectionAnimationTime_ = 0.0f;
 		}
 		if (Input::GetInstance()->TriggerKey(DIK_S)) {
 			selectedPauseItem_ = (selectedPauseItem_ + 1) % 4;
+			pauseSelectionAnimationTime_ = 0.0f;
 		}
+
+		constexpr float kMenuWidth = 256.0f;
+		constexpr float kMenuHeight = 64.0f;
+		constexpr float kAnimationScale = 0.08f;
+		constexpr float kAnimationSpeed = 6.0f;
+		const float pulse = (std::sin(pauseSelectionAnimationTime_ * kAnimationSpeed) + 1.0f) * 0.5f;
+		for (int i = 0; i < static_cast<int>(pauseMenuSprites_.size()); ++i) {
+			float width = kMenuWidth;
+			float height = kMenuHeight;
+			if (i == selectedPauseItem_) {
+				width *= 1.0f + pulse * kAnimationScale;
+				height *= 1.0f + pulse * kAnimationScale;
+			}
+			pauseMenuSprites_[i]->SetSize({width, height});
+			pauseMenuSprites_[i]->SetPosition(
+			    {512.0f - (width - kMenuWidth) * 0.5f, 240.0f + 80.0f * i - (height - kMenuHeight) * 0.5f});
+		}
+
 		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 			switch (selectedPauseItem_) {
 			case 0: // もどる
@@ -256,7 +278,18 @@ void GameScene::Update() {
 	ImGui::RadioButton("Sprite", &backgroundMode_, 1);
 	ImGui::End();
 #endif
-	if (controlledClone_ && Input::GetInstance()->IsTriggerMouse(1)) {
+	// 変形アニメーションの再生中かどうか（1体でも再生中なら、自機もクローンも操作を受け付けない）
+	// ※移動・ジャンプだけでなく、リンクを切る／新しく線を撃つ／素を拾うもすべて止める。
+	// 　変形の途中でリンクを切ると、素にもクローンにもなれないまま取り残されてしまうため。
+	bool isAnyCloneAnimating = false;
+	for (const CloneBase* cloneBase : cloneBases_) {
+		if (cloneBase->IsAnimating()) {
+			isAnyCloneAnimating = true;
+			break;
+		}
+	}
+
+	if (controlledClone_ && !isAnyCloneAnimating && Input::GetInstance()->IsTriggerMouse(1)) {
 		// 自機とのリンクを切ったら、クローンの素（球体）に戻す
 		// （現在位置を引き継ぎ、空中なら重力で落下を再開する）
 		controlledClone_->ResetToBase();
@@ -335,25 +368,15 @@ void GameScene::Update() {
 	// クローンの素を持っている間は、自機の当たり判定の横幅を広げる（ImGuiのHolding Widthで調整可能）
 	player_->SetIsHolding(isHoldingCloneBase_);
 
-	// 変形アニメーションの再生中かどうか（1体でも再生中なら、自機もクローンも動けない）
-	// ※操作権はリンクした瞬間／切った瞬間に移るが、アニメーションが終わるまでは移動を受け付けない
-	bool isAnyCloneAnimating = false;
-	for (const CloneBase* cloneBase : cloneBases_) {
-		if (cloneBase->IsAnimating()) {
-			isAnyCloneAnimating = true;
-			break;
-		}
-	}
-
 	// プレイヤーの更新
-	// クローンの素を持っている間はリンク線を発射できないようにする
-	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && !isHoldingCloneBase_ && Input::GetInstance()->IsTriggerMouse(0);
+	// クローンの素を持っている間、変形アニメーション中はリンク線を発射できないようにする
+	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && !isHoldingCloneBase_ && !isAnyCloneAnimating && Input::GetInstance()->IsTriggerMouse(0);
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire && !isAnyCloneAnimating;
 	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects, oneWayPlatformRects);
 
 	UpdateKeys(player_);
 	UpdateDoors();
-	// ゴールできるのは通常プレイヤーだけ。操作中のクローンは判定へ渡さない。
+	// ゴール判定は自機だけが対象（クローンが扉に触れてもクリアにはしない）
 	CheckDoorGoal(player_);
 
 	// レーザーの更新
@@ -425,7 +448,10 @@ void GameScene::Update() {
 	CheckAllCollisions();
 
 	// プレイヤーとクローンの素の当たり判定、スペースキーで持つ処理（仮実装）
-	UpdateCloneBasePickup();
+	// 変形アニメーション中は拾う・投げるの入力も受け付けない
+	if (!isAnyCloneAnimating) {
+		UpdateCloneBasePickup();
+	}
 
 	// 自機の当たり判定矩形（投げたクローンの素が自機の上に乗れるようにするため）
 	MapChipField::Rect playerRect;
@@ -436,12 +462,15 @@ void GameScene::Update() {
 
 	// クローンの素の更新（複数配置に対応）
 	for (CloneBase* cloneBase : cloneBases_) {
-		// この素専用の障害物一覧：共通の素・ドアに加えて、自機と「自分以外」の変形済みクローンを含める
-		// （自機と変形後クローンの当たり判定、クローン同士の当たり判定を成立させるため）
-		std::vector<MapChipField::Rect> obstacleRectsForClone = cloneBaseRects;
+		// この素専用の障害物一覧：閉じているドア、自機、そして「自分以外」のクローン・クローンの素。
+		// ※以前は共通のcloneBaseRects（自分自身の矩形も入っている）をそのまま使っていたため、
+		// 　自分と自分がぶつかることになり、素同士の当たり判定が成立していなかった。
+		// 　ここで自分だけを除いて組み直すことで、素同士・素とクローン・素と自機のすべてが有効になる。
+		std::vector<MapChipField::Rect> obstacleRectsForClone = closedDoorRects;
 		obstacleRectsForClone.push_back(playerRect);
 		for (CloneBase* other : cloneBases_) {
-			if (other == cloneBase || other->GetState() != CloneBase::State::kTransformed) {
+			// 自分自身と、自機に持たれている素は障害物に含めない
+			if (other == cloneBase || other == heldCloneBase_) {
 				continue;
 			}
 			obstacleRectsForClone.push_back(other->GetRect());
@@ -466,6 +495,15 @@ void GameScene::Update() {
 	UpdateChargeSources();
 	UpdateChargeTransfer();
 	ResetChargeHistoryIfAllUsed();
+
+	// 取りこぼし対策：誰にも操作されていないのにクローンのまま残っているものは、素に戻す。
+	// ※通常はリンクを切った時点で戻るが、何らかの理由で操作権だけ外れた場合に
+	// 　素にもクローンにもなれないまま取り残されるのを防ぐ
+	for (CloneBase* cloneBase : cloneBases_) {
+		if (cloneBase != controlledClone_ && cloneBase->GetState() == CloneBase::State::kTransformed) {
+			cloneBase->ResetToBase();
+		}
+	}
 
 	// 帯電の受け渡し（接触）と、全員使い切った場合の周回リセット
 	UpdateChargeTransfer();
@@ -515,10 +553,37 @@ void GameScene::Update() {
 	}
 
 	// プレイヤー操作中かつ、クローンの素を持っていない間だけリンク線を発射できる
-	bool canFireLine = controlledClone_ == nullptr && activePlayer->IsOnGround() && !isHoldingCloneBase_;
+	bool canFireLine = controlledClone_ == nullptr && activePlayer->IsOnGround() && !isHoldingCloneBase_ && !isAnyCloneAnimating;
 	line3D_->Update(
 	    activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, closedDoorRects, activeLazerRects,
 	    canFireLine, controlledClone_ != nullptr);
+
+	// 今どのクローンにつながっているかを示す線を更新する（自機の中心と、クローンの中心を結ぶ）
+	// 濃さは変形アニメーションに合わせる。
+	// 　素→クローン：アニメーションの間ずっとフェードインし、クローンの姿になった瞬間に完全表示になる
+	// 　クローン→素：アニメーションの間ずっとフェードアウトし、素に戻った瞬間に消えている
+	if (controlledClone_ != nullptr) {
+		float alpha = controlledClone_->IsAnimating() ? controlledClone_->GetAnimationProgress() : 1.0f;
+		line3D_->SetConnectedLine(player_->GetWorldTransform().translation_, controlledClone_->GetWorldTransform().translation_, alpha);
+	} else {
+		// リンクを切った直後は操作権がもう自機に戻っているので、
+		// 素に戻るアニメーションを再生中のクローンを探して、そこへ向けてフェードアウトさせる
+		CloneBase* revertingClone = nullptr;
+		for (CloneBase* cloneBase : cloneBases_) {
+			if (cloneBase->GetState() == CloneBase::State::kReverting) {
+				revertingClone = cloneBase;
+				break;
+			}
+		}
+
+		if (revertingClone != nullptr) {
+			line3D_->SetConnectedLine(
+			    player_->GetWorldTransform().translation_, revertingClone->GetWorldTransform().translation_,
+			    1.0f - revertingClone->GetAnimationProgress());
+		} else {
+			line3D_->ClearConnectedLine();
+		}
+	}
 
 	if (controlledClone_ == nullptr && line3D_->IsActive() && !line3D_->IsCloneLine()) {
 
@@ -570,8 +635,14 @@ void GameScene::Draw() {
 	// プレイヤーの描画
 	player_->Draw();
 
-	// 実際の線と予測線の描画
+	// リンク線の描画（板ポリゴンなので3Dモデルの描画パスの中で描く）
+	// 「飛ばす接続リンク線」と「今どれにつながっているかを示すリンク線」の両方をここでまとめて描画する
 	line3D_->Draw(camera_);
+
+	// 投げる方向を示す三角形も板ポリゴンなので、ここで描く
+	if (isHoldingCloneBase_ && throwAimIndicator_ != nullptr) {
+		throwAimIndicator_->DrawModel();
+	}
 
 	// ブロックの描画
 	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
@@ -631,7 +702,8 @@ void GameScene::Draw() {
 		mouseCursor_->Draw();
 	}
 
-	// クローンの素を持っている間だけ、投げる方向を示すUI（円＋三角形）を描画する
+	// クローンの素を持っている間だけ、投げる方向を示す円（ワイヤーフレーム）を描画する
+	// ※三角形は板ポリゴンなので、3Dモデルの描画パスの中ですでに描いている
 	if (isHoldingCloneBase_ && throwAimIndicator_ != nullptr) {
 		throwAimIndicator_->Draw();
 	}
@@ -647,8 +719,6 @@ void GameScene::Draw() {
 		for (Sprite* sprite : pauseMenuSprites_) {
 			sprite->Draw();
 		}
-		DebugText::GetInstance()->Print(">", 480.0f, 258.0f + 80.0f * selectedPauseItem_, 1.5f);
-		DebugText::GetInstance()->DrawAll();
 	}
 	pauseEscSprite_->Draw();
 	pausePoseGuideSprite_->Draw();
@@ -915,7 +985,7 @@ void GameScene::ShowCloneBaseManagerImGui() {
 	// 投げる方向を示すUI（円＋三角形）の大きさを調整する
 	if (throwAimIndicator_ != nullptr) {
 		ImGui::SliderFloat("Aim Circle Radius", &throwAimIndicator_->circleRadius_, 0.5f, 5.0f);
-		ImGui::SliderFloat("Aim Triangle Size", &throwAimIndicator_->triangleSize_, 10.0f, 150.0f);
+		ImGui::SliderFloat("Aim Triangle Size", &throwAimIndicator_->triangleSize_, 0.1f, 2.0f);
 	}
 	ImGui::Separator();
 
@@ -1015,7 +1085,8 @@ void GameScene::UpdateCloneBasePickup() {
 	// (以降、当たり判定と「拾う」入力を確認する処理は変更なし)
 	for (CloneBase* cloneBase : cloneBases_) {
 
-		if (cloneBase->GetState() == CloneBase::State::kTransformed) {
+		// 素の状態のものだけ拾える（クローン、変形アニメーション中のものは対象外）
+		if (cloneBase->GetState() != CloneBase::State::kBase) {
 			continue;
 		}
 
@@ -1142,10 +1213,13 @@ void GameScene::UpdateDoors() {
 	}
 }
 
-void GameScene::CheckDoorGoal(const Player* activePlayer) {
+///// ----- ゴール判定 ----- /////
+// 開いている扉に「自機」が触れたらクリア。
+// ※クローンは見た目が自機と同じでも、ここには渡さないのでゴールにはならない
+void GameScene::CheckDoorGoal(const Player* goalPlayer) {
 
 	for (const Door* door : doors_) {
-		if (door->IsOpen() && door->IsCollidingWithPlayer(activePlayer)) {
+		if (door->IsOpen() && door->IsCollidingWithPlayer(goalPlayer)) {
 
 			isFinished_ = true;
 			return;

@@ -2,6 +2,7 @@
 #include "MapChipField.h"
 #include "WorldTransformConfig.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <cmath>
@@ -183,7 +184,7 @@ void CloneBase::UpdateTransformAnimation() {
 		/// --- 素 → クローン ---
 		// 球体が完全に消えるまでの区間（伸び縮み＋消える、をひとつながりで扱う）
 		const float kBaseSpan = kTransformSquashRatio + kTransformShrinkRatio;
-
+		
 		if (progress < kBaseSpan) {
 			// リンクがつながった瞬間から消えるまで、球体はずっと縮み続ける。
 			// 最初にぐっと小さくなり、消える直前がゆっくりになる。
@@ -295,6 +296,13 @@ void CloneBase::UpdateThrowPhysics(
 	// ブロックとの当たり判定（上下左右）を行い、めり込まないように移動量を補正する。
 	// X・Y軸をそれぞれ独立して判定するので、斜めに飛んでいてもブロックへめり込んだりすり抜けたりしない。
 	BlockCollisionResult blockResult = CheckBlockCollision(moveAmount);
+
+	// 他のクローンの素・クローン・自機・ドアなど、マップチップ以外の障害物との当たり判定。
+	// ブロックで補正した後の移動量に対して、さらに補正をかける。
+	BlockCollisionResult obstacleResult = CheckObstacleCollision(moveAmount, obstacleRects);
+	blockResult.isCeilingHit = blockResult.isCeilingHit || obstacleResult.isCeilingHit;
+	blockResult.isGroundHit = blockResult.isGroundHit || obstacleResult.isGroundHit;
+	blockResult.isWallHit = blockResult.isWallHit || obstacleResult.isWallHit;
 
 	// 下降中のみ、自機の頭の上に着地できるかどうかも調べる（ブロックと同じ考え方でその場に止める）
 	if (moveAmount.y <= 0.0f) {
@@ -590,6 +598,134 @@ void CloneBase::Draw() {
 		break;
 	}
 
+}
+
+///// ----- マップチップ以外の障害物との当たり判定 ----- /////
+// 他のクローンの素・クローン・自機・ドアなど、矩形で表される障害物にめり込まないよう移動量を補正する。
+CloneBase::BlockCollisionResult CloneBase::CheckObstacleCollision(Vector3& moveAmount, const std::vector<MapChipField::Rect>& obstacleRects) const {
+	BlockCollisionResult result;
+
+	// 先に横方向を確定させ、そのあと「横に動いた後の位置」で縦方向を判定する。
+	// この順番にしないと、斜めに飛んだ時にどちらの軸でも「まだ重なっていない」と判定されて、
+	// 相手の角から中へ入り込めてしまう。
+	CheckObstacleCollisionRight(moveAmount, result, obstacleRects);
+	CheckObstacleCollisionLeft(moveAmount, result, obstacleRects);
+	CheckObstacleCollisionTop(moveAmount, result, obstacleRects);
+	CheckObstacleCollisionBottom(moveAmount, result, obstacleRects);
+
+	return result;
+}
+
+/// --- 右方向 ---
+void CloneBase::CheckObstacleCollisionRight(Vector3& moveAmount, BlockCollisionResult& result, const std::vector<MapChipField::Rect>& obstacleRects) const {
+	if (moveAmount.x <= 0.0f) {
+		return;
+	}
+
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+	float nowBottom = worldTransform_.translation_.y - halfHeight;
+	float nowTop = worldTransform_.translation_.y + halfHeight;
+	float nowRight = worldTransform_.translation_.x + halfWidth;
+
+	for (const MapChipField::Rect& rect : obstacleRects) {
+		// 縦方向が重なっていない障害物は無視する
+		if (nowTop <= rect.bottom || nowBottom >= rect.top) {
+			continue;
+		}
+
+		float newRight = nowRight + moveAmount.x;
+		if (nowRight <= rect.left && newRight > rect.left) {
+			// 右向きの補正が左向き（マイナス）に転じないように0で止める
+			moveAmount.x = (std::max)(0.0f, rect.left - nowRight - kBlank);
+			result.isWallHit = true;
+		}
+	}
+}
+
+/// --- 左方向 ---
+void CloneBase::CheckObstacleCollisionLeft(Vector3& moveAmount, BlockCollisionResult& result, const std::vector<MapChipField::Rect>& obstacleRects) const {
+	if (moveAmount.x >= 0.0f) {
+		return;
+	}
+
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+	float nowBottom = worldTransform_.translation_.y - halfHeight;
+	float nowTop = worldTransform_.translation_.y + halfHeight;
+	float nowLeft = worldTransform_.translation_.x - halfWidth;
+
+	for (const MapChipField::Rect& rect : obstacleRects) {
+		// 縦方向が重なっていない障害物は無視する
+		if (nowTop <= rect.bottom || nowBottom >= rect.top) {
+			continue;
+		}
+
+		float newLeft = nowLeft + moveAmount.x;
+		if (nowLeft >= rect.right && newLeft < rect.right) {
+			// 左向きの補正が右向き（プラス）に転じないように0で止める
+			moveAmount.x = (std::min)(0.0f, rect.right - nowLeft + kBlank);
+			result.isWallHit = true;
+		}
+	}
+}
+
+/// --- 上方向 ---
+void CloneBase::CheckObstacleCollisionTop(Vector3& moveAmount, BlockCollisionResult& result, const std::vector<MapChipField::Rect>& obstacleRects) const {
+	if (moveAmount.y <= 0.0f) {
+		return;
+	}
+
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+	// 横方向はすでに確定しているので、「横に動いた後」のX座標で重なりを判定する
+	float movedX = worldTransform_.translation_.x + moveAmount.x;
+	float nowLeft = movedX - halfWidth;
+	float nowRight = movedX + halfWidth;
+	float nowTop = worldTransform_.translation_.y + halfHeight;
+
+	for (const MapChipField::Rect& rect : obstacleRects) {
+		// 横方向が重なっていない障害物は無視する
+		if (nowRight <= rect.left || nowLeft >= rect.right) {
+			continue;
+		}
+
+		float newTop = nowTop + moveAmount.y;
+		if (nowTop <= rect.bottom && newTop > rect.bottom) {
+			// すでに天井に接している場合、そのまま引くとマイナス（＝下向き）になってしまうので0で止める
+			moveAmount.y = (std::max)(0.0f, rect.bottom - nowTop - kBlank);
+			result.isCeilingHit = true;
+		}
+	}
+}
+
+/// --- 下方向 ---
+void CloneBase::CheckObstacleCollisionBottom(Vector3& moveAmount, BlockCollisionResult& result, const std::vector<MapChipField::Rect>& obstacleRects) const {
+	if (moveAmount.y >= 0.0f) {
+		return;
+	}
+
+	float halfWidth = kWidth / 2.0f;
+	float halfHeight = kHeight / 2.0f;
+	// 横方向はすでに確定しているので、「横に動いた後」のX座標で重なりを判定する
+	float movedX = worldTransform_.translation_.x + moveAmount.x;
+	float nowLeft = movedX - halfWidth;
+	float nowRight = movedX + halfWidth;
+	float nowBottom = worldTransform_.translation_.y - halfHeight;
+
+	for (const MapChipField::Rect& rect : obstacleRects) {
+		// 横方向が重なっていない障害物は無視する
+		if (nowRight <= rect.left || nowLeft >= rect.right) {
+			continue;
+		}
+
+		float newBottom = nowBottom + moveAmount.y;
+		if (nowBottom >= rect.top && newBottom < rect.top) {
+			// 下向きの補正が上向き（プラス）に転じないように0で止める
+			moveAmount.y = (std::min)(0.0f, rect.top - nowBottom + kBlank);
+			result.isGroundHit = true;
+		}
+	}
 }
 
 ///// ----- ブロックとの当たり判定 ----- /////

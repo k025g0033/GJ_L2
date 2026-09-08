@@ -11,15 +11,22 @@
 class ThrowAimIndicator {
 public:
 	///// ----- 基本処理 ----- /////
-	// 初期化（三角形の画像読み込みなど）
+	~ThrowAimIndicator();
+
+	// 初期化（三角形のモデル読み込みなど）
 	void Initialize(KamataEngine::Camera* camera);
 
 	// 自機とマウスカーソルのワールド座標から、狙う方向・三角形の位置と回転を計算する
 	// isHoldingCloneBase_ がtrueの間だけGameScene側から呼び出す想定
 	void Update(const KamataEngine::Vector3& playerPosition, const KamataEngine::Vector3& mouseWorldPosition);
 
-	// 円（ワイヤーフレーム）と三角形（画像）を描画する
+	// 円（ワイヤーフレーム）を描画する
+	// ※PrimitiveDrawerを使うので、Model::PreDraw〜PostDrawの外側で呼ぶこと
 	void Draw();
+
+	// 円周上の三角形（板ポリゴン）を描画する
+	// ※3Dモデルなので、Model::PreDraw〜PostDrawの中で呼ぶこと
+	void DrawModel();
 
 	///// ----- ゲッター ----- /////
 	// 投げる方向（正規化済み、Z成分は0）を取得する
@@ -28,19 +35,16 @@ public:
 	///// ----- ImGuiから調整するパラメータ ----- /////
 	// 自機を中心とした円の半径（ワールド単位）
 	float circleRadius_ = 1.7f;
-	// 三角形（画像）の表示サイズ（ピクセル）
-	float triangleSize_ = 45.0f;
+	// 三角形の表示サイズ（ワールド単位。円の半径と同じ単位なので、半径に対する見た目の比で決める）
+	float triangleSize_ = 0.7f;
 
 private:
-	// ワールド座標をスクリーン座標へ変換する（MouseCursor::ConvertScreenToWorldの逆変換）
-	KamataEngine::Vector2 ConvertWorldToScreen(const KamataEngine::Vector3& worldPosition) const;
-
 	///// ----- メンバ変数 ----- /////
 	// カメラ
 	KamataEngine::Camera* camera_ = nullptr;
-	// 円周上を回る三角形の画像（Resources/images/cursor.png）
-	KamataEngine::Sprite* triangleSprite_ = nullptr;
-	uint32_t triangleTextureHandle_ = 0;
+	// 円周上を回る三角形（Resources/ThrowAim。cursor.pngを貼った1x1の板ポリゴン）
+	KamataEngine::Model* triangleModel_ = nullptr;
+	KamataEngine::WorldTransform triangleWorldTransform_{};
 
 	// 自機の現在位置（円の中心）
 	KamataEngine::Vector3 playerPosition_ = {};

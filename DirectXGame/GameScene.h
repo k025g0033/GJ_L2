@@ -54,7 +54,8 @@ private:
 	void UpdateDoors();
 	void UpdateLazers();
 	void UpdateKeys(Player* activePlayer);
-	void CheckDoorGoal(const Player* activePlayer);
+	// ゴール判定（渡されたキャラだけを対象にする。自機のみを渡すこと）
+	void CheckDoorGoal(const Player* goalPlayer);
 
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
@@ -111,6 +112,7 @@ private:
 	std::array<uint32_t, 4> pauseMenuTextureHandles_{};
 	std::array<KamataEngine::Sprite*, 4> pauseMenuSprites_{};
 	int selectedPauseItem_ = 0;
+	float pauseSelectionAnimationTime_ = 0.0f;
 	bool reloadRequested_ = false;
 	bool stageSelectRequested_ = false;
 

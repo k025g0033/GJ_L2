@@ -13,7 +13,6 @@ namespace {
 
 constexpr float kMaxDistance = 100.0f;
 constexpr float kHitEpsilon = 0.01f;
-constexpr float kLineRadiusScale = 0.15f;
 
 struct BlockHit {
 	bool isHit = false;
@@ -69,15 +68,26 @@ bool RayAabb(
 
 } // namespace
 
-Line3D::~Line3D() { delete model_; }
+Line3D::~Line3D() {
+	delete lineModel_;
+	delete connectedModel_;
+}
 
 void Line3D::Initialize() {
-	model_ = Model::CreateFromOBJ("Line", true);
+	// 飛ばす接続リンク線と、今つながっている先を示すリンク線。
+	// どちらも1x1の板ポリゴン(.obj)に、それぞれの画像を貼ったもの。
+	// ※2Dのスプライトではなく3Dモデルにすることで、自機と同じZ位置に置ける
+	// 　（＝自機の手前ではなく、中心から線が出る）
+	lineModel_ = Model::CreateFromOBJ("LinkLine", true);
+	connectedModel_ = Model::CreateFromOBJ("NowLinkLine", true);
 
 	lineColor_.Initialize();
-	lineColor_.SetColor({0.2f, 0.8f, 1.0f, 1.0f});
+	lineColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
+	// 予測線は同じ画像を薄くして使う
 	predictionColor_.Initialize();
-	predictionColor_.SetColor({0.2f, 0.8f, 1.0f, 0.35f});
+	predictionColor_.SetColor({1.0f, 1.0f, 1.0f, 0.35f});
+	connectedColor_.Initialize();
+	connectedColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
 
 	for (WorldTransform& worldTransform : lineWorldTransforms_) {
 		worldTransform.Initialize();
@@ -85,6 +95,7 @@ void Line3D::Initialize() {
 	for (WorldTransform& worldTransform : predictionWorldTransforms_) {
 		worldTransform.Initialize();
 	}
+	connectedWorldTransform_.Initialize();
 }
 
 void Line3D::Update(
@@ -109,7 +120,6 @@ void Line3D::Update(
 		linePath_ = fullPath;
 		lineTravelDistance_ = 0.0f;
 		isCloneLine_ = isClone;
-		lineColor_.SetColor(isClone ? Vector4{1.0f, 1.0f, 0.0f, 1.0f} : Vector4{0.2f, 0.8f, 1.0f, 1.0f});
 	} else if (linePath_.segmentCount > 0) {
 		lineTravelDistance_ += kLineSpeed;
 		if (lineTravelDistance_ >= GetPathLength(linePath_)) {
@@ -120,11 +130,36 @@ void Line3D::Update(
 }
 
 void Line3D::Draw(const Camera& camera) {
-	DrawPath(linePath_, camera, &lineColor_, lineWorldTransforms_, lineTravelDistance_);
+	// 板ポリゴンで描くので、3Dモデルの描画（Model::PreDraw〜PostDraw）の中で呼ぶこと
+
+	// 今どれにつながっているかを示す線（つながっている間はずっと出す）
+	// 変形アニメーションに合わせて濃さが変わるので、完全に透明な時は描かない
+	if (isConnectedVisible_ && connectedModel_ != nullptr && connectedAlpha_ > 0.0f) {
+		connectedColor_.SetColor({1.0f, 1.0f, 1.0f, connectedAlpha_});
+		PlaceLineQuad(connectedWorldTransform_, connectedSegment_.start, connectedSegment_.end);
+		connectedModel_->Draw(connectedWorldTransform_, camera, &connectedColor_);
+	}
+
+	// 飛んでいる接続リンク線
+	DrawPath(linePath_, camera, lineModel_, &lineColor_, lineWorldTransforms_, lineTravelDistance_);
+
+	// 予測線
 	if (isPredictionVisible_) {
-		DrawPath(predictionPath_, camera, &predictionColor_, predictionWorldTransforms_, std::numeric_limits<float>::max());
+		DrawPath(
+		    predictionPath_, camera, lineModel_, &predictionColor_, predictionWorldTransforms_,
+		    std::numeric_limits<float>::max());
 	}
 }
+
+///// ----- 今つながっている先を示す線 ----- /////
+void Line3D::SetConnectedLine(const Vector3& from, const Vector3& to, float alpha) {
+	connectedSegment_.start = from;
+	connectedSegment_.end = to;
+	connectedAlpha_ = (alpha < 0.0f) ? 0.0f : ((alpha > 1.0f) ? 1.0f : alpha);
+	isConnectedVisible_ = true;
+}
+
+void Line3D::ClearConnectedLine() { isConnectedVisible_ = false; }
 
 bool Line3D::IsTouchingSphere(const Vector3& center, float radius) const {
 	float remainingDistance = lineTravelDistance_;
@@ -246,8 +281,12 @@ float Line3D::GetPathLength(const Path& path) const {
 }
 
 void Line3D::DrawPath(
-	const Path& path, const Camera& camera, ObjectColor* color, std::array<WorldTransform, 3>& worldTransforms,
-	float drawDistance) {
+	const Path& path, const Camera& camera, Model* model, ObjectColor* color,
+	std::array<WorldTransform, 3>& worldTransforms, float drawDistance) {
+	if (model == nullptr) {
+		return;
+	}
+
 	float remainingDistance = drawDistance;
 	for (size_t i = 0; i < path.segmentCount; ++i) {
 		Vector3 difference = path.segments[i].end - path.segments[i].start;
@@ -256,20 +295,36 @@ void Line3D::DrawPath(
 			continue;
 		}
 
+		// 発射直後は、進んだぶんだけ短く描く（線が伸びていくように見せるため）
 		float visibleLength = std::min(length, remainingDistance);
 		Vector3 direction = difference / length;
 		Vector3 visibleEnd = path.segments[i].start + direction * visibleLength;
 
-		WorldTransform& worldTransform = worldTransforms[i];
-		worldTransform.translation_ = (path.segments[i].start + visibleEnd) * 0.5f;
-		worldTransform.translation_.z -= 0.2f;
-		worldTransform.scale_ = {kLineRadiusScale, kLineRadiusScale, visibleLength * 0.5f};
-		worldTransform.rotation_ = {
-		    -MathUtility::kPI * 0.5f, 0.0f, std::atan2(difference.y, difference.x) - MathUtility::kPI * 0.5f};
-		UpdateWorldTransform(worldTransform);
-		model_->Draw(worldTransform, camera, color);
+		PlaceLineQuad(worldTransforms[i], path.segments[i].start, visibleEnd);
+		model->Draw(worldTransforms[i], camera, color);
+
 		remainingDistance -= length;
 	}
+}
+
+///// ----- 板ポリゴンで線を引く ----- /////
+// 3D空間の2点を結ぶように、1x1の板ポリゴンを引き伸ばして置く。
+// 板ポリゴンの中心＝2点の中点なので、板の両端（＝画像の端の真ん中）がちょうど2点に重なる。
+// Zは2点のZをそのまま使う（＝自機と同じ奥行き）ので、自機の手前ではなく中心から線が出る。
+void Line3D::PlaceLineQuad(WorldTransform& worldTransform, const Vector3& start, const Vector3& end) const {
+	Vector3 difference = end - start;
+	float length = Length(difference);
+
+	worldTransform.translation_ = (start + end) * 0.5f;
+
+	// 板ポリゴンは1x1なので、xに太さ・yに長さを入れるだけでそのまま線の形になる
+	worldTransform.scale_ = {kLineThickness, length, 1.0f};
+
+	// 画像は「縦向き」に描かれているので、板ポリゴンの長い方(+Y)が
+	// 2点を結ぶ方向を向くように、90度ずらして回転させる
+	worldTransform.rotation_ = {0.0f, 0.0f, std::atan2(difference.y, difference.x) - MathUtility::kPI * 0.5f};
+
+	UpdateWorldTransform(worldTransform);
 }
 
 void Line3D::ResetLine() {
