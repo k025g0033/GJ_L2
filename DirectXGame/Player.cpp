@@ -127,7 +127,11 @@ void Player::Draw(ObjectColor* objectColor) {
 	// 頭・腕など、ベースに重ねて描画する追加パーツ（設定されていれば）。
 	// 原点をワールド原点に合わせてエクスポートしてあるので、ベースと同じworldTransform_で
 	// そのまま描画するだけで正しい位置に組み合わさる。
-	for (Model* partModel : extraPartModels_) {
+	// クローンの素を持っている間は、持っている用のパーツ（腕を上げた形＋抱えているクローン）に差し替える。
+	// 用意していない場合は通常のパーツをそのまま使う。
+	const std::vector<Model*>& partModels = (isHolding_ && !holdingPartModels_.empty()) ? holdingPartModels_ : extraPartModels_;
+
+	for (Model* partModel : partModels) {
 		if (partModel != nullptr) {
 			partModel->Draw(worldTransform_, *camera_, objectColor);
 		}
@@ -464,17 +468,11 @@ KamataEngine::Vector3 Player::CornerPosition(const KamataEngine::Vector3& center
 // 通常時(isHolding_==false)はGetWidth()==kWidthなので、frontHalf==backHalf==kWidth/2となり
 // 今まで通りの左右対称になる。持っている間は「背中側」をkWidth/2に固定したまま、
 // 「向いている方向側」だけをGetWidth()まで伸ばす。
-float Player::GetLeftHalfWidth() const {
-	float backHalf = kWidth / 2.0f;
-	float frontHalf = GetWidth() - backHalf;
-	return (lrDirection_ == LRDirection::kRight) ? backHalf : frontHalf;
-}
+// 以前はクローンの素を持っている間だけ「向いている方向側」を広げていたが、
+// 持っても当たり判定のサイズを変えない仕様にしたので、常に左右対称になる。
+float Player::GetLeftHalfWidth() const { return kWidth / 2.0f; }
 
-float Player::GetRightHalfWidth() const {
-	float backHalf = kWidth / 2.0f;
-	float frontHalf = GetWidth() - backHalf;
-	return (lrDirection_ == LRDirection::kRight) ? frontHalf : backHalf;
-}
+float Player::GetRightHalfWidth() const { return kWidth / 2.0f; }
 
 std::array<KamataEngine::Vector3, Player::kNumCorner> Player::GetCalculatedCorners(const KamataEngine::Vector3& moveAmount) {
 	std::array<Vector3, kNumCorner> positionsNew;

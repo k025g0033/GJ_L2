@@ -120,6 +120,11 @@ public:
 	float GetWidth() const { return kWidth; }
 	float GetHeight() const { return kHeight; }
 
+	// 当たり判定サイズ（ImGuiのスライダーから直接書き換えられるよう参照を返す）
+	// ※全てのクローンの素で共通の値
+	static float& GetWidthRef() { return kWidth; }
+	static float& GetHeightRef() { return kHeight; }
+
 	// 現在位置をもとにした当たり判定用の矩形を取得する（自機との当たり判定で使用）
 	MapChipField::Rect GetRect() const;
 
@@ -273,9 +278,9 @@ private:
 	static inline const float kBaseScale = 0.5f;
 
 	///// ----- 当たり判定(立方体) ----- /////
-	// 見た目は仮で球体だが、当たり判定は自機と同じく立方体として扱う
-	static inline const float kWidth = 0.8f;
-	static inline const float kHeight = 0.8f;
+	// 当たり判定は自機と同じく軸に沿った矩形として扱う（ImGuiで調整できるようconstにしていない）
+	static inline float kWidth = 0.8f;
+	static inline float kHeight = 0.8f;
 	// ブロックにめり込まないための微小な余白（Playerのkblankと同じ考え方）
 	static inline const float kBlank = 0.02f;
 

@@ -1,0 +1,9 @@
+# 実際の画像はStageData.csvで選び、Draw時に差し替える。
+newmtl Background
+Ka 1 1 1
+Kd 0 0 0
+Ks 0 0 0
+d 1
+illum 1
+# 読み込み時にも画像を指定し、OBJのUVを有効なテクスチャ座標として取り込ませる。
+map_Kd white1x1.png

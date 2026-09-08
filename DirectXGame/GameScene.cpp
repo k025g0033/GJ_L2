@@ -69,7 +69,10 @@ GameScene::~GameScene() {
 	delete modelPlayerHead_;
 	delete modelPlayerLeftArm_;
 	delete modelPlayerRightArm_;
-	delete backgroundSprite_;
+	delete modelPlayerLeftArmHolding_;
+	delete modelPlayerRightArmHolding_;
+	delete modelPlayerHoldingClone_;
+	delete background_;
 	delete pauseEscSprite_;
 	delete pausePoseGuideSprite_;
 	delete pauseOverlaySprite_;
@@ -147,10 +150,10 @@ void GameScene::Initialize() {
 	modelWater_->SetAlpha(0.4f);
 	// 天球のモデル生成
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
-	// クローンの素モデル生成（球体）
-	modelCloneBase_ = Model::CreateSphere();
-	// 鍵専用モデル
-	modelKey_ = Model::CreateFromOBJ("Key", true);
+	// クローンの素モデル生成
+	modelCloneBase_ = Model::CreateFromOBJ("cloneObject", true);
+	// 鍵モデル生成（球体）
+	modelKey_ = Model::CreateSphere();
 	// 電気弾モデル生成
 	modelElectricBullet_ = KamataEngine::Model::CreateSphere();
 	// 自機の追加パーツモデル生成（頭・左腕・右腕。Blender側で原点をワールド原点に合わせてあるので、
@@ -158,10 +161,10 @@ void GameScene::Initialize() {
 	modelPlayerHead_ = Model::CreateFromOBJ("player_head", true);
 	modelPlayerLeftArm_ = Model::CreateFromOBJ("player_leftArm", true);
 	modelPlayerRightArm_ = Model::CreateFromOBJ("player_rightArm", true);
-	// 背景スプライトの生成
-	backgroundTextureHandle_ = TextureManager::Load("uvChecker.png");
-	backgroundSprite_ = Sprite::Create(backgroundTextureHandle_, {0.0f, 0.0f});
-	backgroundSprite_->SetSize({1280.0f, 720.0f});
+	// クローンの素を持っている間だけ使うパーツ（腕を上げた形と、抱えているクローン）
+	modelPlayerLeftArmHolding_ = Model::CreateFromOBJ("player_leftArm_next", true);
+	modelPlayerRightArmHolding_ = Model::CreateFromOBJ("player_rightArm_next", true);
+	modelPlayerHoldingClone_ = Model::CreateFromOBJ("player_cloneObject_handing", true);
 
 	// 左上のポーズ操作案内と、停止中に表示する画面を生成
 	pauseEscTextureHandle_ = TextureManager::Load("Pause/Esc.png");
@@ -214,6 +217,9 @@ void GameScene::Initialize() {
 	// 横スクロールの基準は常に自機（クローンを操作していてもカメラは自機基準のまま）
 	cameraController_->SetTarget(player_);
 	cameraController_->Reset();
+	// カメラと同じステージ番号で、背景画像・配置・雲の設定を選ぶ。
+	background_ = new BackGround();
+	background_->Initialize(&camera_, stageNumber_);
 
 	// デバッグカメラの生成
 	debugCamera_ = new DebugCamera(1280, 720);
@@ -226,12 +232,15 @@ void GameScene::Initialize() {
 	throwAimIndicator_ = new ThrowAimIndicator();
 	throwAimIndicator_->Initialize(&camera_);
 
-	// 自機はもうベースモデル（旧player.obj、立方体）を使わず、頭・左腕・右腕のパーツだけで構成する。
+	// 自機はベースモデルを使わず、頭・左腕・右腕のパーツだけで構成する。
 	// ※変形後のクローンも同じパーツを使う（GenerateBlocks内のSetClonePartModelsで設定している）。
 	// 　クローン専用パーツができたら、そちらだけ差し替えれば自機とは別の見た目にできる。
-	// 持っている間に使うベースモデルも今は用意していないため未設定のまま（=描画されない）にしておく。
-	// 専用のholding用モデルを用意したら、ここでSetHoldingModelに渡して差し替える。
 	player_->SetExtraPartModels({modelPlayerHead_, modelPlayerLeftArm_, modelPlayerRightArm_});
+
+	// クローンの素を持っている間だけ、腕を上げた形のパーツ＋抱えているクローンに差し替える。
+	// ※当たり判定のサイズは持っていても変わらない。見た目だけがこちらに切り替わる。
+	player_->SetHoldingPartModels(
+	    {modelPlayerHead_, modelPlayerLeftArmHolding_, modelPlayerRightArmHolding_, modelPlayerHoldingClone_});
 }
 
 void GameScene::Update() {
@@ -298,13 +307,9 @@ void GameScene::Update() {
 	if (isHoldingCloneBase_ && throwAimIndicator_ != nullptr) {
 		throwAimIndicator_->Update(player_->GetWorldTransform().translation_, mouseCursor_->GetWorldPosition());
 	}
-#ifdef USE_IMGUI
-	ImGui::Begin("Background");
-	ImGui::RadioButton("Skydome", &backgroundMode_, 0);
-	ImGui::SameLine();
-	ImGui::RadioButton("Sprite", &backgroundMode_, 1);
-	ImGui::End();
-#endif
+	background_->ShowImGui();
+	// ポーズ中はここへ来ないので、雲の移動と生成も停止する。
+	background_->Update();
 	// 変形アニメーションの再生中かどうか（1体でも再生中なら、自機もクローンも操作を受け付けない）
 	// ※移動・ジャンプだけでなく、リンクを切る／新しく線を撃つ／素を拾うもすべて止める。
 	// 　変形の途中でリンクを切ると、素にもクローンにもなれないまま取り残されてしまうため。
@@ -403,7 +408,7 @@ void GameScene::Update() {
 		}
 	}
 
-	// クローンの素を持っている間は、自機の当たり判定の横幅を広げる（ImGuiのHolding Widthで調整可能）
+	// クローンの素を持っているかどうかを伝える（見た目のモデルだけが切り替わる。当たり判定は変わらない）
 	player_->SetIsHolding(isHoldingCloneBase_);
 
 	// プレイヤーの更新
@@ -656,19 +661,19 @@ void GameScene::Update() {
 }
 
 void GameScene::Draw() {
-	// スプライト背景は3Dモデルより先に描画する
-	if (backgroundMode_ == 1) {
-		Sprite::PreDraw();
-		backgroundSprite_->Draw();
-		Sprite::PostDraw();
-	}
+	// 天球と透過画像の板は最背面。深度を書かず、後から描く雲やゲーム本体を隠さない。
+	Model::PreDraw(Model::CullingMode::kBack, Model::BlendMode::kNormal, Model::DepthTestMode::kOff);
+	skydome_->Draw();
+	background_->DrawBackground();
+	Model::PostDraw();
 
+	// 雲同士や雲の表裏には通常の3D深度判定を使う。
 	Model::PreDraw();
-
-	// 天球の描画
-	if (backgroundMode_ == 0) {
-		skydome_->Draw();
-	}
+	background_->DrawClouds();
+	Model::PostDraw();
+	// 背景演出の深度をここで区切り、カメラを遠ざけても雲が自機を隠さないようにする。
+	DirectXCommon::GetInstance()->ClearDepthBuffer();
+	Model::PreDraw();
 
 	// クローンの素の描画（球体、または線接続後は自機と同じ形）
 	// 持たれている間は表示しない（代わりに自機側が「持っている状態」の見た目を担当する）
@@ -1098,10 +1103,12 @@ void GameScene::ShowCloneBaseManagerImGui() {
 	ImGui::Text("Can Pick Up: %s", canPickUpCloneBase_ ? "True" : "False");
 	ImGui::Text("Holding CloneBase: %s", isHoldingCloneBase_ ? "True" : "False");
 
-	// 自機の当たり判定が今どちらのサイズになっているか（Normal / Holding）を表示する
-	ImGui::Text("Player Hitbox Mode: %s (Width: %.2f)", player_->IsHolding() ? "Holding" : "Normal", player_->GetWidth());
-	// 持っている間の当たり判定の横幅を調整する（縦方向はkHeightのまま変えない）
-	ImGui::SliderFloat("Holding Width", &player_->GetHoldingWidthRef(), 0.8f, 1.5f);
+	// 当たり判定サイズの調整（自機・クローン共通。持っていてもサイズは変わらない）
+	ImGui::SliderFloat("Player Hitbox Width", &Player::GetWidthRef(), 0.1f, 0.8f);
+	ImGui::SliderFloat("Player Hitbox Height", &Player::GetHeightRef(), 0.1f, 0.8f);
+	// クローンの素の当たり判定サイズの調整
+	ImGui::SliderFloat("CloneBase Hitbox Width", &CloneBase::GetWidthRef(), 0.1f, 0.8f);
+	ImGui::SliderFloat("CloneBase Hitbox Height", &CloneBase::GetHeightRef(), 0.1f, 0.8f);
 	// 自機モデルの見た目の大きさを調整する（当たり判定サイズには影響しない）
 	ImGui::SliderFloat("Player Model Scale", &player_->GetModelScaleRef(), 0.5f, 3.0f);
 	ImGui::Separator();
