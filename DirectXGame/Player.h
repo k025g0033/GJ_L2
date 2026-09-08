@@ -214,6 +214,9 @@ private:
 	void CheckInWater();
 	void MoveInWater();
 
+	// 操作を受け付けない間の落下処理（重力だけを働かせる）
+	void ApplyGravityOnly();
+
 	// 水中時の数値
 	static inline const float kSwimSpeedX = 0.08f;      // X方向速度
 	static inline const float kSwimSpeedY = 0.08f;      // Y方向速度

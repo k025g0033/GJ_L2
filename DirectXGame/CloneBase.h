@@ -57,6 +57,16 @@ public:
 	// この間は操作を受け付けず、その場で見た目だけが変化する
 	bool IsAnimating() const { return state_ == State::kTransforming || state_ == State::kReverting; }
 
+	// 変形アニメーションの進行度（0.0〜1.0）。再生していない時は1.0を返す。
+	// リンク線のフェードイン／フェードアウトを変形に合わせるために使う。
+	float GetAnimationProgress() const {
+		if (animationDuration_ <= 0) {
+			return 1.0f;
+		}
+		float progress = static_cast<float>(animationTimer_) / static_cast<float>(animationDuration_);
+		return (progress > 1.0f) ? 1.0f : progress;
+	}
+
 	// 状態を取得
 	State GetState() const { return state_; }
 
@@ -187,7 +197,7 @@ private:
 	};
 
 	// 投げられて飛んでいる間の物理更新（重力・着地判定）
-	void UpdateThrowPhysics(const MapChipField::Rect& playerRect);
+	void UpdateThrowPhysics(const MapChipField::Rect& playerRect, const std::vector<MapChipField::Rect>& obstacleRects);
 
 	///// ----- 変形アニメーション ----- /////
 	// 素 <-> クローンの変形アニメーションを1フレーム分進める
@@ -201,6 +211,16 @@ private:
 	void CheckBlockCollisionBottom(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result) const;
 	void CheckBlockCollisionRight(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result) const;
 	void CheckBlockCollisionLeft(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result) const;
+
+	///// ----- マップチップ以外の障害物との当たり判定（他の素・クローン・自機・ドア） ----- /////
+	// Player::isObstacleCollision系と同じ考え方で、矩形の一覧に対して移動量を補正する。
+	// 先に横方向を確定させ、そのあと「横に動いた後の位置」で縦方向を判定するので、
+	// 斜めに飛んでいても相手の角から中へ入り込めない。
+	BlockCollisionResult CheckObstacleCollision(KamataEngine::Vector3& moveAmount, const std::vector<MapChipField::Rect>& obstacleRects) const;
+	void CheckObstacleCollisionTop(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result, const std::vector<MapChipField::Rect>& obstacleRects) const;
+	void CheckObstacleCollisionBottom(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result, const std::vector<MapChipField::Rect>& obstacleRects) const;
+	void CheckObstacleCollisionRight(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result, const std::vector<MapChipField::Rect>& obstacleRects) const;
+	void CheckObstacleCollisionLeft(KamataEngine::Vector3& moveAmount, BlockCollisionResult& result, const std::vector<MapChipField::Rect>& obstacleRects) const;
 
 	// 指定した中心座標から見た、指定した角の座標を計算する
 	KamataEngine::Vector3 CornerPosition(const KamataEngine::Vector3& center, Corner corner) const;
