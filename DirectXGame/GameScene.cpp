@@ -26,6 +26,9 @@ MapChipField::Rect ExpandRect(const MapChipField::Rect& rect, float margin) { re
 // クローン同士は当たり判定で押し戻されるため、矩形がぴったり重なることは絶対にない。
 // 少しだけ広げた矩形で判定して、隣り合っていれば「接触している」とみなす。
 const float kChargeContactMargin = 0.1f;
+
+// ステージごとのカメラ設定ファイル
+const char* kCameraSettingsCsvPath = "Resources/map/camera.csv";
 } // namespace
 
 using namespace KamataEngine;
@@ -180,13 +183,16 @@ void GameScene::Initialize() {
 	// 天球の生成,初期化
 	skydome_ = new Skydome();
 	skydome_->Initialize(modelSkydome_, &camera_);
-	// カメラの生成,初期化,追従対象をセット,リセット
+	// カメラの生成・初期化
+	// ※カメラは自機やクローンには追従しない。ステージごとにCSVで決めた位置に固定する。
+	// 　横スクロールを有効にしたステージだけ、自機のX座標に合わせてカメラが横に動く。
 	cameraController_ = new CameraController();
 	cameraController_->Initialize(&camera_);
+	cameraController_->LoadStageSettingsCsv(kCameraSettingsCsvPath);
+	cameraController_->SelectStage(stageNumber_);
+	// 横スクロールの基準は常に自機（クローンを操作していてもカメラは自機基準のまま）
 	cameraController_->SetTarget(player_);
 	cameraController_->Reset();
-	CameraController::Rect stageRect = {11, 100, 6, 100};
-	cameraController_->SetMovableArea(stageRect);
 
 	// デバッグカメラの生成
 	debugCamera_ = new DebugCamera(1280, 720);
@@ -512,6 +518,9 @@ void GameScene::Update() {
 	// ImGui上でクローンの素の配置・状態を管理するパネルを表示する
 	ShowCloneBaseManagerImGui();
 
+	// ImGui上でこのステージのカメラ設定を調整するパネルを表示する
+	ShowCameraImGui();
+
 	// 天球の更新
 	skydome_->Update();
 
@@ -597,7 +606,7 @@ void GameScene::Update() {
 
 				cloneBase->Transform();
 				controlledClone_ = cloneBase;
-				cameraController_->SetTarget(cloneBase->GetPlayer());
+				// ※カメラはクローンに追従しない（自機基準のまま固定／横スクロール）
 
 				// クローンに当たった線を消す
 				line3D_->ResetLine();
@@ -709,7 +718,7 @@ void GameScene::Draw() {
 	}
 
 	// 自機の当たり判定サイズを可視化するワイヤーフレーム（Debugビルド/USE_IMGUIの時だけ表示）
-	DrawPlayerCollisionWireframe();
+	DrawCollisionWireframes();
 
 	// 常時表示する小さなポーズ操作案内
 	Sprite::PreDraw();
@@ -727,29 +736,57 @@ void GameScene::Draw() {
 
 ///// ----- 自機の当たり判定サイズを可視化するワイヤーフレーム ----- /////
 // ImGuiパネルと同じ扱い（USE_IMGUIが定義されるDebugビルドの時だけ表示される。Releaseでは何もしない）
-void GameScene::DrawPlayerCollisionWireframe() {
+void GameScene::DrawCollisionWireframes() {
 #ifdef USE_IMGUI
-	const Vector3& pos = player_->GetWorldTransform().translation_;
+	/// --- 自機 ---
+	const Vector3& playerPosition = player_->GetWorldTransform().translation_;
 	// 持っている間は左右非対称（向いている方向側だけが伸びる）になるので、左右別々に半幅を取る
-	float leftHalfWidth = player_->GetLeftHalfWidth();
-	float rightHalfWidth = player_->GetRightHalfWidth();
-	float halfHeight = player_->GetHeight() / 2.0f;
-	// 奥行き(Z)は実際の当たり判定には使っていないため、見た目を立方体に近づけるための仮の値として高さと同じにする
-	float halfDepth = halfHeight;
+	float playerHalfHeight = player_->GetHeight() / 2.0f;
 
-	Vector3 corners[8] = {
-	    {pos.x - leftHalfWidth,  pos.y - halfHeight, pos.z - halfDepth},
-        {pos.x + rightHalfWidth, pos.y - halfHeight, pos.z - halfDepth},
-	    {pos.x + rightHalfWidth, pos.y + halfHeight, pos.z - halfDepth},
-        {pos.x - leftHalfWidth,  pos.y + halfHeight, pos.z - halfDepth},
-	    {pos.x - leftHalfWidth,  pos.y - halfHeight, pos.z + halfDepth},
-        {pos.x + rightHalfWidth, pos.y - halfHeight, pos.z + halfDepth},
-	    {pos.x + rightHalfWidth, pos.y + halfHeight, pos.z + halfDepth},
-        {pos.x - leftHalfWidth,  pos.y + halfHeight, pos.z + halfDepth},
-	};
+	MapChipField::Rect playerRect;
+	playerRect.left = playerPosition.x - player_->GetLeftHalfWidth();
+	playerRect.right = playerPosition.x + player_->GetRightHalfWidth();
+	playerRect.bottom = playerPosition.y - playerHalfHeight;
+	playerRect.top = playerPosition.y + playerHalfHeight;
 
 	// 持っている間は色を変えて、今どちらの状態かひと目でわかるようにする
-	Vector4 color = player_->IsHolding() ? Vector4{1.0f, 0.5f, 0.0f, 1.0f} : Vector4{0.0f, 1.0f, 1.0f, 1.0f};
+	Vector4 playerColor = player_->IsHolding() ? Vector4{1.0f, 0.5f, 0.0f, 1.0f} : Vector4{0.0f, 1.0f, 1.0f, 1.0f};
+	DrawRectWireframe(playerRect, playerPosition.z, playerHalfHeight, playerColor);
+
+	/// --- クローンの素・クローン ---
+	// GetRect()は当たり判定でそのまま使っている矩形なので、めり込みやガタつきの原因を目で追える
+	for (const CloneBase* cloneBase : cloneBases_) {
+		// 持たれている間は画面に出していないので、枠も出さない
+		if (cloneBase->IsHeld()) {
+			continue;
+		}
+
+		const MapChipField::Rect rect = cloneBase->GetRect();
+		const Vector3& position = cloneBase->GetWorldTransform().translation_;
+
+		// 変形後のクローンは赤紫、素の球体は黄緑
+		Vector4 color = (cloneBase->GetState() == CloneBase::State::kTransformed) ? Vector4{1.0f, 0.2f, 1.0f, 1.0f}
+		                                                                         : Vector4{0.6f, 1.0f, 0.2f, 1.0f};
+
+		DrawRectWireframe(rect, position.z, (rect.top - rect.bottom) / 2.0f, color);
+	}
+#endif
+}
+
+///// ----- 矩形1つぶんのワイヤーフレームの箱 ----- /////
+// 当たり判定はX・Yの軸に沿った矩形（AABB）なので、奥行き(Z)と回転は判定に使っていない。
+// 箱の奥行きは、見た目を立方体に近づけるための飾り。
+void GameScene::DrawRectWireframe(const MapChipField::Rect& rect, float centerZ, float halfDepth, const Vector4& color) {
+	Vector3 corners[8] = {
+	    {rect.left,  rect.bottom, centerZ - halfDepth},
+        {rect.right, rect.bottom, centerZ - halfDepth},
+	    {rect.right, rect.top,    centerZ - halfDepth},
+        {rect.left,  rect.top,    centerZ - halfDepth},
+	    {rect.left,  rect.bottom, centerZ + halfDepth},
+        {rect.right, rect.bottom, centerZ + halfDepth},
+	    {rect.right, rect.top,    centerZ + halfDepth},
+        {rect.left,  rect.top,    centerZ + halfDepth},
+	};
 
 	PrimitiveDrawer* drawer = PrimitiveDrawer::GetInstance();
 	drawer->SetCamera(&camera_);
@@ -769,6 +806,58 @@ void GameScene::DrawPlayerCollisionWireframe() {
 	drawer->DrawLine3d(corners[1], corners[5], color);
 	drawer->DrawLine3d(corners[2], corners[6], color);
 	drawer->DrawLine3d(corners[3], corners[7], color);
+}
+
+///// ----- カメラ設定パネル ----- /////
+// NOTE: ImGuiの表示文字列は日本語だと文字化けするため、英語表記にしている
+void GameScene::ShowCameraImGui() {
+#ifdef USE_IMGUI
+	ImGui::Begin("Camera");
+
+	ImGui::Text("Stage: %d", stageNumber_);
+	ImGui::TextWrapped("The camera does not follow the player. It stays where you set it here.");
+	ImGui::Separator();
+
+	CameraController::StageSetting& setting = cameraController_->GetCurrentSettingRef();
+
+	ImGui::DragFloat3("Position", &setting.position.x, 0.1f);
+	ImGui::DragFloat3("Rotation (deg)", &setting.rotationDegree.x, 1.0f);
+	ImGui::Separator();
+
+	// 横スクロール（自機のX座標に合わせてカメラも横に動く）
+	ImGui::Checkbox("Scroll X", &setting.isScrollX);
+	ImGui::DragFloat("Scroll Offset X", &setting.scrollOffsetX, 0.1f);
+	ImGui::DragFloat("Scroll Min X", &setting.scrollMinX, 0.1f);
+	ImGui::DragFloat("Scroll Max X", &setting.scrollMaxX, 0.1f);
+	ImGui::Separator();
+
+	// 縦スクロール（自機のY座標に合わせてカメラも縦に動く）
+	ImGui::Checkbox("Scroll Y", &setting.isScrollY);
+	ImGui::DragFloat("Scroll Offset Y", &setting.scrollOffsetY, 0.1f);
+	ImGui::DragFloat("Scroll Min Y", &setting.scrollMinY, 0.1f);
+	ImGui::DragFloat("Scroll Max Y", &setting.scrollMaxY, 0.1f);
+	ImGui::TextWrapped("Min >= Max means no limit. Position of a scrolling axis is ignored.");
+	ImGui::Separator();
+
+	ImGui::Text(
+	    "Current: (%.2f, %.2f, %.2f)", camera_.translation_.x, camera_.translation_.y, camera_.translation_.z);
+	ImGui::Separator();
+
+	// 調整した内容をCSVへ保存する（次回起動時はこの値で始まる）
+	if (ImGui::Button("Save To CSV")) {
+		cameraSaveMessage_ =
+		    cameraController_->SaveStageSettingsCsv(kCameraSettingsCsvPath) ? "Saved" : "Save failed";
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Reload From CSV")) {
+		cameraController_->LoadStageSettingsCsv(kCameraSettingsCsvPath);
+		cameraController_->SelectStage(stageNumber_);
+		cameraController_->Reset();
+		cameraSaveMessage_ = "Reloaded";
+	}
+	ImGui::Text("%s", cameraSaveMessage_);
+
+	ImGui::End();
 #endif
 }
 
@@ -1045,7 +1134,6 @@ void GameScene::ShowCloneBaseManagerImGui() {
 				if (ImGui::Button("Connect Line (Debug)") && controlledClone_ == nullptr) {
 					cloneBase->Transform();
 					controlledClone_ = cloneBase;
-					cameraController_->SetTarget(cloneBase->GetPlayer());
 				}
 			}
 			ImGui::PopID();
