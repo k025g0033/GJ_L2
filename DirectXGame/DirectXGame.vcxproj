@@ -239,6 +239,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClInclude Include="WorldTransformConfig.h" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="CameraMemo.txt" />
     <Text Include="PlayerMemo.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
