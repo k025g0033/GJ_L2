@@ -31,7 +31,9 @@ public:
 
 	void Initialize(KamataEngine::Model* model, KamataEngine::Camera* cameraz, const KamataEngine::Vector3& position);
 
-	void Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects);
+	void Update(
+	    bool canMove, const std::vector<MapChipField::Rect>& obstacleRects,
+	    const std::vector<MapChipField::Rect>& oneWayPlatformRects = {});
 
 	void Draw(KamataEngine::ObjectColor* objectColor = nullptr);
 

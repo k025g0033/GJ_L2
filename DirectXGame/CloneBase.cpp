@@ -67,7 +67,9 @@ void CloneBase::Initialize(Model* modelBase, Model* modelClone, Camera* camera, 
 	player_->SetCanJump(false);
 }
 
-void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects, const MapChipField::Rect& playerRect) {
+void CloneBase::Update(
+    bool isControlled, const std::vector<MapChipField::Rect>& obstacleRects, const MapChipField::Rect& playerRect,
+    const std::vector<MapChipField::Rect>& oneWayPlatformRects) {
 
 	// 帯電時間を減らす
 	if (isCharged_) {
@@ -87,7 +89,7 @@ void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>&
 	}
 
 	if (state_ == State::kTransformed) {
-		player_->Update(isControlled, obstacleRects);
+		player_->Update(isControlled, obstacleRects, oneWayPlatformRects);
 
 		if (player_->IsInWater()) {
 			// 水に落ちた場合はアニメーションを挟まず、その場で素に戻して初期位置へ戻す
@@ -108,7 +110,7 @@ void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>&
 	// 投げられている（＝重力が働いている）間は、毎フレーム着地判定をやり直す。
 	// こうしておくと、自機の上に乗った後で自機が動いた時に、支えがなくなって自然に落下を再開する。
 	if (isThrown_) {
-		UpdateThrowPhysics(playerRect);
+		UpdateThrowPhysics(playerRect, oneWayPlatformRects);
 	}
 
 	// 素の状態の表示スケール
@@ -279,7 +281,9 @@ void CloneBase::UpdateTransformAnimation() {
 }
 
 ///// ----- 投げられて飛んでいる間の物理更新 ----- /////
-void CloneBase::UpdateThrowPhysics(const MapChipField::Rect& playerRect) {
+void CloneBase::UpdateThrowPhysics(
+    const MapChipField::Rect& playerRect,
+    const std::vector<MapChipField::Rect>& oneWayPlatformRects) {
 	float halfWidth = kWidth / 2.0f;
 	float halfHeight = kHeight / 2.0f;
 
@@ -307,6 +311,17 @@ void CloneBase::UpdateThrowPhysics(const MapChipField::Rect& playerRect) {
 			// 着地したら横方向の勢いも止める（そのままだと滑り続けてしまうため）
 			throwVelocity_.x = 0.0f;
 			return;
+		}
+
+		// 感圧板は側面を通過し、上から落ちたクローンの素だけを受け止める。
+		for (const MapChipField::Rect& rect : oneWayPlatformRects) {
+			const bool overlapX = !(nextX + halfWidth <= rect.left || nextX - halfWidth >= rect.right);
+			if (overlapX && nowBottom >= rect.top - kLandingBlank && nextBottom <= rect.top) {
+				moveAmount.y = rect.top - nowBottom;
+				worldTransform_.translation_ = worldTransform_.translation_ + moveAmount;
+				throwVelocity_ = {};
+				return;
+			}
 		}
 	}
 
