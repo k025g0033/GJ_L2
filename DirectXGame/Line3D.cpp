@@ -91,17 +91,21 @@ void Line3D::Update(
 	const Vector3& origin, const Camera& camera, MapChipField* mapChipField,
 	const std::vector<MapChipField::Rect>& reflectingRects,
 	const std::vector<MapChipField::Rect>& blockingRects, bool canFire, bool isClone) {
-	if (Input::GetInstance()->TriggerKey(DIK_Q)) {
+	if (!isClone && Input::GetInstance()->TriggerKey(DIK_Q)) {
 		isPredictionVisible_ = !isPredictionVisible_;
 	}
 
 	Vector3 direction = GetMouseDirection(origin, camera);
 	Path fullPath = CalculatePath(origin, direction, mapChipField, reflectingRects, blockingRects);
-	predictionPath_ = fullPath;
-	if (predictionPath_.segmentCount > 2) {
-		predictionPath_.segmentCount = 2;
+	if (isClone) {
+		predictionPath_.segmentCount = 0;
+	} else {
+		predictionPath_ = fullPath;
+		if (predictionPath_.segmentCount > 2) {
+			predictionPath_.segmentCount = 2;
+		}
 	}
-	if (canFire && linePath_.segmentCount == 0 && Input::GetInstance()->IsTriggerMouse(0)) {
+	if (!isClone && canFire && linePath_.segmentCount == 0 && Input::GetInstance()->IsTriggerMouse(0)) {
 		linePath_ = fullPath;
 		lineTravelDistance_ = 0.0f;
 		isCloneLine_ = isClone;

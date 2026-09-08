@@ -50,7 +50,7 @@ void SceneManager::ChangeScene() {
 		scene_ = Scene::kStageSelect;
 		break;
 	case Scene::kStageSelect:
-		scene_ = Scene::kGame;
+		scene_ = selectedStageNumber_ == 0 ? Scene::kTitle : Scene::kGame;
 		break;
 	case Scene::kGame:
 		scene_ = Scene::kResult;

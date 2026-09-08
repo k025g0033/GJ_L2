@@ -306,8 +306,8 @@ void GameScene::Update() {
 		// camera_.translation_ = {7.7f, 7.0f, -11.0f};
 	}
 
-	// クローンの素を持っている間はリンク線を発射できないようにする
-	bool canFireLine = activePlayer->IsOnGround() && !isHoldingCloneBase_;
+	// プレイヤー操作中かつ、クローンの素を持っていない間だけリンク線を発射できる
+	bool canFireLine = controlledClone_ == nullptr && activePlayer->IsOnGround() && !isHoldingCloneBase_;
 	line3D_->Update(
 	    activePlayer->GetWorldTransform().translation_, camera_, mapChipField_, closedDoorRects, activeLazerRects,
 	    canFireLine, controlledClone_ != nullptr);
