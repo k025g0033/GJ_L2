@@ -1,4 +1,5 @@
 #include "ThrowAimIndicator.h"
+#include "WorldTransformConfig.h"
 #include "math/MathUtility.h"
 
 #include <algorithm>
@@ -8,15 +9,18 @@
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility; // Vector3のoperator+などがこの名前空間にあるため必要
 
+ThrowAimIndicator::~ThrowAimIndicator() { delete triangleModel_; }
+
 ///// ----- 初期化 ----- /////
 void ThrowAimIndicator::Initialize(KamataEngine::Camera* camera) {
 	camera_ = camera;
 
-	// 三角形の画像（Resources/images/cursor.png）を読み込む
-	triangleTextureHandle_ = TextureManager::Load("images/cursor.png");
-	// アンカーポイントを中央にしておくことで、円周上の座標＝三角形の中心になる
-	triangleSprite_ = Sprite::Create(triangleTextureHandle_, {0.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.5f, 0.5f});
-	triangleSprite_->SetSize({triangleSize_, triangleSize_});
+	// 三角形の板ポリゴン（Resources/ThrowAim。cursor.pngを貼ってある）
+	// ※以前はスプライト（2D）で、ワールド座標をスクリーン座標に変換して置いていたが、
+	// 　円のほうはワイヤーフレーム（3D）で描いているため、2つの座標系がずれて
+	// 　三角形が円周から外れて見えていた。3Dモデルにして同じ空間で扱うことで必ず円周に乗る。
+	triangleModel_ = Model::CreateFromOBJ("ThrowAim", true);
+	triangleWorldTransform_.Initialize();
 }
 
 ///// ----- 更新処理 ----- /////
@@ -33,21 +37,29 @@ void ThrowAimIndicator::Update(const Vector3& playerPosition, const Vector3& mou
 		throwDirection_ = toMouse / distance;
 	}
 
-	// 円周上で、マウスカーソル方向にあたる位置（三角形を表示する場所）
-	Vector3 trianglePosition = playerPosition_ + throwDirection_ * circleRadius_;
+	// 円周上で、マウスカーソル方向にあたる位置（三角形を表示する場所）。
+	// 円と同じワールド座標なので、必ず円周にぴったり乗る。
+	triangleWorldTransform_.translation_ = playerPosition_ + throwDirection_ * circleRadius_;
 
-	// スクリーン座標へ変換し、三角形の位置を更新する
-	Vector2 screenPosition = ConvertWorldToScreen(trianglePosition);
-	triangleSprite_->SetPosition(screenPosition);
+	triangleWorldTransform_.scale_ = {triangleSize_, triangleSize_, 1.0f};
 
-	// 三角形画像は「上向き」がデフォルトなので、上方向(0,1)から時計回りの角度を求めて向きを合わせる
-	float rotation = std::atan2(throwDirection_.x, throwDirection_.y);
-	triangleSprite_->SetRotation(rotation);
+	// 三角形の画像は「上向き」なので、板ポリゴンの上方向(+Y)が投げる方向を向くように90度ずらす
+	triangleWorldTransform_.rotation_ = {
+	    0.0f, 0.0f, std::atan2(throwDirection_.y, throwDirection_.x) + std::numbers::pi_v<float> * 0.5f};
 
-	triangleSprite_->SetSize({triangleSize_, triangleSize_});
+	UpdateWorldTransform(triangleWorldTransform_);
 }
 
-///// ----- 描画処理 ----- /////
+///// ----- 描画処理（三角形。3Dモデルの描画パスの中で呼ぶ） ----- /////
+void ThrowAimIndicator::DrawModel() {
+	if (camera_ == nullptr || triangleModel_ == nullptr) {
+		return;
+	}
+
+	triangleModel_->Draw(triangleWorldTransform_, *camera_);
+}
+
+///// ----- 描画処理（円。3Dモデルの描画パスの外で呼ぶ） ----- /////
 void ThrowAimIndicator::Draw() {
 	if (camera_ == nullptr) {
 		return;
@@ -66,28 +78,4 @@ void ThrowAimIndicator::Draw() {
 		Vector3 point1 = playerPosition_ + Vector3{std::cos(angle1) * circleRadius_, std::sin(angle1) * circleRadius_, 0.0f};
 		primitiveDrawer->DrawLine3d(point0, point1, color);
 	}
-
-	/// --- 円周上の三角形（画像）を描画する ---
-	Sprite::PreDraw();
-	triangleSprite_->Draw();
-	Sprite::PostDraw();
-}
-
-///// ----- ワールド座標からスクリーン座標への変換 ----- /////
-KamataEngine::Vector2 ThrowAimIndicator::ConvertWorldToScreen(const KamataEngine::Vector3& worldPosition) const {
-	if (camera_ == nullptr) {
-		return {};
-	}
-
-	RECT clientRect = {};
-	GetClientRect(WinApp::GetInstance()->GetHwnd(), &clientRect);
-	float clientWidth = static_cast<float>((std::max)(clientRect.right - clientRect.left, 1L));
-	float clientHeight = static_cast<float>((std::max)(clientRect.bottom - clientRect.top, 1L));
-
-	Matrix4x4 matViewProjection = MathUtility::operator*(camera_->matView, camera_->matProjection);
-	Vector3 ndc = MathUtility::TransformCoord(worldPosition, matViewProjection);
-
-	float screenX = (ndc.x + 1.0f) * 0.5f * clientWidth;
-	float screenY = (1.0f - ndc.y) * 0.5f * clientHeight;
-	return {screenX, screenY};
 }

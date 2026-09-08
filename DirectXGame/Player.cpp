@@ -36,7 +36,8 @@ void Player::Update(bool canMove, const std::vector<MapChipField::Rect>& obstacl
 	if (canMove) {
 		Move();
 	} else {
-		velocity_ = {};
+		// 操作は受け付けないが、重力（落下）だけは働かせる
+		ApplyGravityOnly();
 	}
 
 	// 衝突情報を初期化
@@ -110,6 +111,30 @@ void Player::Draw(ObjectColor* objectColor) {
 		if (partModel != nullptr) {
 			partModel->Draw(worldTransform_, *camera_, objectColor);
 		}
+	}
+}
+
+///// ----- 操作を受け付けない間の落下処理 ----- /////
+// クローンの変形アニメーション中やリンク線を撃っている最中など、
+// 操作を止めている間でも重力だけは働かせる。
+// ※以前は velocity_ をまるごと0にしていたため、クローンの素の上に乗った状態で
+// 　別の素にリンクすると、足場が無くなっても自機がその場に浮いたままになっていた。
+void Player::ApplyGravityOnly() {
+	// 横方向の入力は受け付けないので、その場で止める
+	velocity_.x = 0.0f;
+
+	if (isInWater_) {
+		// 水中はMoveInWaterと同じ扱いで、弱い重力でゆっくり沈む
+		velocity_.y -= kWaterGravity;
+		velocity_.y = std::clamp(velocity_.y, -kLimitWaterFallSpeed, kSwimSpeedY);
+		onGround_ = false;
+		return;
+	}
+
+	// 接地していない間だけ落下させる（ジャンプ入力は受け付けない）
+	if (!onGround_) {
+		velocity_.y += -kGravityAcceleration;
+		velocity_.y = std::max(velocity_.y, -kLimitFallSpeed);
 	}
 }
 
@@ -594,10 +619,13 @@ void Player::MoveInWater() {
 }
 ///// ----- クローンの素など、マップチップ以外の障害物との当たり判定 ----- /////
 void Player::isObstacleCollision(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
-	isObstacleCollisionTop(info, obstacleRects);
-	isObstacleCollisionBottom(info, obstacleRects);
+	// 先に横方向を確定させ、そのあと「横に動いた後の位置」で縦方向を判定する。
+	// ※以前は縦→横の順で、しかもどちらも「動く前の位置」で重なりを見ていたため、
+	// 　斜めに進むと縦も横も「まだ重なっていない」と判定されて、障害物の角から中へ入り込めてしまっていた。
 	isObstacleCollisionRight(info, obstacleRects);
 	isObstacleCollisionLeft(info, obstacleRects);
+	isObstacleCollisionTop(info, obstacleRects);
+	isObstacleCollisionBottom(info, obstacleRects);
 }
 
 void Player::isObstacleCollisionTop(CollisionMapInfo& info, const std::vector<MapChipField::Rect>& obstacleRects) {
@@ -606,8 +634,10 @@ void Player::isObstacleCollisionTop(CollisionMapInfo& info, const std::vector<Ma
 	}
 
 	float halfHeight = kHeight / 2.0f;
-	float nowLeft = worldTransform_.translation_.x - GetLeftHalfWidth();
-	float nowRight = worldTransform_.translation_.x + GetRightHalfWidth();
+	// 横方向はすでに確定しているので、「横に動いた後」のX座標で重なりを判定する
+	float movedX = worldTransform_.translation_.x + info.moveVelocity.x;
+	float nowLeft = movedX - GetLeftHalfWidth();
+	float nowRight = movedX + GetRightHalfWidth();
 	float nowTop = worldTransform_.translation_.y + halfHeight;
 
 	for (const MapChipField::Rect& rect : obstacleRects) {
@@ -629,8 +659,10 @@ void Player::isObstacleCollisionBottom(CollisionMapInfo& info, const std::vector
 	}
 
 	float halfHeight = kHeight / 2.0f;
-	float nowLeft = worldTransform_.translation_.x - GetLeftHalfWidth();
-	float nowRight = worldTransform_.translation_.x + GetRightHalfWidth();
+	// 横方向はすでに確定しているので、「横に動いた後」のX座標で重なりを判定する
+	float movedX = worldTransform_.translation_.x + info.moveVelocity.x;
+	float nowLeft = movedX - GetLeftHalfWidth();
+	float nowRight = movedX + GetRightHalfWidth();
 	float nowBottom = worldTransform_.translation_.y - halfHeight;
 
 	for (const MapChipField::Rect& rect : obstacleRects) {

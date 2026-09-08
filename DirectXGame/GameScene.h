@@ -54,7 +54,8 @@ private:
 	void UpdateDoors();
 	void UpdateLazers();
 	void UpdateKeys(Player* activePlayer);
-	void CheckDoorGoal(const Player* activePlayer);
+	// ゴール判定（渡されたキャラだけを対象にする。自機のみを渡すこと）
+	void CheckDoorGoal(const Player* goalPlayer);
 
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
