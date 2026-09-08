@@ -208,15 +208,37 @@ void GameScene::Update() {
 		isPaused_ = !isPaused_;
 		if (isPaused_) {
 			selectedPauseItem_ = 0;
+			pauseSelectionAnimationTime_ = 0.0f;
 		}
 	}
 	if (isPaused_) {
+		pauseSelectionAnimationTime_ += 1.0f / 60.0f;
 		if (Input::GetInstance()->TriggerKey(DIK_W)) {
 			selectedPauseItem_ = (selectedPauseItem_ + 3) % 4;
+			pauseSelectionAnimationTime_ = 0.0f;
 		}
 		if (Input::GetInstance()->TriggerKey(DIK_S)) {
 			selectedPauseItem_ = (selectedPauseItem_ + 1) % 4;
+			pauseSelectionAnimationTime_ = 0.0f;
 		}
+
+		constexpr float kMenuWidth = 256.0f;
+		constexpr float kMenuHeight = 64.0f;
+		constexpr float kAnimationScale = 0.08f;
+		constexpr float kAnimationSpeed = 6.0f;
+		const float pulse = (std::sin(pauseSelectionAnimationTime_ * kAnimationSpeed) + 1.0f) * 0.5f;
+		for (int i = 0; i < static_cast<int>(pauseMenuSprites_.size()); ++i) {
+			float width = kMenuWidth;
+			float height = kMenuHeight;
+			if (i == selectedPauseItem_) {
+				width *= 1.0f + pulse * kAnimationScale;
+				height *= 1.0f + pulse * kAnimationScale;
+			}
+			pauseMenuSprites_[i]->SetSize({width, height});
+			pauseMenuSprites_[i]->SetPosition(
+			    {512.0f - (width - kMenuWidth) * 0.5f, 240.0f + 80.0f * i - (height - kMenuHeight) * 0.5f});
+		}
+
 		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 			switch (selectedPauseItem_) {
 			case 0: // もどる
@@ -635,8 +657,6 @@ void GameScene::Draw() {
 		for (Sprite* sprite : pauseMenuSprites_) {
 			sprite->Draw();
 		}
-		DebugText::GetInstance()->Print(">", 480.0f, 258.0f + 80.0f * selectedPauseItem_, 1.5f);
-		DebugText::GetInstance()->DrawAll();
 	}
 	pauseEscSprite_->Draw();
 	pausePoseGuideSprite_->Draw();

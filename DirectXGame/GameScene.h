@@ -108,6 +108,7 @@ private:
 	std::array<uint32_t, 4> pauseMenuTextureHandles_{};
 	std::array<KamataEngine::Sprite*, 4> pauseMenuSprites_{};
 	int selectedPauseItem_ = 0;
+	float pauseSelectionAnimationTime_ = 0.0f;
 	bool reloadRequested_ = false;
 	bool stageSelectRequested_ = false;
 
