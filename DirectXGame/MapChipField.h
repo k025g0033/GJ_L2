@@ -11,6 +11,8 @@ enum class MapChipType {
 	kPushPlate, // 感圧板
 	kDoor, // 扉
 	kKey, // 鍵
+	kChargePoint, // 帯電ポイント
+	kElectricPlatform, // 電気で動く足場
 };
 
 // 1マス分のデータ
@@ -18,6 +20,8 @@ struct MapChipDataUnit {
 	MapChipType type = MapChipType::kBlank; // マップチップの種別
 	uint8_t subID = 0;                      // 種類ごとのサブID
 	uint8_t requiredActorCount = 1;         // 感圧板を作動させる必要人数
+	char movementDirection = 'R';           // 電動足場の初期移動方向（R/L/U/D）
+	uint8_t movementDistance = 1;           // 電動足場の移動距離（マス数）
 };
 
 struct MapChipData {
@@ -32,6 +36,8 @@ public:
 		kChipType = 0,  // 種別
 		kChipSubID = 1, // サブID
 		kChipRequiredCount = 2, // 感圧板の必要人数
+		kChipMovementDirection = 2, // 電動足場の移動方向
+		kChipMovementDistance = 3,  // 電動足場の移動距離の開始位置
 	};
 
 	struct IndexSet {
@@ -72,4 +78,6 @@ public:
 
 	uint8_t GetMapChipSubIDByIndex(uint32_t xIndex, uint32_t yIndex);
 	uint8_t GetRequiredActorCountByIndex(uint32_t xIndex, uint32_t yIndex);
+	char GetMovementDirectionByIndex(uint32_t xIndex, uint32_t yIndex);
+	uint8_t GetMovementDistanceByIndex(uint32_t xIndex, uint32_t yIndex);
 };

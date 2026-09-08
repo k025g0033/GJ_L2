@@ -12,10 +12,15 @@ namespace {
 
 bool IsRectColliding(const MapChipField::Rect& a, const MapChipField::Rect& b) { return a.right > b.left && a.left < b.right && a.top > b.bottom && a.bottom < b.top; }
 
-// 指定した分だけ矩形を四方に広げる
-MapChipField::Rect ExpandRect(const MapChipField::Rect& rect, float margin) {
-	return {rect.left - margin, rect.right + margin, rect.bottom - margin, rect.top + margin};
+bool IsStandingOnRect(const MapChipField::Rect& actor, const MapChipField::Rect& platform) {
+	constexpr float kStandingTolerance = 0.12f;
+	const bool overlapsX = actor.right > platform.left && actor.left < platform.right;
+	const bool isNearTop = actor.bottom >= platform.top - kStandingTolerance && actor.bottom <= platform.top + kStandingTolerance;
+	return overlapsX && isNearTop;
 }
+
+// 指定した分だけ矩形を四方に広げる
+MapChipField::Rect ExpandRect(const MapChipField::Rect& rect, float margin) { return {rect.left - margin, rect.right + margin, rect.bottom - margin, rect.top + margin}; }
 
 // 帯電の受け渡しに使う接触判定のあそび。
 // クローン同士は当たり判定で押し戻されるため、矩形がぴったり重なることは絶対にない。
@@ -64,6 +69,16 @@ GameScene::~GameScene() {
 	}
 	electricBullets_.clear();
 	delete modelElectricBullet_;
+
+	for (ChargePoint* chargePoint : chargePoints_) {
+		delete chargePoint;
+	}
+	chargePoints_.clear();
+
+	for (ElectricPlatform* platform : electricPlatforms_) {
+		delete platform;
+	}
+	electricPlatforms_.clear();
 
 	delete debugCamera_;
 	delete mouseCursor_;
@@ -193,20 +208,10 @@ void GameScene::Update() {
 		FireElectricBullet();
 	}
 
-#ifdef _DEBUG
-	// 操作中のクローンをEキーで帯電させる（帯電の入口を作るためのデバッグ操作）
-	// ※帯電したら F キーで電気弾を発射できる
-	if (controlledClone_ && Input::GetInstance()->TriggerKey(DIK_E)) {
-
-		controlledClone_->Charge();
-
-		DebugText::GetInstance()->ConsolePrintf("Clone charged\n");
-	}
-#endif
-
 	UpdatePressurePlates();
 	UpdateDoors();
 	UpdateLazers();
+	UpdateElectricPlatforms();
 
 	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
 	std::vector<MapChipField::Rect> cloneBaseRects;
@@ -235,6 +240,11 @@ void GameScene::Update() {
 		const MapChipField::Rect doorRect = door->GetRect();
 		cloneBaseRects.push_back(doorRect);
 		closedDoorRects.push_back(doorRect);
+	}
+
+	// 電動足場は停止中・移動中に関係なく、プレイヤーとクローンが乗れる障害物にする。
+	for (const ElectricPlatform* platform : electricPlatforms_) {
+		cloneBaseRects.push_back(platform->GetRect());
 	}
 
 	// レーザーは通常プレイヤーだけを止める。クローンへ渡す障害物一覧には追加しない。
@@ -288,7 +298,19 @@ void GameScene::Update() {
 		if (!bullet->IsDead()) {
 			const MapChipField::Rect bulletRect = bullet->GetRect();
 
+			// 電動足場へ当たった電気弾を消費し、足場の帯電時間を最大まで戻す。
+			for (ElectricPlatform* platform : electricPlatforms_) {
+				if (IsRectColliding(bulletRect, platform->GetRect())) {
+					platform->Charge();
+					bullet->SetDead();
+					break;
+				}
+			}
+
 			for (CloneBase* cloneBase : cloneBases_) {
+				if (bullet->IsDead()) {
+					break;
+				}
 				// 発射した操作中クローン、変形アニメーション中のものには当てない
 				if (cloneBase == controlledClone_ || cloneBase->IsAnimating()) {
 					continue;
@@ -302,9 +324,9 @@ void GameScene::Update() {
 				bullet->SetDead();
 
 				// 帯電できる相手にだけ電気を渡す
-				if (cloneBase->CanBeCharged()) {
-					cloneBase->Charge();
-				}
+
+				cloneBase->Charge();
+
 				break;
 			}
 		}
@@ -367,6 +389,10 @@ void GameScene::Update() {
 			}
 		}
 	}
+
+	UpdateChargeSources();
+	UpdateChargeTransfer();
+	ResetChargeHistoryIfAllUsed();
 
 	// 帯電の受け渡し（接触）と、全員使い切った場合の周回リセット
 	UpdateChargeTransfer();
@@ -501,6 +527,14 @@ void GameScene::Draw() {
 		door->Draw();
 	}
 
+	for (ChargePoint* chargePoint : chargePoints_) {
+		chargePoint->Draw();
+	}
+
+	for (ElectricPlatform* platform : electricPlatforms_) {
+		platform->Draw();
+	}
+
 	// 水の描画
 	for (auto& line : worldTransformWaters_) {
 		for (WorldTransform* water : line) {
@@ -544,10 +578,14 @@ void GameScene::DrawPlayerCollisionWireframe() {
 	float halfDepth = halfHeight;
 
 	Vector3 corners[8] = {
-	    {pos.x - leftHalfWidth, pos.y - halfHeight, pos.z - halfDepth}, {pos.x + rightHalfWidth, pos.y - halfHeight, pos.z - halfDepth},
-	    {pos.x + rightHalfWidth, pos.y + halfHeight, pos.z - halfDepth}, {pos.x - leftHalfWidth, pos.y + halfHeight, pos.z - halfDepth},
-	    {pos.x - leftHalfWidth, pos.y - halfHeight, pos.z + halfDepth}, {pos.x + rightHalfWidth, pos.y - halfHeight, pos.z + halfDepth},
-	    {pos.x + rightHalfWidth, pos.y + halfHeight, pos.z + halfDepth}, {pos.x - leftHalfWidth, pos.y + halfHeight, pos.z + halfDepth},
+	    {pos.x - leftHalfWidth,  pos.y - halfHeight, pos.z - halfDepth},
+        {pos.x + rightHalfWidth, pos.y - halfHeight, pos.z - halfDepth},
+	    {pos.x + rightHalfWidth, pos.y + halfHeight, pos.z - halfDepth},
+        {pos.x - leftHalfWidth,  pos.y + halfHeight, pos.z - halfDepth},
+	    {pos.x - leftHalfWidth,  pos.y - halfHeight, pos.z + halfDepth},
+        {pos.x + rightHalfWidth, pos.y - halfHeight, pos.z + halfDepth},
+	    {pos.x + rightHalfWidth, pos.y + halfHeight, pos.z + halfDepth},
+        {pos.x - leftHalfWidth,  pos.y + halfHeight, pos.z + halfDepth},
 	};
 
 	// 持っている間は色を変えて、今どちらの状態かひと目でわかるようにする
@@ -698,6 +736,44 @@ void GameScene::GenerateBlocks() {
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
+			case MapChipType::kChargePoint: {
+				ChargePoint* chargePoint = new ChargePoint();
+
+				chargePoint->Initialize(modelBlock_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i));
+
+				chargePoints_.push_back(chargePoint);
+				worldTransformBlocks_[i][j] = nullptr;
+				break;
+			}
+			case MapChipType::kElectricPlatform: {
+				const uint8_t subID = mapChipField_->GetMapChipSubIDByIndex(j, i);
+				const char direction = mapChipField_->GetMovementDirectionByIndex(j, i);
+				const float distance = static_cast<float>(mapChipField_->GetMovementDistanceByIndex(j, i));
+				const Vector3 start = mapChipField_->GetMapChipPositionByIndex(j, i);
+				Vector3 end = start;
+
+				switch (direction) {
+				case 'L':
+					end.x -= distance * MapChipField::kBlockWidth;
+					break;
+				case 'U':
+					end.y += distance * MapChipField::kBlockHeight;
+					break;
+				case 'D':
+					end.y -= distance * MapChipField::kBlockHeight;
+					break;
+				case 'R':
+				default:
+					end.x += distance * MapChipField::kBlockWidth;
+					break;
+				}
+
+				ElectricPlatform* platform = new ElectricPlatform();
+				platform->Initialize(modelBlock_, &camera_, start, end, subID);
+				electricPlatforms_.push_back(platform);
+				worldTransformBlocks_[i][j] = nullptr;
+				break;
+			}
 
 			case MapChipType::kBlank:
 			default:
@@ -717,6 +793,7 @@ void GameScene::GenerateBlocks() {
 		lazer->Initialize(modelLazer_, &camera_, positions.front(), positions.back(), subID);
 		lazers_.push_back(lazer);
 	}
+
 }
 
 ///// ----- クローンの素 ----- /////
@@ -779,9 +856,7 @@ void GameScene::ShowCloneBaseManagerImGui() {
 			ImGui::PushID(static_cast<int>(i));
 			ImGui::Text("Clone[%zu] Pos:(%.1f, %.1f, %.1f)", i, pos.x, pos.y, pos.z);
 			ImGui::Text("State: %s%s", stateText, cloneBase->IsHeld() ? " [Held]" : "");
-			ImGui::Text(
-			    "Charged: %s / Remaining: %.1f sec / Used: %s", cloneBase->IsCharged() ? "YES" : "NO",
-			    cloneBase->GetChargeRemainingSeconds(), cloneBase->HasBeenCharged() ? "YES" : "NO");
+			ImGui::Text("Charged: %s / Remaining: %.1f sec / Used: %s", cloneBase->IsCharged() ? "YES" : "NO", cloneBase->GetChargeRemainingSeconds(), cloneBase->HasBeenCharged() ? "YES" : "NO");
 
 			// 帯電のデバッグ操作（電気弾の発射や受け渡しを試すための入口）
 			if (ImGui::Button("Charge (Debug)")) {
@@ -920,7 +995,6 @@ void GameScene::CheckAllCollisions() {
 		}
 	}
 }
-
 
 void GameScene::UpdatePressurePlates() {
 	std::vector<Player*> actors = {player_};
@@ -1078,5 +1152,85 @@ void GameScene::ResetChargeHistoryIfAllUsed() {
 
 	for (CloneBase* cloneBase : cloneBases_) {
 		cloneBase->ResetChargeHistory();
+	}
+}
+
+void GameScene::UpdateChargeSources() {
+	for (CloneBase* cloneBase : cloneBases_) {
+		if (cloneBase->IsHeld() || cloneBase->IsAnimating()) {
+			continue;
+		}
+
+		const MapChipField::Rect cloneRect = cloneBase->GetRect();
+		bool isTouchingSource = false;
+
+		// 帯電ポイントとの接触
+		for (const ChargePoint* chargePoint : chargePoints_) {
+			if (IsRectColliding(cloneRect, chargePoint->GetRect())) {
+				isTouchingSource = true;
+				break;
+			}
+		}
+
+		// 有効なレーザーとの接触
+		if (!isTouchingSource) {
+			for (const Lazer* lazer : lazers_) {
+				if (!lazer->IsActive()) {
+					continue;
+				}
+
+				if (IsRectColliding(cloneRect, lazer->GetRect())) {
+					isTouchingSource = true;
+					break;
+				}
+			}
+		}
+
+		// 帯電ポイントか有効なレーザーに触れている間は、
+		// 毎フレームCharge()を呼んで残り時間を最大に保つ
+		if (isTouchingSource) {
+			cloneBase->Charge();
+		}
+
+	}
+}
+
+void GameScene::UpdateElectricPlatforms() {
+	for (ElectricPlatform* platform : electricPlatforms_) {
+		const MapChipField::Rect previousRect = platform->GetRect();
+		platform->Update();
+		const Vector3 delta = platform->GetMoveDelta();
+
+		if (delta.x == 0.0f && delta.y == 0.0f && delta.z == 0.0f) {
+			continue;
+		}
+
+		const Vector3 playerPosition = player_->GetWorldTransform().translation_;
+		const float playerHalfWidth = player_->GetWidth() / 2.0f;
+		const float playerHalfHeight = player_->GetHeight() / 2.0f;
+		const MapChipField::Rect playerRect = {
+		    playerPosition.x - playerHalfWidth, playerPosition.x + playerHalfWidth,
+		    playerPosition.y - playerHalfHeight, playerPosition.y + playerHalfHeight};
+
+		if (IsStandingOnRect(playerRect, previousRect)) {
+			player_->SetTranslation(playerPosition + delta);
+		}
+
+		for (CloneBase* cloneBase : cloneBases_) {
+			if (cloneBase->IsHeld() || cloneBase->IsAnimating()) {
+				continue;
+			}
+
+			if (!IsStandingOnRect(cloneBase->GetRect(), previousRect)) {
+				continue;
+			}
+
+			if (cloneBase->GetState() == CloneBase::State::kTransformed) {
+				Player* clonePlayer = cloneBase->GetPlayer();
+				clonePlayer->SetTranslation(clonePlayer->GetWorldTransform().translation_ + delta);
+			} else {
+				cloneBase->SetTranslation(cloneBase->GetWorldTransform().translation_ + delta);
+			}
+		}
 	}
 }

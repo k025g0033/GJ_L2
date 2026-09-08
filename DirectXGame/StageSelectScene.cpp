@@ -46,7 +46,7 @@ void StageSelectScene::Initialize() {
 	isAnimating_ = false;
 	animationTime_ = 0.0f;
 
-	for (int i = 0; i < 5; ++i) {
+	for (int i = 0; i < 6; ++i) {
 		std::string texturePath = "StageSelect/Stage" + std::to_string(i + 1) + ".png";
 		stageTextureHandles_[i] = TextureManager::Load(texturePath);
 		stageSprites_[i] = Sprite::Create(stageTextureHandles_[i], {0.0f, 0.0f});
@@ -97,7 +97,7 @@ void StageSelectScene::UpdateStageSpriteLayout() {
 	float t = isAnimating_ ? std::clamp(animationTime_ / kAnimationDuration, 0.0f, 1.0f) : 1.0f;
 	t = t * t * (3.0f - 2.0f * t);
 
-	for (int i = 0; i < 5; ++i) {
+	for (int i = 0; i < 6; ++i) {
 		int stageNumber = i + 1;
 		StageLayout start = GetStageLayout(GetStageSlot(stageNumber, previousStageNumber_));
 		StageLayout end = GetStageLayout(GetStageSlot(stageNumber, selectedStageNumber_));
@@ -120,3 +120,4 @@ void StageSelectScene::Draw() {
 	DebugText::GetInstance()->DrawAll();
 	Sprite::PostDraw();
 }
+ 

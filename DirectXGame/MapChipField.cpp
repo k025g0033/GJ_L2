@@ -22,6 +22,8 @@ std::map<char, MapChipType> mapChipTypeTable = {
     {'S',MapChipType::kPushPlate},
     {'D',MapChipType::kDoor},
     {'K',MapChipType::kKey},
+    {'E', MapChipType::kChargePoint},
+    {'M', MapChipType::kElectricPlatform},
 };
 
 }
@@ -90,6 +92,37 @@ void MapChipField::LoadMapChipCsv(const std::string& filePath) {
 			    word[kChipRequiredCount] >= '1' && word[kChipRequiredCount] <= '9') {
 				mapChipData_.data[i][j].requiredActorCount = static_cast<uint8_t>(word[kChipRequiredCount] - '0');
 			}
+
+			// M0R5: ID 0、右方向、5マス移動する電動足場。
+			// 距離はM0R12のような2桁以上にも対応する。
+			if (mapChipData_.data[i][j].type == MapChipType::kElectricPlatform &&
+			    word.size() > kChipMovementDirection) {
+				char direction = word[kChipMovementDirection];
+				if (direction == 'r') direction = 'R';
+				if (direction == 'l') direction = 'L';
+				if (direction == 'u') direction = 'U';
+				if (direction == 'd') direction = 'D';
+
+				if (direction == 'R' || direction == 'L' || direction == 'U' || direction == 'D') {
+					mapChipData_.data[i][j].movementDirection = direction;
+				}
+
+				uint32_t distance = 0;
+				for (size_t characterIndex = kChipMovementDistance; characterIndex < word.size(); ++characterIndex) {
+					const char character = word[characterIndex];
+					if (character < '0' || character > '9') {
+						break;
+					}
+					distance = distance * 10 + static_cast<uint32_t>(character - '0');
+					if (distance >= 255) {
+						distance = 255;
+						break;
+					}
+				}
+				if (distance > 0) {
+					mapChipData_.data[i][j].movementDistance = static_cast<uint8_t>(distance);
+				}
+			}
 		}
 	}
 }
@@ -140,4 +173,18 @@ uint8_t MapChipField::GetRequiredActorCountByIndex(uint32_t xIndex, uint32_t yIn
 	}
 
 	return mapChipData_.data[yIndex][xIndex].requiredActorCount;
+}
+
+char MapChipField::GetMovementDirectionByIndex(uint32_t xIndex, uint32_t yIndex) {
+	if (xIndex >= kNumBlockHorizontal || yIndex >= kNumBlockVertical) {
+		return 'R';
+	}
+	return mapChipData_.data[yIndex][xIndex].movementDirection;
+}
+
+uint8_t MapChipField::GetMovementDistanceByIndex(uint32_t xIndex, uint32_t yIndex) {
+	if (xIndex >= kNumBlockHorizontal || yIndex >= kNumBlockVertical) {
+		return 1;
+	}
+	return mapChipData_.data[yIndex][xIndex].movementDistance;
 }
