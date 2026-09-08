@@ -46,10 +46,12 @@ void StageSelectScene::Initialize() {
 	isAnimating_ = false;
 	animationTime_ = 0.0f;
 
-	for (int i = 0; i < 6; ++i) {
-		std::string texturePath = "StageSelect/Stage" + std::to_string(i + 1) + ".png";
-		stageTextureHandles_[i] = TextureManager::Load(texturePath);
-		stageSprites_[i] = Sprite::Create(stageTextureHandles_[i], {0.0f, 0.0f});
+	stageTextureHandles_[0] = TextureManager::Load("StageSelect/Title.png");
+	stageSprites_[0] = Sprite::Create(stageTextureHandles_[0], {0.0f, 0.0f});
+	for (int stageNumber = 1; stageNumber <= kMaxStageNumber; ++stageNumber) {
+		std::string texturePath = "StageSelect/Stage" + std::to_string(stageNumber) + ".png";
+		stageTextureHandles_[stageNumber] = TextureManager::Load(texturePath);
+		stageSprites_[stageNumber] = Sprite::Create(stageTextureHandles_[stageNumber], {0.0f, 0.0f});
 	}
 	UpdateStageSpriteLayout();
 }
@@ -97,16 +99,15 @@ void StageSelectScene::UpdateStageSpriteLayout() {
 	float t = isAnimating_ ? std::clamp(animationTime_ / kAnimationDuration, 0.0f, 1.0f) : 1.0f;
 	t = t * t * (3.0f - 2.0f * t);
 
-	for (int i = 0; i < 6; ++i) {
-		int stageNumber = i + 1;
+	for (int stageNumber = 0; stageNumber <= kMaxStageNumber; ++stageNumber) {
 		StageLayout start = GetStageLayout(GetStageSlot(stageNumber, previousStageNumber_));
 		StageLayout end = GetStageLayout(GetStageSlot(stageNumber, selectedStageNumber_));
 		Vector2 position = {
 		    start.position.x + (end.position.x - start.position.x) * t,
 		    start.position.y + (end.position.y - start.position.y) * t};
 		float size = start.size + (end.size - start.size) * t;
-		stageSprites_[i]->SetPosition(position);
-		stageSprites_[i]->SetSize({size, size});
+		stageSprites_[stageNumber]->SetPosition(position);
+		stageSprites_[stageNumber]->SetSize({size, size});
 	}
 }
 

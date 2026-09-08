@@ -30,7 +30,7 @@ private:
 	std::array<uint32_t, 6> stageTextureHandles_{};
 	std::array<KamataEngine::Sprite*, 6> stageSprites_{};
 
-	static inline const int kMinStageNumber = 1;
-	static inline const int kMaxStageNumber = 6;
+	static inline const int kMinStageNumber = 0;
+	static inline const int kMaxStageNumber = 5;
 	static inline const float kAnimationDuration = 0.35f;
 };
