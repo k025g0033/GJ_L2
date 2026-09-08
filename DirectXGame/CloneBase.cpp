@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <numbers>
+#include <cmath>
 
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility;
@@ -39,7 +40,9 @@ float EaseOutBack(float t) {
 
 } // namespace
 
-CloneBase::~CloneBase() { delete player_; }
+CloneBase::~CloneBase() {
+	delete player_;
+}
 
 void CloneBase::Initialize(Model* modelBase, Model* modelClone, Camera* camera, MapChipField* mapChipField, const Vector3& position) {
 	modelBase_ = modelBase;
@@ -74,6 +77,8 @@ void CloneBase::Update(bool isControlled, const std::vector<MapChipField::Rect>&
 			Discharge();
 		}
 	}
+
+	UpdateBehavior();
 
 	// 変形アニメーション中は、その場で見た目だけを変化させる（移動も物理も止める）
 	if (IsAnimating()) {
@@ -546,7 +551,7 @@ std::array<KamataEngine::Vector3, CloneBase::kNumCorner> CloneBase::GetCalculate
 
 void CloneBase::Draw() {
 	// 帯電中は色を変える クローンの素、クローン共通
-	ObjectColor* color = isCharged_ ? &chargeColor_ : nullptr;
+	ObjectColor* color = behavior_ == Behavior::kNormal ? nullptr : &chargeColor_;
 
 	switch (state_) {
 	case State::kTransformed:
@@ -569,6 +574,7 @@ void CloneBase::Draw() {
 		player_->Draw(color);
 		break;
 	}
+
 }
 
 ///// ----- ブロックとの当たり判定 ----- /////
@@ -629,4 +635,125 @@ bool CloneBase::ConsumeWaterDestroyed() {
 
 	wasDestroyedByWater_ = false;
 	return true;
+}
+
+void CloneBase::Charge() {
+	const bool wasCharged = isCharged_;
+
+	isCharged_ = true;
+	hasBeenCharged_ = true;
+	chargeTimer_ = static_cast<int>(chargeDurationSeconds_ * kFramesPerSecond);
+
+	// レーザーへ触れている間は毎フレームChargeされるため、
+	// 初めて帯電した瞬間だけBehaviorを切り替える
+	if (!wasCharged) {
+		behaviorRequest_ = Behavior::kCharging;
+	}
+}
+
+void CloneBase::Discharge() {
+	if (!isCharged_) {
+		return;
+	}
+
+	isCharged_ = false;
+	chargeTimer_ = 0;
+	behaviorRequest_ = Behavior::kDischarge;
+}
+
+void CloneBase::UpdateBehavior() {
+	if (behaviorRequest_) {
+		behavior_ = behaviorRequest_.value();
+
+		switch (behavior_) {
+		case Behavior::kNormal:
+			BehaviorNormalInitialize();
+			break;
+
+		case Behavior::kCharging:
+			BehaviorChargingInitialize();
+			break;
+
+		case Behavior::kDischarge:
+			BehaviorDischargeInitialize();
+			break;
+		}
+
+		behaviorRequest_ = std::nullopt;
+	}
+
+	switch (behavior_) {
+	case Behavior::kNormal:
+		BehaviorNormalUpdate();
+		break;
+
+	case Behavior::kCharging:
+		BehaviorChargingUpdate();
+		break;
+
+	case Behavior::kDischarge:
+		BehaviorDischargeUpdate();
+		break;
+	}
+}
+
+void CloneBase::BehaviorNormalInitialize() {
+	behaviorTimer_ = 0.0f;
+	chargeEffectTime_ = 0.0f;
+}
+
+void CloneBase::BehaviorNormalUpdate() {
+	// 通常状態
+}
+
+void CloneBase::BehaviorChargingInitialize() {
+	behaviorTimer_ = 0.0f;
+	chargeEffectTime_ = 0.0f;
+}
+
+void CloneBase::BehaviorChargingUpdate() {
+	chargeEffectTime_ += 1.0f / 60.0f;
+
+	const float remainingSeconds = GetChargeRemainingSeconds();
+
+	if (remainingSeconds <= 1.0f) {
+		const bool flash = static_cast<int>(chargeEffectTime_ * 12.0f) % 2 == 0;
+
+		if (flash) {
+			chargeColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
+		} else {
+			chargeColor_.SetColor({0.1f, 0.5f, 1.0f, 1.0f});
+		}
+	} else {
+		const float pulse = (std::sin(chargeEffectTime_ * 6.0f) + 1.0f) * 0.5f;
+
+		chargeColor_.SetColor({
+		    0.1f + pulse * 0.2f,
+		    0.5f + pulse * 0.3f,
+		    1.0f,
+		    1.0f,
+		});
+	}
+
+	if (!isCharged_) {
+		behaviorRequest_ = Behavior::kDischarge;
+	}
+}
+
+void CloneBase::BehaviorDischargeInitialize() { behaviorTimer_ = 0.0f; }
+
+void CloneBase::BehaviorDischargeUpdate() {
+	behaviorTimer_ += 1.0f / 60.0f;
+
+	const bool flash = static_cast<int>(behaviorTimer_ * 20.0f) % 2 == 0;
+
+	if (flash) {
+		chargeColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
+	} else {
+		chargeColor_.SetColor({0.1f, 0.5f, 1.0f, 1.0f});
+	}
+
+	if (behaviorTimer_ >= kDischargeEffectDuration) {
+		behaviorRequest_ = Behavior::kNormal;
+	}
 }

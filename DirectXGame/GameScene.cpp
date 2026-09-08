@@ -342,7 +342,8 @@ void GameScene::Update() {
 
 	UpdateKeys(player_);
 	UpdateDoors();
-	CheckDoorGoal(activePlayer);
+	// ゴールできるのは通常プレイヤーだけ。操作中のクローンは判定へ渡さない。
+	CheckDoorGoal(player_);
 
 	// レーザーの更新
 	for (Lazer* lazer : lazers_) {

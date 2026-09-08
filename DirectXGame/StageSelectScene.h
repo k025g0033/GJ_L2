@@ -27,10 +27,11 @@ private:
 	int previousStageNumber_ = 1;
 	bool isAnimating_ = false;
 	float animationTime_ = 0.0f;
-	std::array<uint32_t, 6> stageTextureHandles_{};
-	std::array<KamataEngine::Sprite*, 6> stageSprites_{};
-
 	static inline const int kMinStageNumber = 0;
-	static inline const int kMaxStageNumber = 5;
+	static inline const int kMaxStageNumber = 6;
+	static inline const int kStageSpriteCount = kMaxStageNumber + 1;
+	std::array<uint32_t, kStageSpriteCount> stageTextureHandles_{};
+	std::array<KamataEngine::Sprite*, kStageSpriteCount> stageSprites_{};
+
 	static inline const float kAnimationDuration = 0.35f;
 };

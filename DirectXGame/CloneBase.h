@@ -5,6 +5,8 @@
 
 #include <array>
 #include <vector>
+#include <optional>
+#include <array>
 
 /// <summary>
 /// クローンの素
@@ -117,17 +119,8 @@ public:
 
 	///// ----- 帯電 ----- /////
 	// 帯電させる（この周回で一度帯電した記録も同時に残す）
-	void Charge() {
-		isCharged_ = true;
-		hasBeenCharged_ = true;
-		chargeTimer_ = static_cast<int>(chargeDurationSeconds_ * kFramesPerSecond);
-	}
-
-	void Discharge() {
-		isCharged_ = false;
-		chargeTimer_ = 0;
-	}
-
+	void Charge();
+	void Discharge();
 	bool IsCharged() const { return isCharged_; }
 
 	// 今から帯電できるか
@@ -147,6 +140,35 @@ public:
 	static float GetChargeDurationSeconds() { return chargeDurationSeconds_; }
 
 private:
+
+	///// 演出 /////
+	enum class Behavior {
+		kNormal,
+		kCharging,
+		kDischarge,
+	};
+
+	Behavior behavior_ = Behavior::kNormal;
+	std::optional<Behavior> behaviorRequest_ = std::nullopt;
+
+	void UpdateBehavior();
+
+	void BehaviorNormalInitialize();
+	void BehaviorNormalUpdate();
+
+	void BehaviorChargingInitialize();
+	void BehaviorChargingUpdate();
+
+	void BehaviorDischargeInitialize();
+	void BehaviorDischargeUpdate();
+
+	float behaviorTimer_ = 0.0f;
+	float chargeEffectTime_ = 0.0f;
+
+	static inline const float kDischargeEffectDuration = 0.3f;
+
+	///// /////
+
 	// 角
 	enum Corner {
 		kRightBottom, // 右下
