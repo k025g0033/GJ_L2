@@ -2,6 +2,7 @@
 #include "MapChipField.h"
 #include "WorldTransformConfig.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <cmath>
@@ -620,7 +621,8 @@ void CloneBase::CheckObstacleCollisionRight(Vector3& moveAmount, BlockCollisionR
 
 		float newRight = nowRight + moveAmount.x;
 		if (nowRight <= rect.left && newRight > rect.left) {
-			moveAmount.x = rect.left - nowRight - kBlank;
+			// 右向きの補正が左向き（マイナス）に転じないように0で止める
+			moveAmount.x = (std::max)(0.0f, rect.left - nowRight - kBlank);
 			result.isWallHit = true;
 		}
 	}
@@ -646,7 +648,8 @@ void CloneBase::CheckObstacleCollisionLeft(Vector3& moveAmount, BlockCollisionRe
 
 		float newLeft = nowLeft + moveAmount.x;
 		if (nowLeft >= rect.right && newLeft < rect.right) {
-			moveAmount.x = rect.right - nowLeft + kBlank;
+			// 左向きの補正が右向き（プラス）に転じないように0で止める
+			moveAmount.x = (std::min)(0.0f, rect.right - nowLeft + kBlank);
 			result.isWallHit = true;
 		}
 	}
@@ -674,7 +677,8 @@ void CloneBase::CheckObstacleCollisionTop(Vector3& moveAmount, BlockCollisionRes
 
 		float newTop = nowTop + moveAmount.y;
 		if (nowTop <= rect.bottom && newTop > rect.bottom) {
-			moveAmount.y = rect.bottom - nowTop - kBlank;
+			// すでに天井に接している場合、そのまま引くとマイナス（＝下向き）になってしまうので0で止める
+			moveAmount.y = (std::max)(0.0f, rect.bottom - nowTop - kBlank);
 			result.isCeilingHit = true;
 		}
 	}
@@ -702,7 +706,8 @@ void CloneBase::CheckObstacleCollisionBottom(Vector3& moveAmount, BlockCollision
 
 		float newBottom = nowBottom + moveAmount.y;
 		if (nowBottom >= rect.top && newBottom < rect.top) {
-			moveAmount.y = rect.top - nowBottom + kBlank;
+			// 下向きの補正が上向き（プラス）に転じないように0で止める
+			moveAmount.y = (std::min)(0.0f, rect.top - nowBottom + kBlank);
 			result.isGroundHit = true;
 		}
 	}

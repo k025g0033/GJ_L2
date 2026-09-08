@@ -647,7 +647,9 @@ void Player::isObstacleCollisionTop(CollisionMapInfo& info, const std::vector<Ma
 
 		float newTop = nowTop + info.moveVelocity.y;
 		if (nowTop <= rect.bottom && newTop > rect.bottom) {
-			info.moveVelocity.y = rect.bottom - nowTop - kBlank;
+			// すでに天井に接している場合、そのまま引くとマイナス（＝下向き）になってしまう。
+			// 0で止めることで「上に進めないだけ」にして、下へ押し込まれないようにする。
+			info.moveVelocity.y = (std::max)(0.0f, rect.bottom - nowTop - kBlank);
 			info.isCeilingCollision = true;
 		}
 	}
@@ -672,7 +674,8 @@ void Player::isObstacleCollisionBottom(CollisionMapInfo& info, const std::vector
 
 		float newBottom = nowBottom + info.moveVelocity.y;
 		if (nowBottom >= rect.top && newBottom < rect.top) {
-			info.moveVelocity.y = rect.top - nowBottom + kBlank;
+			// 下向きの補正が上向き（プラス）に転じないように0で止める
+			info.moveVelocity.y = (std::min)(0.0f, rect.top - nowBottom + kBlank);
 			info.isGroundCollision = true;
 		}
 	}
@@ -695,7 +698,8 @@ void Player::isObstacleCollisionRight(CollisionMapInfo& info, const std::vector<
 
 		float newRight = nowRight + info.moveVelocity.x;
 		if (nowRight <= rect.left && newRight > rect.left) {
-			info.moveVelocity.x = rect.left - nowRight - kBlank;
+			// 右向きの補正が左向き（マイナス）に転じないように0で止める
+			info.moveVelocity.x = (std::max)(0.0f, rect.left - nowRight - kBlank);
 			info.isWallCollision = true;
 		}
 	}
@@ -718,7 +722,8 @@ void Player::isObstacleCollisionLeft(CollisionMapInfo& info, const std::vector<M
 
 		float newLeft = nowLeft + info.moveVelocity.x;
 		if (nowLeft >= rect.right && newLeft < rect.right) {
-			info.moveVelocity.x = rect.right - nowLeft + kBlank;
+			// 左向きの補正が右向き（プラス）に転じないように0で止める
+			info.moveVelocity.x = (std::min)(0.0f, rect.right - nowLeft + kBlank);
 			info.isWallCollision = true;
 		}
 	}
