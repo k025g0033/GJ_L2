@@ -33,7 +33,7 @@ public:
 
 	void Update(bool canMove, const std::vector<MapChipField::Rect>& obstacleRects);
 
-	void Draw();
+	void Draw(KamataEngine::ObjectColor* objectColor = nullptr);
 
 	void Move();
 
@@ -110,6 +110,22 @@ public:
 	// 見た目上は変わらない。将来的に専用モデルを用意したら、これを差し替えるだけで良い）
 	void SetHoldingModel(KamataEngine::Model* model) { holdingModel_ = model; }
 
+	// 体のベースモデルに重ねて描画する追加パーツ（頭・腕など）を設定する
+	// ※Blender側で原点をワールド原点に合わせてエクスポートしてあるので、
+	// 　ベースモデルと同じワールド変換で描画するだけで正しい位置に組み合わさる。
+	// 　クローン側には設定しないので、クローンは今まで通りベースモデルだけで描画される。
+	void SetExtraPartModels(const std::vector<KamataEngine::Model*>& models) { extraPartModels_ = models; }
+
+	// モデルの表示スケール（見た目の大きさだけを変える。当たり判定サイズ(kWidth/kHeight)には影響しない）
+	void SetModelScale(float scale) { modelScale_ = scale; }
+	float GetModelScale() const { return modelScale_; }
+	// ImGuiのスライダーから直接書き換えられるよう参照を返す
+	float& GetModelScaleRef() { return modelScale_; }
+
+	// モデルの表示スケールを即座に反映する（Update()を呼ばずに見た目だけを変えたい時に使用）
+	// クローンの変形アニメーションのように、動かさずにスケールだけ変化させる場合に使う
+	void SetModelScaleImmediate(float scale);
+
 	// 現在向いている方向を取得（クローンの素をどちら側に持つか判定するのに使用）
 	LRDirection GetLRDirection() const { return lrDirection_; }
 
@@ -175,6 +191,12 @@ private:
 
 	// 持っている間だけ使うモデル（未設定ならmodel_をそのまま使う）
 	KamataEngine::Model* holdingModel_ = nullptr;
+
+	// ベースモデルに重ねて描画する追加パーツ（頭・腕など）。未設定なら何も追加描画しない。
+	std::vector<KamataEngine::Model*> extraPartModels_;
+
+	// モデルの表示スケール（当たり判定サイズには影響せず、見た目の大きさだけを変える）
+	float modelScale_ = 1.0f;
 
 	// 着地時の速度減衰率
 	static inline const float kAttenuationLanding = 0.5f;

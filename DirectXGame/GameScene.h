@@ -14,6 +14,9 @@
 #include "ThrowAimIndicator.h"
 #include <vector>
 #include "Key.h"
+#include "ElectricBullet.h"
+#include "ChargePoint.h"
+#include "ElectricPlatform.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -76,12 +79,22 @@ private:
 	KamataEngine::Model* modelWater_ = nullptr;
 	// クローンの素モデル（球体）
 	KamataEngine::Model* modelCloneBase_ = nullptr;
+	// 自機の追加パーツモデル（頭・左腕・右腕）。ベースモデルに重ねて描画する。
+	KamataEngine::Model* modelPlayerHead_ = nullptr;
+	KamataEngine::Model* modelPlayerLeftArm_ = nullptr;
+	KamataEngine::Model* modelPlayerRightArm_ = nullptr;
 	Line3D* line3D_ = nullptr;
+	// 電撃弾モデル
+	std::vector<ElectricBullet*> electricBullets_;
+	KamataEngine::Model* modelElectricBullet_ = nullptr;
 	// 背景スプライト
 	KamataEngine::Sprite* backgroundSprite_ = nullptr;
 	uint32_t backgroundTextureHandle_ = 0;
 	// 0: 天球、1: スプライト
 	int backgroundMode_ = 0;
+
+	std::vector<ChargePoint*> chargePoints_;
+	std::vector<ElectricPlatform*> electricPlatforms_;
 
 	// ブロック用ワールドトランスフォーム
 	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformBlocks_;
@@ -135,6 +148,19 @@ private:
 
 	// クローンの素を持っている間だけ表示する、投げる方向を示すUI（円＋三角形）
 	ThrowAimIndicator* throwAimIndicator_ = nullptr;
+
+	///// ----- クローン帯電関連 ----- /////
+	// 電気弾発射
+	void FireElectricBullet();
+
+	/// --- 帯電の受け渡し ---
+	// 帯電しているクローンが、帯電していないクローンの素に触れた時に電気を移す
+	void UpdateChargeTransfer();
+	// 全員が帯電を使い終わっていたら、帯電履歴をまとめてリセットする
+	void ResetChargeHistoryIfAllUsed();
+
+	void UpdateChargeSources();
+	void UpdateElectricPlatforms();
 
 	int stageNumber_ = 1;
 };

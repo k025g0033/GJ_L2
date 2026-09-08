@@ -179,10 +179,13 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CameraController.cpp" />
+    <ClCompile Include="ChargePoint.cpp" />
     <ClCompile Include="CloneBase.cpp" />
     <ClCompile Include="Collision3D.cpp" />
     <ClCompile Include="CollisionUtility.cpp" />
     <ClCompile Include="Door.cpp" />
+    <ClCompile Include="ElectricBullet.cpp" />
+    <ClCompile Include="ElectricPlatform.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="Goal.cpp" />
     <ClCompile Include="Key.cpp" />
@@ -206,10 +209,14 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CameraController.h" />
+    <ClInclude Include="ChargePoint.h" />
     <ClInclude Include="CloneBase.h" />
     <ClInclude Include="Collision3D.h" />
     <ClInclude Include="CollisionUtility.h" />
     <ClInclude Include="Door.h" />
+    <ClInclude Include="Easing.h" />
+    <ClInclude Include="ElectricBullet.h" />
+    <ClInclude Include="ElectricPlatform.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="Goal.h" />
     <ClInclude Include="Key.h" />

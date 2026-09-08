@@ -121,3 +121,4 @@ void StageSelectScene::Draw() {
 	DebugText::GetInstance()->DrawAll();
 	Sprite::PostDraw();
 }
+ 
