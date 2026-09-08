@@ -15,6 +15,8 @@
 #include <vector>
 #include "Key.h"
 #include "ElectricBullet.h"
+#include "ChargePoint.h"
+#include "ElectricPlatform.h"
 
 // ゲームシーン
 class GameScene : public IScene {
@@ -91,6 +93,9 @@ private:
 	// 0: 天球、1: スプライト
 	int backgroundMode_ = 0;
 
+	std::vector<ChargePoint*> chargePoints_;
+	std::vector<ElectricPlatform*> electricPlatforms_;
+
 	// ブロック用ワールドトランスフォーム
 	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformBlocks_;
 	// 水用ワールドトランスフォーム
@@ -153,6 +158,9 @@ private:
 	void UpdateChargeTransfer();
 	// 全員が帯電を使い終わっていたら、帯電履歴をまとめてリセットする
 	void ResetChargeHistoryIfAllUsed();
+
+	void UpdateChargeSources();
+	void UpdateElectricPlatforms();
 
 	int stageNumber_ = 1;
 };

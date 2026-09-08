@@ -488,11 +488,8 @@ void Player::isOnGround(const CollisionMapInfo& info, const std::vector<MapChipF
 			hit = true;
 		}
 
-		if (!hit) {
-			onGround_ = false;
-		}
-
-		// クローンの素の上に乗っているかも調べる
+		// マップブロック上でなければ、クローンの素・扉・動く足場などの
+		// 動的な障害物の上に乗っているかも調べる。
 		if (!hit) {
 			float left = worldTransform_.translation_.x - GetLeftHalfWidth();
 			float right = worldTransform_.translation_.x + GetRightHalfWidth();
@@ -507,6 +504,10 @@ void Player::isOnGround(const CollisionMapInfo& info, const std::vector<MapChipF
 				}
 			}
 		}
+
+		// 全種類の足元判定が終わってから接地状態を確定する。
+		// 先にfalseへすると、動く足場上で接地と空中を毎フレーム繰り返してしまう。
+		onGround_ = hit;
 
 	} else {
 		// 落下中に地面へ衝突
