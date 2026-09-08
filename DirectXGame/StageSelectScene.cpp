@@ -89,8 +89,8 @@ void StageSelectScene::Update() {
 
 	UpdateStageSpriteLayout();
 
-	// 決定
-	if (!isAnimating_ && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+	// タイトルと実装済みのステージ1～6だけ決定できる
+	if (!isAnimating_ && selectedStageNumber_ <= kMaxPlayableStageNumber && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		isFinished_ = true;
 	}
 }
