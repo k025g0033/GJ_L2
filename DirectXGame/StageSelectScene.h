@@ -6,6 +6,7 @@
 // ステージセレクトシーン
 class StageSelectScene : public IScene {
 public:
+	explicit StageSelectScene(int highestUnlockedStage = 1);
 	~StageSelectScene() override;
 
 	void Initialize() override;
@@ -14,8 +15,8 @@ public:
 
 	bool IsFinished() const override { return isFinished_; }
 
-	int GetSelectedStageNumber() const { return selectedStageNumber_;
-	}
+	int GetSelectedStageNumber() const { return selectedStageNumber_; }
+	int GetHighestUnlockedStage() const { return highestUnlockedStage_; }
 
 private:
 	void UpdateStageSpriteLayout();
@@ -25,6 +26,7 @@ private:
 	// タイトルとステージ1～20を選択
 	int selectedStageNumber_ = 1;
 	int previousStageNumber_ = 1;
+	int highestUnlockedStage_ = 1;
 	bool isAnimating_ = false;
 	float animationTime_ = 0.0f;
 	static inline const int kMinStageNumber = 0;
