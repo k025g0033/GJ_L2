@@ -42,10 +42,8 @@ StageLayout GetStageLayout(int slot) {
 
 } // namespace
 
-StageSelectScene::StageSelectScene(int initialStageNumber, int highestUnlockedStage, int highestClearedStage)
-    : highestUnlockedStage_(std::clamp(highestUnlockedStage, 1, kMaxStageNumber)),
-      highestClearedStage_(std::clamp(highestClearedStage, 0, kMaxStageNumber)),
-      initialStageNumber_(std::clamp(initialStageNumber, 0, highestUnlockedStage_)) {}
+StageSelectScene::StageSelectScene(int initialStageNumber, int highestUnlockedStage)
+    : initialStageNumber_(initialStageNumber), initialHighestUnlockedStage_(highestUnlockedStage) {}
 
 StageSelectScene::~StageSelectScene() {
 	for (Sprite* sprite : stageSprites_) {
@@ -64,7 +62,8 @@ StageSelectScene::~StageSelectScene() {
 
 void StageSelectScene::Initialize() {
 	isFinished_ = false;
-	selectedStageNumber_ = initialStageNumber_;
+	highestUnlockedStage_ = std::clamp(initialHighestUnlockedStage_, 1, kMaxStageNumber);
+	selectedStageNumber_ = std::clamp(initialStageNumber_, kMinStageNumber, highestUnlockedStage_);
 	previousStageNumber_ = selectedStageNumber_;
 	isAnimating_ = false;
 	animationTime_ = 0.0f;

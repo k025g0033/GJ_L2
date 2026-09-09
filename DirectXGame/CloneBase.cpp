@@ -61,6 +61,12 @@ void CloneBase::Initialize(Model* modelBase, Model* modelClone, Camera* camera, 
 	chargeColor_.SetColor({0.2f, 0.7f, 1.0f, 1.0f});
 
 	state_ = State::kBase;
+	// 初期配置が空中でも、その場に固定せず自然に落下させる。
+	// 投げたわけではないので、初回着地通知は発生させない。
+	throwVelocity_ = {};
+	isThrown_ = true;
+	shouldNotifyThrownLanding_ = false;
+	thrownLandingRequested_ = false;
 
 	player_ = new Player();
 	player_->Initialize(modelClone_, camera_, position);
@@ -101,6 +107,10 @@ void CloneBase::Update(
 			worldTransform_.translation_ = initialPosition_;
 			worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
 			state_ = State::kBase;
+			throwVelocity_ = {};
+			isThrown_ = true;
+			shouldNotifyThrownLanding_ = false;
+			thrownLandingRequested_ = false;
 			wasDestroyedByWater_ = true;
 			// 帯電もここで失う
 			Discharge();
@@ -123,7 +133,10 @@ void CloneBase::Update(
 		// 初期位置へ戻す
 		worldTransform_.translation_ = initialPosition_;
 		throwVelocity_ = {};
-		isThrown_ = false;
+		// 初期位置が空中なら、リスポーン後も次フレームから落下を再開する。
+		isThrown_ = true;
+		shouldNotifyThrownLanding_ = false;
+		thrownLandingRequested_ = false;
 		isHeld_ = false;
 
 		Discharge();

@@ -1,6 +1,8 @@
 #include "ElectricBullet.h"
 #include "WorldTransformConfig.h"
 
+#include <algorithm>
+
 using namespace KamataEngine;
 
 void ElectricBullet::Initialize(Model* model, Camera* camera, const Vector3& position, const Vector3& velocity) {
@@ -11,6 +13,7 @@ void ElectricBullet::Initialize(Model* model, Camera* camera, const Vector3& pos
 
 	worldTransform_.Initialize();
 	worldTransform_.translation_ = position;
+	previousPosition_ = position;
 	worldTransform_.scale_ = {kScale, kScale, kScale};
 
 	color_.Initialize();
@@ -24,7 +27,8 @@ void ElectricBullet::Update(MapChipField* mapChipField) {
 		return;
 	}
 
-	// 速度分だけ移動
+	// 速度分だけ移動（衝突判定用に移動前の位置を残す）
+	previousPosition_ = worldTransform_.translation_;
 	worldTransform_.translation_.x += velocity_.x;
 	worldTransform_.translation_.y += velocity_.y;
 	worldTransform_.translation_.z += velocity_.z;
@@ -52,4 +56,13 @@ void ElectricBullet::Draw() {
 	if (!isDead_) {
 		model_->Draw(worldTransform_, *camera_, &color_);
 	}
+}
+
+MapChipField::Rect ElectricBullet::GetSweptRect() const {
+	const Vector3& current = worldTransform_.translation_;
+	return {
+	    (std::min)(previousPosition_.x, current.x) - kCollisionRadius,
+	    (std::max)(previousPosition_.x, current.x) + kCollisionRadius,
+	    (std::min)(previousPosition_.y, current.y) - kCollisionRadius,
+	    (std::max)(previousPosition_.y, current.y) + kCollisionRadius};
 }
