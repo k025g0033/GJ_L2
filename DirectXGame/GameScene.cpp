@@ -64,6 +64,10 @@ GameScene::~GameScene() {
 	delete modelDoorOpenGlass_;
 	delete modelPushPlateBase_;
 	delete modelPushPlateButton_;
+	delete modelPushPlateCountX_;
+	for (Model* model : modelPushPlateCountNumbers_) {
+		delete model;
+	}
 	delete modelSkydome_;
 	delete modelWater_;
 	for (Lazer* lazer : lazers_) {
@@ -173,6 +177,10 @@ void GameScene::Initialize() {
 	// 感圧板の土台と、上下する押下部分
 	modelPushPlateBase_ = Model::CreateFromOBJ("PushPlateBase", true);
 	modelPushPlateButton_ = Model::CreateFromOBJ("PushPlateButton", true);
+	modelPushPlateCountX_ = Model::CreateFromOBJ("x", true);
+	for (size_t number = 0; number < modelPushPlateCountNumbers_.size(); ++number) {
+		modelPushPlateCountNumbers_[number] = Model::CreateFromOBJ(std::to_string(number), true);
+	}
 	// レーザーモデル生成
 	modelLazer_ = Model::CreateFromOBJ("Lazer", true);
 	// 水モデルの生成
@@ -1293,7 +1301,9 @@ void GameScene::GenerateBlocks() {
 				const float plateWidth = static_cast<float>(endX - j + 1) * MapChipField::kBlockWidth;
 
 				PushPlate* plate = new PushPlate();
-				plate->Initialize(modelPushPlateBase_, modelPushPlateButton_, &camera_, centerPosition, plateID, requiredCount, plateWidth);
+				plate->Initialize(
+				    modelPushPlateBase_, modelPushPlateButton_, &camera_, centerPosition, plateID, requiredCount, plateWidth,
+				    modelPushPlateCountX_, modelPushPlateCountNumbers_);
 				pressurePlates_.push_back(plate);
 				for (uint32_t plateX = j; plateX <= endX; ++plateX) {
 					worldTransformBlocks_[i][plateX] = nullptr;
