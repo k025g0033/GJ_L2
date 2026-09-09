@@ -275,12 +275,12 @@ private:
 	bool isHeld_ = false;
 
 	// 素の状態での表示スケール（球体モデルを1マスに収める）
-	static inline const float kBaseScale = 0.5f;
+	static inline const float kBaseScale = 0.8f;
 
 	///// ----- 当たり判定(立方体) ----- /////
 	// 当たり判定は自機と同じく軸に沿った矩形として扱う（ImGuiで調整できるようconstにしていない）
-	static inline float kWidth = 0.8f;
-	static inline float kHeight = 0.8f;
+	static inline float kWidth = 0.7f;
+	static inline float kHeight = 0.7f;
 	// ブロックにめり込まないための微小な余白（Playerのkblankと同じ考え方）
 	static inline const float kBlank = 0.02f;
 
