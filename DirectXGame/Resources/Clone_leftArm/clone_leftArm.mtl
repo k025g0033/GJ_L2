@@ -1,7 +1,7 @@
 # Blender 5.1.0 MTL File: 'LE2B_10days.blend'
 # www.blender.org
 
-newmtl Material.009
+newmtl マテリアル.007
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
@@ -9,4 +9,4 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd C:/Users/naona/source/repos/GJ_L2/DirectXGame/Resources/player_rightArm_next/player_rightArm.png
+map_Kd C:/Users/naona/source/repos/GJ_L2/DirectXGame/Resources/Clone_leftArm/clone_leftArm.png

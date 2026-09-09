@@ -1,6 +1,6 @@
 # Blender 5.1.0
 # www.blender.org
-mtllib player_leftArm.mtl
+mtllib clone_leftArm.mtl
 o leftArm
 v 0.158335 -0.164160 0.103034
 v 0.137599 0.170691 -0.000000
@@ -67,7 +67,7 @@ vt 0.698290 0.603336
 vt 0.492134 0.938250
 vt 0.341279 0.938250
 s 1
-usemtl Material.008
+usemtl マテリアル.007
 f 13/1/1 11/2/1 16/3/1
 f 2/4/2 5/5/3 13/6/2
 f 2/7/4 4/8/5 9/9/4
