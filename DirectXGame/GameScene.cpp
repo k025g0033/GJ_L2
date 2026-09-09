@@ -56,6 +56,8 @@ GameScene::~GameScene() {
 	delete modelPlayer_;
 	delete modelBlock_;
 	delete modelDoor_;
+	delete modelDoorOpen_;
+	delete modelDoorOpenGlass_;
 	delete modelPushPlateBase_;
 	delete modelPushPlateButton_;
 	delete modelSkydome_;
@@ -138,8 +140,11 @@ void GameScene::Initialize() {
 	// modelPlayer_ = Model::CreateFromOBJ("player", true);
 	// ブロックモデル生成
 	modelBlock_ = Model::CreateFromOBJ("block", true);
-	// ドア専用モデル
+	// ドア専用モデル（閉じた状態と、鍵を取った後の開いた状態）
 	modelDoor_ = Model::CreateFromOBJ("Door", true);
+	modelDoorOpen_ = Model::CreateFromOBJ("Door_open", true);
+	// 板ガラスはマテリアルが別なので、モデルも分けて重ねて描く
+	modelDoorOpenGlass_ = Model::CreateFromOBJ("Door_openPlassObject", true);
 	// 感圧板の土台と、上下する押下部分
 	modelPushPlateBase_ = Model::CreateFromOBJ("PushPlateBase", true);
 	modelPushPlateButton_ = Model::CreateFromOBJ("PushPlateButton", true);
@@ -1014,7 +1019,8 @@ void GameScene::GenerateBlocks() {
 			}
 			case MapChipType::kDoor: {
 				Door* door = new Door();
-				door->Initialize(modelDoor_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i), mapChipField_->GetMapChipSubIDByIndex(j, i));
+				door->Initialize(
+				    modelDoor_, modelDoorOpen_, modelDoorOpenGlass_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i), mapChipField_->GetMapChipSubIDByIndex(j, i));
 				doors_.push_back(door);
 				worldTransformBlocks_[i][j] = nullptr;
 				break;

@@ -4,12 +4,12 @@
 #include "MapChipField.h"
 #include "Player.h"
 #include <cstdint>
-#include <optional>
 
-// 同じIDの感圧板から開閉状態を受け取る扉
+// 同じIDの鍵から開閉状態を受け取り、閉／開のモデルを差し替える扉
 class Door {
 public:
-	void Initialize(KamataEngine::Model* model, KamataEngine::Camera* camera, const KamataEngine::Vector3& position, uint8_t id);
+	void Initialize(
+	    KamataEngine::Model* modelClosed, KamataEngine::Model* modelOpen, KamataEngine::Model* modelOpenGlass, KamataEngine::Camera* camera, const KamataEngine::Vector3& position, uint8_t id);
 	void Update();
 	void Draw();
 
@@ -21,52 +21,20 @@ public:
 	bool IsCollidingWithPlayer(const Player* player) const;
 
 private:
-	/// 演出 ///
-	enum class Behavior {
-		kClosed,
-		kOpening,
-		kOpen,
-		kClosing,
-	};
-
-	Behavior behavior_ = Behavior::kClosed;
-	std::optional<Behavior> behaviorRequest_ = std::nullopt;
-
-	bool desiredOpen_ = false;
-	float behaviorTimer_ = 0.0f;
+	static inline const float kCollisionCenterOffsetY = 0.5f;
 
 	KamataEngine::Vector3 closedPosition_{};
-	KamataEngine::Vector3 hingePosition_{};
-	float closedRotationY_ = 0.0f;
-	float openRotationY_ = 0.0f;
-
-	static inline const float kAnimationDuration = 0.55f;
-	static inline const float kCollisionCenterOffsetY = 0.5f;
-	static inline const float kDoorHalfWidth = 0.5f;
-
-	void UpdateBehavior();
-	void ApplyHingeRotation(float rotationY);
-
-	void BehaviorClosedInitialize();
-	void BehaviorClosedUpdate();
-
-	void BehaviorOpeningInitialize();
-	void BehaviorOpeningUpdate();
-
-	void BehaviorOpenInitialize();
-	void BehaviorOpenUpdate();
-
-	void BehaviorClosingInitialize();
-	void BehaviorClosingUpdate();
-
-	/// ///
 
 	KamataEngine::WorldTransform worldTransform_;
 	KamataEngine::ObjectColor color_;
-	KamataEngine::Model* model_ = nullptr;
+	// 閉じている間と開いた後で、描画するモデルだけを差し替える
+	KamataEngine::Model* modelClosed_ = nullptr;
+	KamataEngine::Model* modelOpen_ = nullptr;
+	// 開いた扉の板ガラス。1メッシュにマテリアルは1つしか持てないので別モデルにしてある。
+	KamataEngine::Model* modelOpenGlass_ = nullptr;
 	KamataEngine::Camera* camera_ = nullptr;
 	uint8_t id_ = 0;
 	bool isOpen_ = false;
-	// 色はDoor.pngをそのまま使用する。
+	// 色はDoor.png／Door_open.pngをそのまま使用する。
 	static inline const KamataEngine::Vector4 kClosedColor = {1.0f, 1.0f, 1.0f, 1.0f};
 };

@@ -78,8 +78,10 @@ private:
 	KamataEngine::Model* modelPlayer_ = nullptr;
 	// ブロックモデル
 	KamataEngine::Model* modelBlock_ = nullptr;
-	// ドアモデル
+	// ドアモデル（閉／開の2種類を差し替えて使う）
 	KamataEngine::Model* modelDoor_ = nullptr;
+	KamataEngine::Model* modelDoorOpen_ = nullptr;
+	KamataEngine::Model* modelDoorOpenGlass_ = nullptr;
 	// 感圧板モデル（土台・押下部分）
 	KamataEngine::Model* modelPushPlateBase_ = nullptr;
 	KamataEngine::Model* modelPushPlateButton_ = nullptr;
