@@ -1,5 +1,6 @@
 #include "SceneManager.h"
 
+#include "AudioSettings.h"
 #include "GameScene.h"
 #include "ResultScene.h"
 #include "StageSelectScene.h"
@@ -27,6 +28,22 @@ void SceneManager::Initialize() {
 
 void SceneManager::Update() {
 	currentScene_->Update();
+	if (hasBgmVoice_ && KamataEngine::Audio::GetInstance()->IsPlaying(bgmVoiceHandle_)) {
+		float baseVolume = 0.0f;
+		switch (currentBgm_) {
+		case BgmType::kTitle:
+			baseVolume = 0.1f;
+			break;
+		case BgmType::kGame:
+		case BgmType::kResult:
+			baseVolume = 0.3f;
+			break;
+		case BgmType::kNone:
+			break;
+		}
+		KamataEngine::Audio::GetInstance()->SetVolume(
+		    bgmVoiceHandle_, baseVolume * AudioSettings::GetBgmScale());
+	}
 
 	// 現在のステージを最初から読み直す
 	if (currentScene_->GetReloadRequested()) {
@@ -125,15 +142,18 @@ void SceneManager::ChangeBgm(Scene nextScene) {
 	currentBgm_ = nextBgm;
 	switch (currentBgm_) {
 	case BgmType::kTitle:
-		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(titleBgmSoundHandle_, true, 0.1f);
+		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(
+		    titleBgmSoundHandle_, true, 0.1f * AudioSettings::GetBgmScale());
 		hasBgmVoice_ = true;
 		break;
 	case BgmType::kGame:
-		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(gameBgmSoundHandle_, true, 0.3f);
+		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(
+		    gameBgmSoundHandle_, true, 0.3f * AudioSettings::GetBgmScale());
 		hasBgmVoice_ = true;
 		break;
 	case BgmType::kResult:
-		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(resultSoundHandle_, false, 0.3f);
+		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(
+		    resultSoundHandle_, false, 0.3f * AudioSettings::GetBgmScale());
 		hasBgmVoice_ = true;
 		break;
 	case BgmType::kNone:

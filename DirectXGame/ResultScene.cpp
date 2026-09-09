@@ -1,4 +1,5 @@
 #include "ResultScene.h"
+#include "AudioSettings.h"
 #include "KamataEngine.h"
 #include <cmath>
 
@@ -29,7 +30,7 @@ void ResultScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_W) || Input::GetInstance()->TriggerKey(DIK_S)) {
 		selectedItem_ = selectedItem_ == 0 ? 1 : 0;
 		selectionAnimationTime_ = 0.0f;
-		Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
+		Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
 	}
 
 	constexpr float kWidth = 256.0f;
@@ -48,7 +49,7 @@ void ResultScene::Update() {
 	}
 
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		Audio::GetInstance()->PlayWave(decideSoundHandle_);
+		Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
 		if (selectedItem_ == 0) {
 			stageSelectRequested_ = true;
 		} else {

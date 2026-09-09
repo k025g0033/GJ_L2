@@ -30,6 +30,8 @@ public:
 	void ClearConnectedLine();
 	bool IsActive() const { return linePath_.segmentCount > 0; }
 	bool IsCloneLine() const { return isCloneLine_; }
+	bool IsPredictionVisible() const { return isPredictionVisible_; }
+	void SetPredictionVisible(bool isVisible) { isPredictionVisible_ = isVisible; }
 	bool IsTouchingSphere(const KamataEngine::Vector3& center, float radius) const;
 
 	// 接続解除

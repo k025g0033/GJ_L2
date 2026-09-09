@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "AudioSettings.h"
 #include "2d/ImGuiManager.h"
 #include "CollisionUtility.h"
 #include "WorldTransformConfig.h"
@@ -81,6 +82,14 @@ GameScene::~GameScene() {
 	delete pausePoseGuideSprite_;
 	delete pauseOverlaySprite_;
 	delete pauseTitleSprite_;
+	delete settingsCloseSprite_;
+	delete settingsBgmSprite_;
+	delete settingsSeSprite_;
+	delete settingsPredictionSprite_;
+	delete settingsPredictionOnSprite_;
+	delete settingsPredictionOffSprite_;
+	delete settingsSeVolumeBarSprite_;
+	delete settingsBgmVolumeBarSprite_;
 	for (Sprite* sprite : pauseMenuSprites_) {
 		delete sprite;
 	}
@@ -190,6 +199,29 @@ void GameScene::Initialize() {
 	pauseTitleSprite_ = Sprite::Create(pausePoseTextureHandle_, {512.0f, 232.0f});
 	pauseTitleSprite_->SetPosition({512.0f, 80.0f});
 	pauseTitleSprite_->SetSize({256.0f, 128.0f});
+	settingsCloseTextureHandle_ = TextureManager::Load("Pause/Close.png");
+	settingsCloseSprite_ = Sprite::Create(settingsCloseTextureHandle_, {384.0f, 440.0f});
+	settingsCloseSprite_->SetSize({512.0f, 64.0f});
+	settingsBgmTextureHandle_ = TextureManager::Load("Pause/SettingsBGM.png");
+	settingsSeTextureHandle_ = TextureManager::Load("Pause/SettingsSE.png");
+	settingsSeSprite_ = Sprite::Create(settingsSeTextureHandle_, {448.0f, 200.0f});
+	settingsBgmSprite_ = Sprite::Create(settingsBgmTextureHandle_, {448.0f, 280.0f});
+	settingsSeSprite_->SetSize({64.0f, 64.0f});
+	settingsBgmSprite_->SetSize({64.0f, 64.0f});
+	settingsPredictionTextureHandle_ = TextureManager::Load("Pause/PredictionLine.png");
+	settingsPredictionOnTextureHandle_ = TextureManager::Load("Pause/PredictionOn.png");
+	settingsPredictionOffTextureHandle_ = TextureManager::Load("Pause/PredictionOff.png");
+	settingsPredictionSprite_ = Sprite::Create(settingsPredictionTextureHandle_, {448.0f, 360.0f});
+	settingsPredictionOnSprite_ = Sprite::Create(settingsPredictionOnTextureHandle_, {696.0f, 376.0f});
+	settingsPredictionOffSprite_ = Sprite::Create(settingsPredictionOffTextureHandle_, {696.0f, 376.0f});
+	settingsPredictionSprite_->SetSize({64.0f, 64.0f});
+	settingsPredictionOnSprite_->SetSize({32.0f, 32.0f});
+	settingsPredictionOffSprite_->SetSize({32.0f, 32.0f});
+	settingsVolumeBarTextureHandle_ = TextureManager::Load("Pause/VolumeBar.png");
+	settingsSeVolumeBarSprite_ = Sprite::Create(settingsVolumeBarTextureHandle_, {576.0f, 224.0f});
+	settingsBgmVolumeBarSprite_ = Sprite::Create(settingsVolumeBarTextureHandle_, {576.0f, 304.0f});
+	settingsSeVolumeBarSprite_->SetSize({128.0f, 16.0f});
+	settingsBgmVolumeBarSprite_->SetSize({128.0f, 16.0f});
 	cursorMoveSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/CursorMove.wav");
 	decideSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/Decide.wav");
 	electricChargeSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/ElectricCharge.wav");
@@ -267,23 +299,95 @@ void GameScene::Initialize() {
 void GameScene::Update() {
 	// ESCでポーズを切り替える。停止中は以降のゲーム処理を更新しない。
 	if (Input::GetInstance()->TriggerKey(DIK_ESCAPE)) {
-		isPaused_ = !isPaused_;
-		if (isPaused_) {
-			selectedPauseItem_ = 0;
-			pauseSelectionAnimationTime_ = 0.0f;
+		if (isPaused_ && isSettingsOpen_) {
+			isSettingsOpen_ = false;
+		} else {
+			isPaused_ = !isPaused_;
+			if (isPaused_) {
+				selectedPauseItem_ = 0;
+				pauseSelectionAnimationTime_ = 0.0f;
+			}
 		}
 	}
 	if (isPaused_) {
+		if (isSettingsOpen_) {
+			settingsSelectionAnimationTime_ += 1.0f / 60.0f;
+			if (Input::GetInstance()->TriggerKey(DIK_W)) {
+				selectedSettingsItem_ = (selectedSettingsItem_ + 3) % 4;
+				settingsSelectionAnimationTime_ = 0.0f;
+				Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
+			}
+			if (Input::GetInstance()->TriggerKey(DIK_S)) {
+				selectedSettingsItem_ = (selectedSettingsItem_ + 1) % 4;
+				settingsSelectionAnimationTime_ = 0.0f;
+				Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
+			}
+			const int volumeChange = Input::GetInstance()->TriggerKey(DIK_A)
+			                             ? -1
+			                             : (Input::GetInstance()->TriggerKey(DIK_D) ? 1 : 0);
+			if (volumeChange != 0 && selectedSettingsItem_ == 0) {
+				AudioSettings::ChangeSeLevel(volumeChange);
+				Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
+			} else if (volumeChange != 0 && selectedSettingsItem_ == 1) {
+				AudioSettings::ChangeBgmLevel(volumeChange);
+				Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
+			}
+
+			const float seBarWidth = 128.0f * AudioSettings::GetSeScale();
+			const float bgmBarWidth = 128.0f * AudioSettings::GetBgmScale();
+			settingsSeVolumeBarSprite_->SetSize({seBarWidth, 16.0f});
+			settingsSeVolumeBarSprite_->SetTextureRect({0.0f, 0.0f}, {seBarWidth, 16.0f});
+			settingsBgmVolumeBarSprite_->SetSize({bgmBarWidth, 16.0f});
+			settingsBgmVolumeBarSprite_->SetTextureRect({0.0f, 0.0f}, {bgmBarWidth, 16.0f});
+
+			constexpr float kSettingsAnimationScale = 0.08f;
+			constexpr float kSettingsAnimationSpeed = 6.0f;
+			const float settingsPulse =
+			    (std::sin(settingsSelectionAnimationTime_ * kSettingsAnimationSpeed) + 1.0f) * 0.5f;
+			const float selectedScale = 1.0f + settingsPulse * kSettingsAnimationScale;
+			auto setSettingsLayout = [selectedScale](Sprite* sprite, Vector2 position, Vector2 size, bool selected) {
+				const float scale = selected ? selectedScale : 1.0f;
+				const Vector2 scaledSize = {size.x * scale, size.y * scale};
+				sprite->SetSize(scaledSize);
+				sprite->SetPosition(
+				    {position.x - (scaledSize.x - size.x) * 0.5f, position.y - (scaledSize.y - size.y) * 0.5f});
+			};
+			setSettingsLayout(settingsSeSprite_, {448.0f, 200.0f}, {64.0f, 64.0f}, selectedSettingsItem_ == 0);
+			setSettingsLayout(settingsBgmSprite_, {448.0f, 280.0f}, {64.0f, 64.0f}, selectedSettingsItem_ == 1);
+			setSettingsLayout(
+			    settingsPredictionSprite_, {448.0f, 360.0f}, {64.0f, 64.0f}, selectedSettingsItem_ == 2);
+			setSettingsLayout(
+			    settingsPredictionOnSprite_, {696.0f, 376.0f}, {32.0f, 32.0f}, selectedSettingsItem_ == 2);
+			setSettingsLayout(
+			    settingsPredictionOffSprite_, {696.0f, 376.0f}, {32.0f, 32.0f}, selectedSettingsItem_ == 2);
+			setSettingsLayout(settingsCloseSprite_, {384.0f, 440.0f}, {512.0f, 64.0f}, selectedSettingsItem_ == 3);
+
+			const bool changePrediction = selectedSettingsItem_ == 2 &&
+			    (Input::GetInstance()->TriggerKey(DIK_A) || Input::GetInstance()->TriggerKey(DIK_D) ||
+			     Input::GetInstance()->TriggerKey(DIK_SPACE));
+			if (changePrediction) {
+				line3D_->SetPredictionVisible(!line3D_->IsPredictionVisible());
+				Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
+			}
+			if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+				if (selectedSettingsItem_ == 3) {
+					Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
+					isSettingsOpen_ = false;
+				}
+			}
+			return;
+		}
+
 		pauseSelectionAnimationTime_ += 1.0f / 60.0f;
 		if (Input::GetInstance()->TriggerKey(DIK_W)) {
 			selectedPauseItem_ = (selectedPauseItem_ + 3) % 4;
 			pauseSelectionAnimationTime_ = 0.0f;
-			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
+			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
 		}
 		if (Input::GetInstance()->TriggerKey(DIK_S)) {
 			selectedPauseItem_ = (selectedPauseItem_ + 1) % 4;
 			pauseSelectionAnimationTime_ = 0.0f;
-			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
+			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
 		}
 
 		constexpr float kMenuWidth = 256.0f;
@@ -304,7 +408,7 @@ void GameScene::Update() {
 		}
 
 		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-			Audio::GetInstance()->PlayWave(decideSoundHandle_);
+			Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
 			switch (selectedPauseItem_) {
 			case 0: // もどる
 				isPaused_ = false;
@@ -315,7 +419,10 @@ void GameScene::Update() {
 			case 2: // ステージセレクト
 				stageSelectRequested_ = true;
 				break;
-			case 3: // 設定（設定内容は後で実装）
+			case 3: // 設定
+				isSettingsOpen_ = true;
+				selectedSettingsItem_ = 0;
+				settingsSelectionAnimationTime_ = 0.0f;
 				break;
 			}
 		}
@@ -351,7 +458,7 @@ void GameScene::Update() {
 		controlledClone_->ResetToBase();
 		controlledClone_ = nullptr;
 		cameraController_->SetTarget(player_);
-		Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, 0.3f);
+		Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, AudioSettings::GetSeVolume());
 	}
 
 	// 現在操作しているキャラクター（通常は自機、クローンを操作中はそのクローンの中のPlayer）
@@ -454,10 +561,10 @@ void GameScene::Update() {
 	const bool wasPlayerInWater = player_->IsInWater();
 	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects, oneWayPlatformRects);
 	if (player_->DidJumpThisFrame()) {
-		Audio::GetInstance()->PlayWave(jumpSoundHandle_, false, 0.3f);
+		Audio::GetInstance()->PlayWave(jumpSoundHandle_, false, AudioSettings::GetSeVolume());
 	}
 	if (wasPlayerInWater != player_->IsInWater()) {
-		Audio::GetInstance()->PlayWave(waterSplashSoundHandle_, false, 0.3f);
+		Audio::GetInstance()->PlayWave(waterSplashSoundHandle_, false, AudioSettings::GetSeVolume());
 	}
 
 	// レーザーに触れた通常プレイヤーを、レーザーの外側へノックバックさせる。
@@ -607,7 +714,7 @@ void GameScene::Update() {
 		// 必ず足場を追加した後にUpdateする
 		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, obstacleRectsForClone, playerRect, oneWayPlatformRects);
 		if (cloneBase->ConsumeThrownLanding()) {
-			Audio::GetInstance()->PlayWave(cloneLandingSoundHandle_, false, 0.3f);
+			Audio::GetInstance()->PlayWave(cloneLandingSoundHandle_, false, AudioSettings::GetSeVolume());
 		}
 
 		if (cloneBase->ConsumeWaterDestroyed()) {
@@ -624,7 +731,7 @@ void GameScene::Update() {
 			// 消滅したクローンを操作していた場合
 			if (controlledClone_ == cloneBase) {
 				controlledClone_ = nullptr;
-				Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, 0.3f);
+				Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, AudioSettings::GetSeVolume());
 
 				// 接続線を切る
 				line3D_->ResetLine();
@@ -747,7 +854,7 @@ void GameScene::Update() {
 
 				cloneBase->Transform();
 				controlledClone_ = cloneBase;
-				Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, 0.3f);
+				Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, AudioSettings::GetSeVolume());
 				// ※カメラはクローンに追従しない（自機基準のまま固定／横スクロール）
 
 				// クローンに当たった線を消す
@@ -866,9 +973,27 @@ void GameScene::Draw() {
 	Sprite::PreDraw();
 	if (isPaused_) {
 		pauseOverlaySprite_->Draw();
-		pauseTitleSprite_->Draw();
-		for (Sprite* sprite : pauseMenuSprites_) {
-			sprite->Draw();
+		if (isSettingsOpen_) {
+			settingsSeSprite_->Draw();
+			if (AudioSettings::seLevel > 0) {
+				settingsSeVolumeBarSprite_->Draw();
+			}
+			settingsBgmSprite_->Draw();
+			if (AudioSettings::bgmLevel > 0) {
+				settingsBgmVolumeBarSprite_->Draw();
+			}
+			settingsPredictionSprite_->Draw();
+			if (line3D_->IsPredictionVisible()) {
+				settingsPredictionOnSprite_->Draw();
+			} else {
+				settingsPredictionOffSprite_->Draw();
+			}
+			settingsCloseSprite_->Draw();
+		} else {
+			pauseTitleSprite_->Draw();
+			for (Sprite* sprite : pauseMenuSprites_) {
+				sprite->Draw();
+			}
 		}
 	}
 	pauseEscSprite_->Draw();
@@ -1409,7 +1534,7 @@ void GameScene::UpdatePressurePlates() {
 		const bool wasPushed = plate->IsPushed();
 		plate->Update(actors, cloneBaseRectsForPlate);
 		if (!wasPushed && plate->IsPushed()) {
-			Audio::GetInstance()->PlayWave(pushPlateSoundHandle_, false, 0.3f);
+			Audio::GetInstance()->PlayWave(pushPlateSoundHandle_, false, AudioSettings::GetSeVolume());
 		}
 	}
 }
@@ -1432,7 +1557,7 @@ void GameScene::UpdateKeys(Player* activePlayer) {
 		const bool wasCollected = key->IsCollected();
 		key->Update(activePlayer);
 		if (!wasCollected && key->IsCollected()) {
-			Audio::GetInstance()->PlayWave(keyGetSoundHandle_, false, 0.3f);
+			Audio::GetInstance()->PlayWave(keyGetSoundHandle_, false, AudioSettings::GetSeVolume());
 			StartGoalCameraCinematic(key->GetID());
 		}
 	}
@@ -1540,7 +1665,7 @@ void GameScene::ChargeClone(CloneBase* cloneBase) {
 	const bool wasCharged = cloneBase->IsCharged();
 	cloneBase->Charge();
 	if (!wasCharged && cloneBase->IsCharged()) {
-		Audio::GetInstance()->PlayWave(electricChargeSoundHandle_, false, 0.3f);
+		Audio::GetInstance()->PlayWave(electricChargeSoundHandle_, false, AudioSettings::GetSeVolume());
 	}
 }
 
@@ -1565,7 +1690,7 @@ void GameScene::FireElectricBullet() {
 	bullet->Initialize(modelElectricBullet_, &camera_, position, velocity);
 
 	electricBullets_.push_back(bullet);
-	Audio::GetInstance()->PlayWave(electricFireSoundHandle_, false, 0.3f);
+	Audio::GetInstance()->PlayWave(electricFireSoundHandle_, false, AudioSettings::GetSeVolume());
 
 	// 発射時に帯電を消費
 	controlledClone_->Discharge();
