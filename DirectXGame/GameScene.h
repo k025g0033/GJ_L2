@@ -122,7 +122,6 @@ private:
 	KamataEngine::Sprite* pauseEscSprite_ = nullptr;
 	KamataEngine::Sprite* pausePoseGuideSprite_ = nullptr;
 	KamataEngine::Sprite* pauseOverlaySprite_ = nullptr;
-	KamataEngine::Sprite* pauseTitleSprite_ = nullptr;
 	uint32_t settingsCloseTextureHandle_ = 0;
 	KamataEngine::Sprite* settingsCloseSprite_ = nullptr;
 	uint32_t settingsBgmTextureHandle_ = 0;

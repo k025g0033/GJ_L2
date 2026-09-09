@@ -81,7 +81,6 @@ GameScene::~GameScene() {
 	delete pauseEscSprite_;
 	delete pausePoseGuideSprite_;
 	delete pauseOverlaySprite_;
-	delete pauseTitleSprite_;
 	delete settingsCloseSprite_;
 	delete settingsBgmSprite_;
 	delete settingsSeSprite_;
@@ -188,7 +187,7 @@ void GameScene::Initialize() {
 
 	// 左上のポーズ操作案内と、停止中に表示する画面を生成
 	pauseEscTextureHandle_ = TextureManager::Load("Pause/Esc.png");
-	pausePoseTextureHandle_ = TextureManager::Load("Pause/Pose.png");
+	pausePoseTextureHandle_ = TextureManager::Load("Pause/Pause.png");
 	pauseOverlayTextureHandle_ = TextureManager::Load("white1x1.png");
 	pauseEscSprite_ = Sprite::Create(pauseEscTextureHandle_, {8.0f, 8.0f});
 	pauseEscSprite_->SetSize({40.0f, 40.0f});
@@ -196,9 +195,6 @@ void GameScene::Initialize() {
 	pausePoseGuideSprite_->SetSize({40.0f, 40.0f});
 	pauseOverlaySprite_ = Sprite::Create(pauseOverlayTextureHandle_, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.65f});
 	pauseOverlaySprite_->SetSize({1280.0f, 720.0f});
-	pauseTitleSprite_ = Sprite::Create(pausePoseTextureHandle_, {512.0f, 232.0f});
-	pauseTitleSprite_->SetPosition({512.0f, 80.0f});
-	pauseTitleSprite_->SetSize({256.0f, 128.0f});
 	settingsCloseTextureHandle_ = TextureManager::Load("Pause/Close.png");
 	settingsCloseSprite_ = Sprite::Create(settingsCloseTextureHandle_, {384.0f, 440.0f});
 	settingsCloseSprite_->SetSize({512.0f, 64.0f});
@@ -212,8 +208,8 @@ void GameScene::Initialize() {
 	settingsPredictionOnTextureHandle_ = TextureManager::Load("Pause/PredictionOn.png");
 	settingsPredictionOffTextureHandle_ = TextureManager::Load("Pause/PredictionOff.png");
 	settingsPredictionSprite_ = Sprite::Create(settingsPredictionTextureHandle_, {448.0f, 360.0f});
-	settingsPredictionOnSprite_ = Sprite::Create(settingsPredictionOnTextureHandle_, {696.0f, 376.0f});
-	settingsPredictionOffSprite_ = Sprite::Create(settingsPredictionOffTextureHandle_, {696.0f, 376.0f});
+	settingsPredictionOnSprite_ = Sprite::Create(settingsPredictionOnTextureHandle_, {656.0f, 376.0f});
+	settingsPredictionOffSprite_ = Sprite::Create(settingsPredictionOffTextureHandle_, {656.0f, 376.0f});
 	settingsPredictionSprite_->SetSize({64.0f, 64.0f});
 	settingsPredictionOnSprite_->SetSize({32.0f, 32.0f});
 	settingsPredictionOffSprite_->SetSize({32.0f, 32.0f});
@@ -357,9 +353,9 @@ void GameScene::Update() {
 			setSettingsLayout(
 			    settingsPredictionSprite_, {448.0f, 360.0f}, {64.0f, 64.0f}, selectedSettingsItem_ == 2);
 			setSettingsLayout(
-			    settingsPredictionOnSprite_, {696.0f, 376.0f}, {32.0f, 32.0f}, selectedSettingsItem_ == 2);
+			    settingsPredictionOnSprite_, {656.0f, 376.0f}, {32.0f, 32.0f}, selectedSettingsItem_ == 2);
 			setSettingsLayout(
-			    settingsPredictionOffSprite_, {696.0f, 376.0f}, {32.0f, 32.0f}, selectedSettingsItem_ == 2);
+			    settingsPredictionOffSprite_, {656.0f, 376.0f}, {32.0f, 32.0f}, selectedSettingsItem_ == 2);
 			setSettingsLayout(settingsCloseSprite_, {384.0f, 440.0f}, {512.0f, 64.0f}, selectedSettingsItem_ == 3);
 
 			const bool changePrediction = selectedSettingsItem_ == 2 &&
@@ -990,7 +986,6 @@ void GameScene::Draw() {
 			}
 			settingsCloseSprite_->Draw();
 		} else {
-			pauseTitleSprite_->Draw();
 			for (Sprite* sprite : pauseMenuSprites_) {
 				sprite->Draw();
 			}
