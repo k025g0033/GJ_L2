@@ -85,6 +85,11 @@ public:
 
 	const KamataEngine::Vector3& GetVelocity() const { return velocity_; }
 
+	// 外部ギミックから指定された速度で弾き飛ばす。
+	// ノックバック中は移動入力を受け付けず、同じ接触による再発動も防ぐ。
+	void ApplyKnockback(const KamataEngine::Vector3& velocity);
+	bool IsKnockbackActive() const { return recoveryStopFrames_ > 0 || knockbackFrames_ > 0; }
+
 	// 当たり判定サイズの取得
 	// ※クローンの素を持っていても当たり判定のサイズは変わらない（常に通常時と同じ）
 	float GetWidth() const { return kWidth; }
@@ -157,6 +162,11 @@ private:
 	KamataEngine::Camera* camera_ = nullptr;
 
 	KamataEngine::Vector3 velocity_ = {};
+	bool recoveryStopPending_ = false;
+	int recoveryStopFrames_ = 0;
+	int knockbackFrames_ = 0;
+	static inline const int kRecoveryStopDurationFrames = 5;
+	static inline const int kKnockbackDurationFrames = 10;
 
 	// プレイヤーの速度
 	static inline const float kLimitRunSpeed = 0.15f;

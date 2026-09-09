@@ -52,8 +52,10 @@ private:
 	bool isMovingForward_ = false;
 	bool isReturning_ = false;
 
+	// ElecPlate.obj（幅約2.16、高さ約0.82）を0.46倍で表示した大きさに合わせる。
+	static inline const float kModelScale = 0.46f;
 	static inline const float kWidth = 1.0f;
-	static inline const float kHeight = 0.3f;
+	static inline const float kHeight = 0.38f;
 	static inline const float kMoveSpeed = 0.04f;
 	static inline const int kReturnWaitFrames = 60 * 2;
 	static inline const KamataEngine::Vector4 kIdleColor = {0.25f, 0.3f, 0.35f, 1.0f};

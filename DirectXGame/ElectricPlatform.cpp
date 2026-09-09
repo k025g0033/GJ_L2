@@ -14,9 +14,11 @@ void ElectricPlatform::Initialize(
 
 	model_ = model;
 	camera_ = camera;
-	start_ = start;
+	// ElecPlate.objの原点は底面にある。
+	// CSVマスの下端（直下の地面ブロック上面）へ底面を合わせる。
+	start_ = {start.x, start.y - MapChipField::kBlockHeight / 2.0f, start.z};
 	moveStep_ = end - start;
-	forwardTarget_ = start;
+	forwardTarget_ = start_;
 	id_ = id;
 
 	behavior_ = Behavior::kIdle;
@@ -24,7 +26,7 @@ void ElectricPlatform::Initialize(
 
 	worldTransform_.Initialize();
 	worldTransform_.translation_ = start_;
-	worldTransform_.scale_ = {kWidth, kHeight, 1.0f};
+	worldTransform_.scale_ = {kModelScale, kModelScale, kModelScale};
 
 	color_.Initialize();
 	color_.SetColor(kIdleColor);
@@ -151,5 +153,5 @@ MapChipField::Rect ElectricPlatform::GetRect() const {
 	const Vector3& position = worldTransform_.translation_;
 	return {
 	    position.x - kWidth / 2.0f, position.x + kWidth / 2.0f,
-	    position.y - kHeight / 2.0f, position.y + kHeight / 2.0f};
+	    position.y, position.y + kHeight};
 }

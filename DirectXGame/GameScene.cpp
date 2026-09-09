@@ -55,6 +55,8 @@ GameScene::~GameScene() {
 	// 解放
 	delete modelPlayer_;
 	delete modelBlock_;
+	delete modelElectricPlatform_;
+	delete modelChargePoint_;
 	delete modelDoor_;
 	delete modelPushPlateBase_;
 	delete modelPushPlateButton_;
@@ -138,6 +140,10 @@ void GameScene::Initialize() {
 	// modelPlayer_ = Model::CreateFromOBJ("player", true);
 	// ブロックモデル生成
 	modelBlock_ = Model::CreateFromOBJ("block", true);
+	// 電動足場専用モデル
+	modelElectricPlatform_ = Model::CreateFromOBJ("ElecPlate", true);
+	// エネルギー源専用モデル
+	modelChargePoint_ = Model::CreateFromOBJ("ChargePoint", true);
 	// ドア専用モデル
 	modelDoor_ = Model::CreateFromOBJ("Door", true);
 	// 感圧板の土台と、上下する押下部分
@@ -348,6 +354,9 @@ void GameScene::Update() {
 	UpdateDoors();
 	UpdateLazers();
 	UpdateElectricPlatforms();
+	for (ChargePoint* chargePoint : chargePoints_) {
+		chargePoint->Update();
+	}
 
 	// クローンの素を「障害物」として扱うための矩形一覧を作る（持っている素は除く）
 	std::vector<MapChipField::Rect> cloneBaseRects;
@@ -429,6 +438,40 @@ void GameScene::Update() {
 	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && !isHoldingCloneBase_ && !isAnyCloneAnimating && Input::GetInstance()->IsTriggerMouse(0);
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire && !isAnyCloneAnimating && !isGoalCameraCinematic_;
 	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects, oneWayPlatformRects);
+
+	// レーザーに触れた通常プレイヤーを、レーザーの外側へノックバックさせる。
+	if (!player_->IsKnockbackActive()) {
+		const Vector3 playerPosition = player_->GetWorldTransform().translation_;
+		const MapChipField::Rect playerRectAfterUpdate = {
+		    playerPosition.x - player_->GetLeftHalfWidth(), playerPosition.x + player_->GetRightHalfWidth(),
+		    playerPosition.y - player_->GetHeight() / 2.0f, playerPosition.y + player_->GetHeight() / 2.0f};
+		constexpr float kLazerContactMargin = 0.03f;
+		constexpr float kLazerKnockbackHorizontal = 0.12f;
+		constexpr float kLazerKnockbackUpward = 0.14f;
+
+		for (const MapChipField::Rect& lazerRect : activeLazerRects) {
+			if (!IsRectColliding(playerRectAfterUpdate, ExpandRect(lazerRect, kLazerContactMargin))) {
+				continue;
+			}
+
+			const float lazerCenterX = (lazerRect.left + lazerRect.right) * 0.5f;
+			const float lazerWidth = lazerRect.right - lazerRect.left;
+			const float lazerHeight = lazerRect.top - lazerRect.bottom;
+			Vector3 knockback{};
+
+			if (lazerHeight > lazerWidth) {
+				// 縦レーザーは少し浮かせながら左右へ短く弾く。
+				knockback.x = playerPosition.x < lazerCenterX ? -kLazerKnockbackHorizontal : kLazerKnockbackHorizontal;
+				knockback.y = kLazerKnockbackUpward;
+			} else {
+				// 横レーザーも下へ叩き落とさず、短く上へ浮かせる。
+				knockback.y = kLazerKnockbackUpward;
+			}
+
+			player_->ApplyKnockback(knockback);
+			break;
+		}
+	}
 
 	// 鍵を取得できるのは自機だけ。操作中のクローンは触れても取得しない。
 	UpdateKeys(player_);
@@ -544,6 +587,16 @@ void GameScene::Update() {
 		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, obstacleRectsForClone, playerRect, oneWayPlatformRects);
 
 		if (cloneBase->ConsumeWaterDestroyed()) {
+			// 持っている素がプレイヤーと一緒に水へ入った場合、CloneBase側だけでなく
+			// GameSceneとプレイヤー側の所持状態も同時に解除する。
+			// ここを残したままだと、素は初期位置へ戻っているのに持つ見た目や
+			// 投げる処理だけが継続してしまう。
+			if (heldCloneBase_ == cloneBase) {
+				heldCloneBase_ = nullptr;
+				isHoldingCloneBase_ = false;
+				player_->SetIsHolding(false);
+			}
+
 			// 消滅したクローンを操作していた場合
 			if (controlledClone_ == cloneBase) {
 				controlledClone_ = nullptr;
@@ -1051,7 +1104,7 @@ void GameScene::GenerateBlocks() {
 			case MapChipType::kChargePoint: {
 				ChargePoint* chargePoint = new ChargePoint();
 
-				chargePoint->Initialize(modelBlock_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i));
+				chargePoint->Initialize(modelChargePoint_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i));
 
 				chargePoints_.push_back(chargePoint);
 				worldTransformBlocks_[i][j] = nullptr;
@@ -1081,7 +1134,7 @@ void GameScene::GenerateBlocks() {
 				}
 
 				ElectricPlatform* platform = new ElectricPlatform();
-				platform->Initialize(modelBlock_, &camera_, start, end, subID);
+				platform->Initialize(modelElectricPlatform_, &camera_, start, end, subID);
 				electricPlatforms_.push_back(platform);
 				worldTransformBlocks_[i][j] = nullptr;
 				break;

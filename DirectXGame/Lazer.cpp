@@ -45,7 +45,7 @@ void Lazer::Initialize(Model* model, Camera* camera, const Vector3& start, const
 	}
 
 	worldTransform_.Initialize();
-
+	
 	// Lazer.objはY軸方向の円柱で、原点がモデル中央ではない
 	constexpr float kModelLength = 8.0f;
 	constexpr float kModelCenterY = 4.0f;
@@ -83,6 +83,13 @@ void Lazer::Initialize(Model* model, Camera* camera, const Vector3& start, const
 }
 
 void Lazer::Update() {
+	// レーザーの長さ方向（モデルのローカルY軸）を中心に常時回転させる。
+	// 横レーザーはこの後のZ回転と合成されるため、縦・横どちらも向きを保ったまま回る。
+	worldTransform_.rotation_.y += kRotationSpeed;
+	if (worldTransform_.rotation_.y >= std::numbers::pi_v<float> * 2.0f) {
+		worldTransform_.rotation_.y -= std::numbers::pi_v<float> * 2.0f;
+	}
+
 	UpdateBehavior();
 	UpdateWorldTransform(worldTransform_);
 }

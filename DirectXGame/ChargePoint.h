@@ -17,6 +17,9 @@ private:
 
 	KamataEngine::WorldTransform worldTransform_;
 	KamataEngine::ObjectColor color_;
+	float effectTime_ = 0.0f;
+
+	static inline const float kModelScale = 0.3f;
 
 	static inline const float kWidth = 0.8f;
 	static inline const float kHeight = 0.8f;

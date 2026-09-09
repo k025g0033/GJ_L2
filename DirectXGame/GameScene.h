@@ -78,6 +78,10 @@ private:
 	KamataEngine::Model* modelPlayer_ = nullptr;
 	// ブロックモデル
 	KamataEngine::Model* modelBlock_ = nullptr;
+	// 電動足場モデル
+	KamataEngine::Model* modelElectricPlatform_ = nullptr;
+	// エネルギー源モデル
+	KamataEngine::Model* modelChargePoint_ = nullptr;
 	// ドアモデル
 	KamataEngine::Model* modelDoor_ = nullptr;
 	// 感圧板モデル（土台・押下部分）
