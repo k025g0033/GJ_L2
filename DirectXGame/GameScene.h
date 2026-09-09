@@ -37,6 +37,7 @@ public:
 	// タイトル背景として、ゲーム操作やUIを出さずにステージだけ更新・描画する。
 	void UpdateTitleBackground();
 	void DrawTitleBackground();
+	void DrawResultBackground();
 
 	// 終了フラグの取得
 	bool IsFinished() const override { return isFinished_; }
@@ -49,7 +50,7 @@ public:
 	void CheckAllCollisions();
 
 private:
-	void DrawWorld(bool drawGameplayUi);
+	void DrawWorld(bool drawGameplayUi, bool isResultBackground = false);
 	std::vector<PushPlate*> pressurePlates_;
 	std::vector<Door*> doors_;
 	std::vector<Key*> keys_;

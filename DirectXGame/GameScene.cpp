@@ -903,7 +903,14 @@ void GameScene::Draw() { DrawWorld(true); }
 
 void GameScene::DrawTitleBackground() { DrawWorld(false); }
 
-void GameScene::DrawWorld(bool drawGameplayUi) {
+void GameScene::DrawResultBackground() {
+	for (Door* door : doors_) {
+		door->SetOpen(true);
+	}
+	DrawWorld(false, true);
+}
+
+void GameScene::DrawWorld(bool drawGameplayUi, bool isResultBackground) {
 	// 天球と透過画像の板は最背面。深度を書かず、後から描く雲やゲーム本体を隠さない。
 	Model::PreDraw(Model::CullingMode::kBack, Model::BlendMode::kNormal, Model::DepthTestMode::kOff);
 	skydome_->Draw();
@@ -959,8 +966,10 @@ void GameScene::DrawWorld(bool drawGameplayUi) {
 		plate->Draw();
 	}
 
-	for (Key* key : keys_) {
-		key->Draw();
+	if (!isResultBackground) {
+		for (Key* key : keys_) {
+			key->Draw();
+		}
 	}
 
 	// 扉の描画
