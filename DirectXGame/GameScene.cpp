@@ -1215,6 +1215,8 @@ void GameScene::GenerateBlocks() {
 				worldTransformWaters_[i][j] = new WorldTransform();
 				worldTransformWaters_[i][j]->Initialize();
 				worldTransformWaters_[i][j]->translation_ = mapChipField_->GetMapChipPositionByIndex(j, i);
+				// 新しいwater.objは原点が底面にあるため、CSVマスの下端へ底面を合わせる。
+				worldTransformWaters_[i][j]->translation_.y -= MapChipField::kBlockHeight / 2.0f;
 
 				UpdateWorldTransform(*worldTransformWaters_[i][j]);
 				break;
