@@ -151,6 +151,8 @@ void CloneBase::Transform() {
 	// 投げられている最中に変形した場合は、その物理を止める
 	throwVelocity_ = {};
 	isThrown_ = false;
+	shouldNotifyThrownLanding_ = false;
+	thrownLandingRequested_ = false;
 
 	state_ = State::kTransforming;
 	animationTimer_ = 0;
@@ -181,6 +183,8 @@ void CloneBase::ResetToBase() {
 	// 落下はアニメーションが終わってから再開する
 	throwVelocity_ = {};
 	isThrown_ = false;
+	shouldNotifyThrownLanding_ = false;
+	thrownLandingRequested_ = false;
 }
 
 ///// ----- 変形アニメーション ----- /////
@@ -336,6 +340,7 @@ void CloneBase::UpdateThrowPhysics(
 			throwVelocity_.y = 0.0f;
 			// 着地したら横方向の勢いも止める（そのままだと滑り続けてしまうため）
 			throwVelocity_.x = 0.0f;
+			NotifyThrownLanding();
 			return;
 		}
 
@@ -346,6 +351,7 @@ void CloneBase::UpdateThrowPhysics(
 				moveAmount.y = rect.top - nowBottom;
 				worldTransform_.translation_ = worldTransform_.translation_ + moveAmount;
 				throwVelocity_ = {};
+				NotifyThrownLanding();
 				return;
 			}
 		}
@@ -356,6 +362,7 @@ void CloneBase::UpdateThrowPhysics(
 		throwVelocity_.y = 0.0f;
 		// 着地したら横方向の勢いも止める（そのままだと滑り続けてしまうため）
 		throwVelocity_.x = 0.0f;
+		NotifyThrownLanding();
 	}
 	if (blockResult.isCeilingHit) {
 		throwVelocity_.y = 0.0f;
@@ -770,6 +777,15 @@ bool CloneBase::IsCollidingWithBlock(const Vector3& position, MapChipField* mapC
 void CloneBase::Throw(const Vector3& velocity) {
 	throwVelocity_ = velocity;
 	isThrown_ = true;
+	shouldNotifyThrownLanding_ = true;
+	thrownLandingRequested_ = false;
+}
+
+void CloneBase::NotifyThrownLanding() {
+	if (shouldNotifyThrownLanding_) {
+		shouldNotifyThrownLanding_ = false;
+		thrownLandingRequested_ = true;
+	}
 }
 
 ///// ----- 当たり判定用の矩形を取得する ----- /////
@@ -803,6 +819,15 @@ bool CloneBase::ConsumeWaterDestroyed() {
 	}
 
 	wasDestroyedByWater_ = false;
+	return true;
+}
+
+bool CloneBase::ConsumeThrownLanding() {
+	if (!thrownLandingRequested_) {
+		return false;
+	}
+
+	thrownLandingRequested_ = false;
 	return true;
 }
 

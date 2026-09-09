@@ -58,6 +58,8 @@ GameScene::~GameScene() {
 	delete modelElectricPlatform_;
 	delete modelChargePoint_;
 	delete modelDoor_;
+	delete modelDoorOpen_;
+	delete modelDoorOpenGlass_;
 	delete modelPushPlateBase_;
 	delete modelPushPlateButton_;
 	delete modelSkydome_;
@@ -146,6 +148,9 @@ void GameScene::Initialize() {
 	modelChargePoint_ = Model::CreateFromOBJ("ChargePoint", true);
 	// ドア専用モデル
 	modelDoor_ = Model::CreateFromOBJ("Door", true);
+	modelDoorOpen_ = Model::CreateFromOBJ("Door_open", true);
+	// 板ガラスはマテリアルが別なので、モデルも分けて重ねて描く
+	modelDoorOpenGlass_ = Model::CreateFromOBJ("Door_openPlassObject", true);
 	// 感圧板の土台と、上下する押下部分
 	modelPushPlateBase_ = Model::CreateFromOBJ("PushPlateBase", true);
 	modelPushPlateButton_ = Model::CreateFromOBJ("PushPlateButton", true);
@@ -187,6 +192,14 @@ void GameScene::Initialize() {
 	pauseTitleSprite_->SetSize({256.0f, 128.0f});
 	cursorMoveSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/CursorMove.wav");
 	decideSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/Decide.wav");
+	electricChargeSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/ElectricCharge.wav");
+	electricFireSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/ElectricFire.wav");
+	waterSplashSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/WaterSplash.wav");
+	keyGetSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/KeyGet.wav");
+	pushPlateSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/PushPlate.wav");
+	controlSwitchSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/ControlSwitch.wav");
+	cloneLandingSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/CloneLanding.wav");
+	jumpSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/Jump.wav");
 
 	const std::array<std::string, 4> pauseMenuPaths = {
 	    "Pause/Return.png", "Pause/Restart.png", "Pause/StageSelect.png", "Pause/Settings.png"};
@@ -338,6 +351,7 @@ void GameScene::Update() {
 		controlledClone_->ResetToBase();
 		controlledClone_ = nullptr;
 		cameraController_->SetTarget(player_);
+		Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, 0.3f);
 	}
 
 	// 現在操作しているキャラクター（通常は自機、クローンを操作中はそのクローンの中のPlayer）
@@ -437,7 +451,14 @@ void GameScene::Update() {
 	// クローンの素を持っている間、変形アニメーション中はリンク線を発射できないようにする
 	bool isTryingToFire = player_->IsOnGround() && !line3D_->IsActive() && !isHoldingCloneBase_ && !isAnyCloneAnimating && Input::GetInstance()->IsTriggerMouse(0);
 	bool canActivePlayerMove = !line3D_->IsActive() && !isTryingToFire && !isAnyCloneAnimating && !isGoalCameraCinematic_;
+	const bool wasPlayerInWater = player_->IsInWater();
 	player_->Update(controlledClone_ == nullptr && canActivePlayerMove, playerObstacleRects, oneWayPlatformRects);
+	if (player_->DidJumpThisFrame()) {
+		Audio::GetInstance()->PlayWave(jumpSoundHandle_, false, 0.3f);
+	}
+	if (wasPlayerInWater != player_->IsInWater()) {
+		Audio::GetInstance()->PlayWave(waterSplashSoundHandle_, false, 0.3f);
+	}
 
 	// レーザーに触れた通常プレイヤーを、レーザーの外側へノックバックさせる。
 	if (!player_->IsKnockbackActive()) {
@@ -521,7 +542,7 @@ void GameScene::Update() {
 
 				// 帯電できる相手にだけ電気を渡す
 
-				cloneBase->Charge();
+				ChargeClone(cloneBase);
 
 				break;
 			}
@@ -585,6 +606,9 @@ void GameScene::Update() {
 
 		// 必ず足場を追加した後にUpdateする
 		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, obstacleRectsForClone, playerRect, oneWayPlatformRects);
+		if (cloneBase->ConsumeThrownLanding()) {
+			Audio::GetInstance()->PlayWave(cloneLandingSoundHandle_, false, 0.3f);
+		}
 
 		if (cloneBase->ConsumeWaterDestroyed()) {
 			// 持っている素がプレイヤーと一緒に水へ入った場合、CloneBase側だけでなく
@@ -600,6 +624,7 @@ void GameScene::Update() {
 			// 消滅したクローンを操作していた場合
 			if (controlledClone_ == cloneBase) {
 				controlledClone_ = nullptr;
+				Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, 0.3f);
 
 				// 接続線を切る
 				line3D_->ResetLine();
@@ -722,6 +747,7 @@ void GameScene::Update() {
 
 				cloneBase->Transform();
 				controlledClone_ = cloneBase;
+				Audio::GetInstance()->PlayWave(controlSwitchSoundHandle_, false, 0.3f);
 				// ※カメラはクローンに追従しない（自機基準のまま固定／横スクロール）
 
 				// クローンに当たった線を消す
@@ -1087,7 +1113,8 @@ void GameScene::GenerateBlocks() {
 			}
 			case MapChipType::kDoor: {
 				Door* door = new Door();
-				door->Initialize(modelDoor_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i), mapChipField_->GetMapChipSubIDByIndex(j, i));
+				door->Initialize(
+				    modelDoor_, modelDoorOpen_, modelDoorOpenGlass_, &camera_, mapChipField_->GetMapChipPositionByIndex(j, i), mapChipField_->GetMapChipSubIDByIndex(j, i));
 				doors_.push_back(door);
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
@@ -1227,7 +1254,7 @@ void GameScene::ShowCloneBaseManagerImGui() {
 
 			// 帯電のデバッグ操作（電気弾の発射や受け渡しを試すための入口）
 			if (ImGui::Button("Charge (Debug)")) {
-				cloneBase->Charge();
+				ChargeClone(cloneBase);
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Discharge (Debug)")) {
@@ -1379,7 +1406,11 @@ void GameScene::UpdatePressurePlates() {
 		cloneBaseRectsForPlate.push_back(cloneBase->GetRect());
 	}
 	for (PushPlate* plate : pressurePlates_) {
+		const bool wasPushed = plate->IsPushed();
 		plate->Update(actors, cloneBaseRectsForPlate);
+		if (!wasPushed && plate->IsPushed()) {
+			Audio::GetInstance()->PlayWave(pushPlateSoundHandle_, false, 0.3f);
+		}
 	}
 }
 
@@ -1401,6 +1432,7 @@ void GameScene::UpdateKeys(Player* activePlayer) {
 		const bool wasCollected = key->IsCollected();
 		key->Update(activePlayer);
 		if (!wasCollected && key->IsCollected()) {
+			Audio::GetInstance()->PlayWave(keyGetSoundHandle_, false, 0.3f);
 			StartGoalCameraCinematic(key->GetID());
 		}
 	}
@@ -1504,6 +1536,14 @@ void GameScene::CheckDoorGoal(const Player* goalPlayer) {
 	}
 }
 
+void GameScene::ChargeClone(CloneBase* cloneBase) {
+	const bool wasCharged = cloneBase->IsCharged();
+	cloneBase->Charge();
+	if (!wasCharged && cloneBase->IsCharged()) {
+		Audio::GetInstance()->PlayWave(electricChargeSoundHandle_, false, 0.3f);
+	}
+}
+
 void GameScene::FireElectricBullet() {
 	if (controlledClone_ == nullptr || !controlledClone_->IsCharged() || controlledClone_->IsAnimating()) {
 		return;
@@ -1525,6 +1565,7 @@ void GameScene::FireElectricBullet() {
 	bullet->Initialize(modelElectricBullet_, &camera_, position, velocity);
 
 	electricBullets_.push_back(bullet);
+	Audio::GetInstance()->PlayWave(electricFireSoundHandle_, false, 0.3f);
 
 	// 発射時に帯電を消費
 	controlledClone_->Discharge();
@@ -1568,7 +1609,7 @@ void GameScene::UpdateChargeTransfer() {
 			}
 
 			// 電気を移す（渡した側からは消える）
-			receiver->Charge();
+			ChargeClone(receiver);
 			giver->Discharge();
 			break;
 		}
@@ -1632,7 +1673,7 @@ void GameScene::UpdateChargeSources() {
 		// 帯電ポイントか有効なレーザーに触れている間は、
 		// 毎フレームCharge()を呼んで残り時間を最大に保つ
 		if (isTouchingSource) {
-			cloneBase->Charge();
+			ChargeClone(cloneBase);
 		}
 
 	}

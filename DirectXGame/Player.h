@@ -76,6 +76,7 @@ public:
 	std::array<KamataEngine::Vector3, kNumCorner> GetCalculatedCorners(const KamataEngine::Vector3& moveAmount);
 
 	bool IsOnGround() const { return onGround_; }
+	bool DidJumpThisFrame() const { return jumpedThisFrame_; }
 
 	// 旋回を強制的にキャンセルし、逆方向へ戻す
 	// （方向転換先にブロックがあり、向けない時に使用）
@@ -203,6 +204,7 @@ private:
 
 	// ジャンプできるか（通常の自機はtrue、クローンはfalseにする）
 	bool canJump_ = true;
+	bool jumpedThisFrame_ = false;
 
 	// 持っている間だけ使うモデル（未設定ならmodel_をそのまま使う）
 	KamataEngine::Model* holdingModel_ = nullptr;

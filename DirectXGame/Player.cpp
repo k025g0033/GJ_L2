@@ -34,6 +34,7 @@ void Player::Update(
     bool canMove, const std::vector<MapChipField::Rect>& obstacleRects,
     const std::vector<MapChipField::Rect>& oneWayPlatformRects) {
 
+	jumpedThisFrame_ = false;
 	CheckInWater();
 	// ノックバック後は空中で静止させず、着地してから短い硬直を始める。
 	if (recoveryStopPending_ && onGround_) {
@@ -246,6 +247,7 @@ void Player::Move() {
 		if (canJump_ && Input::GetInstance()->PushKey(DIK_W)) {
 			// ジャンプ初速
 			velocity_.y += kJumpAcceleration;
+			jumpedThisFrame_ = true;
 		}
 	} else {
 		// 落下速度

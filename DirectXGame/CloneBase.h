@@ -133,6 +133,8 @@ public:
 
 	// 消滅通知
 	bool ConsumeWaterDestroyed();
+	// 投げた後の初回着地通知
+	bool ConsumeThrownLanding();
 
 	///// ----- 帯電 ----- /////
 	// 帯電させる（この周回で一度帯電した記録も同時に残す）
@@ -289,6 +291,9 @@ private:
 	KamataEngine::Vector3 throwVelocity_ = {};
 	// 投げられて（重力が働いて）いる状態か
 	bool isThrown_ = false;
+	bool shouldNotifyThrownLanding_ = false;
+	bool thrownLandingRequested_ = false;
+	void NotifyThrownLanding();
 	// 投げた後にかかる重力加速度
 	static inline const float kThrowGravity = 0.02f;
 	// 落下速度の上限
