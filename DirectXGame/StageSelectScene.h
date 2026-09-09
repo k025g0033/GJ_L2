@@ -6,7 +6,7 @@
 // ステージセレクトシーン
 class StageSelectScene : public IScene {
 public:
-	explicit StageSelectScene(int initialStageNumber = 1, int highestUnlockedStage = 1);
+	explicit StageSelectScene(int initialStageNumber = 1, int highestUnlockedStage = 1, int highestClearedStage = 0);
 	~StageSelectScene() override;
 
 	void Initialize() override;
@@ -54,5 +54,6 @@ private:
 	// 初期ステージ番号
 	int initialStageNumber_ = 1;
 	int initialHighestUnlockedStage_ = 1;
+	int initialHighestClearedStage_ = 0;
 
 };
