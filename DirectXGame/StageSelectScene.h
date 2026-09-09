@@ -33,6 +33,13 @@ private:
 	static inline const int kStageSpriteCount = kMaxStageNumber + 1;
 	std::array<uint32_t, kStageSpriteCount> stageTextureHandles_{};
 	std::array<KamataEngine::Sprite*, kStageSpriteCount> stageSprites_{};
+	uint32_t keyATextureHandle_ = 0;
+	uint32_t keyDTextureHandle_ = 0;
+	uint32_t arrowTextureHandle_ = 0;
+	KamataEngine::Sprite* keyASprite_ = nullptr;
+	KamataEngine::Sprite* keyDSprite_ = nullptr;
+	KamataEngine::Sprite* leftArrowSprite_ = nullptr;
+	KamataEngine::Sprite* rightArrowSprite_ = nullptr;
 	uint32_t cursorMoveSoundHandle_ = 0;
 	uint32_t decideSoundHandle_ = 0;
 

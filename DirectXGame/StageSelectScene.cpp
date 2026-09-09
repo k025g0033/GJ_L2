@@ -2,6 +2,7 @@
 #include "AudioSettings.h"
 #include "KamataEngine.h"
 #include <algorithm>
+#include <numbers>
 
 using namespace KamataEngine;
 
@@ -45,6 +46,10 @@ StageSelectScene::~StageSelectScene() {
 	for (Sprite* sprite : stageSprites_) {
 		delete sprite;
 	}
+	delete keyASprite_;
+	delete keyDSprite_;
+	delete leftArrowSprite_;
+	delete rightArrowSprite_;
 }
 
 void StageSelectScene::Initialize() {
@@ -63,6 +68,22 @@ void StageSelectScene::Initialize() {
 		stageTextureHandles_[stageNumber] = TextureManager::Load(texturePath);
 		stageSprites_[stageNumber] = Sprite::Create(stageTextureHandles_[stageNumber], {0.0f, 0.0f});
 	}
+
+	keyATextureHandle_ = TextureManager::Load("StageSelect/KeyA.png");
+	keyDTextureHandle_ = TextureManager::Load("StageSelect/KeyD.png");
+	arrowTextureHandle_ = TextureManager::Load("StageSelect/Arrow.png");
+	keyASprite_ = Sprite::Create(keyATextureHandle_, {48.0f, 624.0f});
+	leftArrowSprite_ = Sprite::Create(
+	    arrowTextureHandle_, {160.0f, 656.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.5f, 0.5f});
+	rightArrowSprite_ = Sprite::Create(
+	    arrowTextureHandle_, {1120.0f, 656.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.5f, 0.5f});
+	keyDSprite_ = Sprite::Create(keyDTextureHandle_, {1168.0f, 624.0f});
+	keyASprite_->SetSize({64.0f, 64.0f});
+	keyDSprite_->SetSize({64.0f, 64.0f});
+	leftArrowSprite_->SetSize({64.0f, 64.0f});
+	rightArrowSprite_->SetSize({64.0f, 64.0f});
+	leftArrowSprite_->SetRotation(-std::numbers::pi_v<float> / 2.0f);
+	rightArrowSprite_->SetRotation(std::numbers::pi_v<float> / 2.0f);
 	UpdateStageSpriteLayout();
 }
 
@@ -130,6 +151,10 @@ void StageSelectScene::Draw() {
 	for (Sprite* sprite : stageSprites_) {
 		sprite->Draw();
 	}
+	keyASprite_->Draw();
+	leftArrowSprite_->Draw();
+	rightArrowSprite_->Draw();
+	keyDSprite_->Draw();
 	DebugText::GetInstance()->DrawAll();
 	Sprite::PostDraw();
 }

@@ -80,15 +80,8 @@ void TitleScene::Draw() {
 	titleModel_->Draw(titleWorldTransform_, titleCamera_);
 	Model::PostDraw();
 
-	if (selectedItem_ == MenuItem::kStart) {
-		DebugText::GetInstance()->Print(">", 540.0f, 410.0f, 1.5f);
-	} else {
-		DebugText::GetInstance()->Print(">", 540.0f, 530.0f, 1.5f);
-	}
-
 	Sprite::PreDraw();
 	startSprite_->Draw();
 	exitSprite_->Draw();
-	DebugText::GetInstance()->DrawAll();
 	Sprite::PostDraw();
 }
