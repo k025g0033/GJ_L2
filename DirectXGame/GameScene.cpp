@@ -83,6 +83,7 @@ GameScene::~GameScene() {
 	delete modelPlayerRightArmHolding_;
 	delete modelPlayerHoldingClone_;
 	delete background_;
+	delete tips_;
 	delete pauseEscSprite_;
 	delete pausePoseGuideSprite_;
 	delete pauseOverlaySprite_;
@@ -286,6 +287,9 @@ void GameScene::Initialize() {
 	// カメラと同じステージ番号で、背景画像・配置・雲の設定を選ぶ。
 	background_ = new BackGround();
 	background_->Initialize(&camera_, stageNumber_);
+	// ステージ内に置くTIPS看板（配置はResources/map/TipsData.csv）
+	tips_ = new Tips();
+	tips_->Initialize(&camera_, stageNumber_);
 
 	// デバッグカメラの生成
 	debugCamera_ = new DebugCamera(1280, 720);
@@ -460,6 +464,7 @@ void GameScene::Update() {
 		throwAimIndicator_->Update(player_->GetWorldTransform().translation_, mouseCursor_->GetWorldPosition());
 	}
 	background_->ShowImGui();
+	tips_->ShowImGui();
 	// ポーズ中はここへ来ないので、雲の移動と生成も停止する。
 	background_->Update();
 	// 変形アニメーションの再生中かどうか（1体でも再生中なら、自機もクローンも操作を受け付けない）
@@ -917,6 +922,9 @@ void GameScene::DrawWorld(bool drawGameplayUi) {
 	// 背景演出の深度をここで区切り、カメラを遠ざけても雲が自機を隠さないようにする。
 	DirectXCommon::GetInstance()->ClearDepthBuffer();
 	Model::PreDraw();
+
+	// TIPS看板の描画。ワールド座標に置いた板なので、ブロックなどと同じ深度で描く。
+	tips_->Draw();
 
 	// クローンの素の描画（球体、または線接続後は自機と同じ形）
 	// 持たれている間は表示しない（代わりに自機側が「持っている状態」の見た目を担当する）

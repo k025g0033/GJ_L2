@@ -1,0 +1,12 @@
+# ステージごとのTIPS看板。1行が看板1枚で、同じステージ番号を何行書いてもよい。
+# 座標はワールド座標（ブロックと同じ空間）。widthとheightは1.0でブロック1マス分。
+# stage,image,posX,posY,posZ,width,height,rotationY
+1,images/tips/tips_01.png,9.05,3.8,2,6,3.4,10
+2,images/tips/tips_02.png,2.25,1.7,2,4.4,3.088,-23
+2,images/tips/tips_05.png,13.8,6.85,2,4.1,2.588,39
+2,images/tips/tips_03.png,2.75,6.85,0,3.25,2.088,-22
+2,images/tips/tips_04.png,8.1,7.6,0,3.35,2.287,0
+2,images/tips/tips_06.png,13.4,1.85,1.1,4.3,2.537,9
+3,images/tips/tips_02.png,1.85,8.55,1.6,3.7,2.388,0
+3,images/tips/tips_02.png,5.65,8.35,1.65,3.5,2.338,0
+4,images/tips/tips_11.png,11.5,5.9,2.1,5.3,3.237,0
