@@ -6,7 +6,7 @@
 // ステージセレクトシーン
 class StageSelectScene : public IScene {
 public:
-	explicit StageSelectScene(int initialStageNumber = 1);
+	explicit StageSelectScene(int initialStageNumber = 1, int highestUnlockedStage = 1, int highestClearedStage = 0);
 	~StageSelectScene() override;
 
 	void Initialize() override;
@@ -17,6 +17,7 @@ public:
 
 	int GetSelectedStageNumber() const { return selectedStageNumber_; }
 	int GetHighestUnlockedStage() const { return highestUnlockedStage_; }
+	int GetHighestClearedStage() const { return highestClearedStage_; }
 
 private:
 	void UpdateStageSpriteLayout();
@@ -27,6 +28,7 @@ private:
 	int selectedStageNumber_ = 1;
 	int previousStageNumber_ = 1;
 	int highestUnlockedStage_ = 1;
+	int highestClearedStage_ = 0;
 	bool isAnimating_ = false;
 	float animationTime_ = 0.0f;
 	static inline const int kMinStageNumber = 0;
@@ -35,6 +37,8 @@ private:
 	static inline const int kStageSpriteCount = kMaxStageNumber + 1;
 	std::array<uint32_t, kStageSpriteCount> stageTextureHandles_{};
 	std::array<KamataEngine::Sprite*, kStageSpriteCount> stageSprites_{};
+	uint32_t clearFrameTextureHandle_ = 0;
+	std::array<std::array<KamataEngine::Sprite*, 4>, kStageSpriteCount> clearFrameSprites_{};
 	uint32_t keyATextureHandle_ = 0;
 	uint32_t keyDTextureHandle_ = 0;
 	uint32_t arrowTextureHandle_ = 0;

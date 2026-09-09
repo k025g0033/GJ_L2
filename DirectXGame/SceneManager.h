@@ -69,6 +69,7 @@ private:
 	int selectedStageNumber_ = 1;
 	// この起動中に選択できる最後のステージ（終了すると1に戻る）
 	int highestUnlockedStage_ = 1;
+	int highestClearedStage_ = 0;
 
 	uint32_t titleBgmSoundHandle_ = 0;
 	uint32_t gameBgmSoundHandle_ = 0;
