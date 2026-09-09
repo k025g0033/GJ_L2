@@ -108,6 +108,10 @@ private:
 	KamataEngine::Model* modelPlayerHead_ = nullptr;
 	KamataEngine::Model* modelPlayerLeftArm_ = nullptr;
 	KamataEngine::Model* modelPlayerRightArm_ = nullptr;
+	// 変形後のクローンのパーツモデル（頭・左腕・右腕）。自機とは別の見た目にするため専用モデルを使う。
+	KamataEngine::Model* modelCloneHead_ = nullptr;
+	KamataEngine::Model* modelCloneLeftArm_ = nullptr;
+	KamataEngine::Model* modelCloneRightArm_ = nullptr;
 	// クローンの素を持っている間だけ使うパーツ（腕を上げた形＋抱えているクローン）
 	KamataEngine::Model* modelPlayerLeftArmHolding_ = nullptr;
 	KamataEngine::Model* modelPlayerRightArmHolding_ = nullptr;
