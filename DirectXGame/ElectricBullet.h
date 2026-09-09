@@ -18,6 +18,9 @@ public:
 		return {position.x - kCollisionRadius, position.x + kCollisionRadius, position.y - kCollisionRadius, position.y + kCollisionRadius};
 	}
 
+	// 直前の位置から現在位置までを覆う矩形。薄い対象を1フレームで通り越さないために使う。
+	MapChipField::Rect GetSweptRect() const;
+
 	void SetDead() { isDead_ = true; }
 
 private:
@@ -29,6 +32,7 @@ private:
 
 	// 毎フレームの移動量
 	KamataEngine::Vector3 velocity_ = {};
+	KamataEngine::Vector3 previousPosition_ = {};
 
 	// 削除してよいか
 	bool isDead_ = false;
@@ -36,7 +40,7 @@ private:
 	// 約3秒後に消える
 	int lifeTimer_ = 60 * 3;
 
-	static inline const float kScale = 0.2f;
+	static inline const float kScale = 0.3f;
 
-	static inline const float kCollisionRadius = 0.15f;
+	static inline const float kCollisionRadius = 0.2f;
 };

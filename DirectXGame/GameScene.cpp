@@ -478,9 +478,9 @@ void GameScene::Update() {
 	// 現在操作しているキャラクター（通常は自機、クローンを操作中はそのクローンの中のPlayer）
 	Player* activePlayer = controlledClone_ ? controlledClone_->GetPlayer() : player_;
 
-	// 帯電中の操作クローンから電気弾を発射（Fキー）
+	// 帯電中の操作クローンから電気弾を発射（Spaceキー）
 	// ※変形アニメーション中は撃てない
-	if (controlledClone_ != nullptr && controlledClone_->IsCharged() && !controlledClone_->IsAnimating() && Input::GetInstance()->TriggerKey(DIK_F)) {
+	if (controlledClone_ != nullptr && controlledClone_->IsCharged() && !controlledClone_->IsAnimating() && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 
 		FireElectricBullet();
 	}
@@ -634,11 +634,16 @@ void GameScene::Update() {
 
 		// ブロックですでに消滅していなければ
 		if (!bullet->IsDead()) {
-			const MapChipField::Rect bulletRect = bullet->GetRect();
+			// 点ではなく、このフレームに電気玉が通った軌道全体で判定する。
+			const MapChipField::Rect bulletRect = bullet->GetSweptRect();
 
 			// 電動足場へ当たった電気弾を消費し、足場の帯電時間を最大まで戻す。
 			for (ElectricPlatform* platform : electricPlatforms_) {
-				if (IsRectColliding(bulletRect, platform->GetRect())) {
+				// 床と同じ段にある足場へ水平に撃つと、弾は足場本体より上を通る。
+				// 物理当たり判定は変えず、通電判定だけ1マス分の高さまで確保する。
+				MapChipField::Rect chargeRect = platform->GetRect();
+				chargeRect.top = chargeRect.bottom + MapChipField::kBlockHeight;
+				if (IsRectColliding(bulletRect, chargeRect)) {
 					platform->Charge();
 					bullet->SetDead();
 					break;
@@ -691,7 +696,8 @@ void GameScene::Update() {
 
 	// プレイヤーとクローンの素の当たり判定、スペースキーで持つ処理（仮実装）
 	// 変形アニメーション中は拾う・投げるの入力も受け付けない
-	if (!isAnyCloneAnimating) {
+	// Spaceキーは操作中クローンの電気弾にも使うため、素を拾う／投げる処理は自機操作中だけ行う。
+	if (!isAnyCloneAnimating && controlledClone_ == nullptr) {
 		UpdateCloneBasePickup();
 	}
 
@@ -1318,6 +1324,7 @@ void GameScene::GenerateBlocks() {
 				const uint8_t subID = mapChipField_->GetMapChipSubIDByIndex(j, i);
 				const char direction = mapChipField_->GetMovementDirectionByIndex(j, i);
 				const float distance = static_cast<float>(mapChipField_->GetMovementDistanceByIndex(j, i));
+				// 足場は指定した1マスの上半分に置くため、マス中央をモデル底面にする。
 				const Vector3 start = mapChipField_->GetMapChipPositionByIndex(j, i);
 				Vector3 end = start;
 
@@ -1786,11 +1793,17 @@ void GameScene::FireElectricBullet() {
 	Vector3 position = clonePlayer->GetWorldTransform().translation_;
 
 	float direction = clonePlayer->GetLRDirection() == Player::LRDirection::kRight ? 1.0f : -1.0f;
+	Vector3 velocity{};
 
-	// クローンの正面から出す
-	position.x += direction * 0.6f;
-
-	Vector3 velocity = {direction * 0.2f, 0.0f, 0.0f};
+	if (Input::GetInstance()->PushKey(DIK_W)) {
+		// Wを押しながらSpaceを押した場合は、クローンの頭上から真上へ撃つ。
+		position.y += 0.6f;
+		velocity = {0.0f, 0.2f, 0.0f};
+	} else {
+		// Wを押していない場合は、従来どおりクローンの正面へ撃つ。
+		position.x += direction * 0.6f;
+		velocity = {direction * 0.2f, 0.0f, 0.0f};
+	}
 
 	ElectricBullet* bullet = new ElectricBullet();
 
@@ -1931,7 +1944,44 @@ void GameScene::UpdateElectricPlatforms() {
 		const bool playerWasCarried = IsStandingOnRect(playerRect, previousRect);
 
 		if (playerWasCarried) {
-			player_->SetTranslation(playerPosition + delta);
+			// 足場による移動にも通常移動と同じマップ衝突判定を通し、
+			// 足場に押されてもブロックを貫通しないようにする。
+			Player::CollisionMapInfo carriedCollision;
+			carriedCollision.moveVelocity = delta;
+			player_->isMapCollision(carriedCollision);
+			const Vector3 carriedDelta = carriedCollision.moveVelocity;
+			Vector3 carriedPosition = playerPosition + carriedDelta;
+			constexpr float kCollisionBlank = 0.001f;
+
+			for (const Lazer* lazer : lazers_) {
+				if (!lazer->IsActive()) {
+					continue;
+				}
+
+				const MapChipField::Rect lazerRect = lazer->GetRect();
+				float newLeft = carriedPosition.x - playerHalfWidth;
+				float newRight = carriedPosition.x + playerHalfWidth;
+				float newBottom = carriedPosition.y - playerHalfHeight;
+				float newTop = carriedPosition.y + playerHalfHeight;
+
+				const bool overlapsX = newRight > lazerRect.left && newLeft < lazerRect.right;
+				const bool overlapsY = newTop > lazerRect.bottom && newBottom < lazerRect.top;
+
+				if (carriedDelta.y > 0.0f && overlapsX && playerRect.top <= lazerRect.bottom && newTop > lazerRect.bottom) {
+					carriedPosition.y = lazerRect.bottom - playerHalfHeight - kCollisionBlank;
+				} else if (carriedDelta.y < 0.0f && overlapsX && playerRect.bottom >= lazerRect.top && newBottom < lazerRect.top) {
+					carriedPosition.y = lazerRect.top + playerHalfHeight + kCollisionBlank;
+				}
+
+				// 横移動する足場で縦レーザーを跨ぐ場合も同様に止める。
+				if (carriedDelta.x > 0.0f && overlapsY && playerRect.right <= lazerRect.left && newRight > lazerRect.left) {
+					carriedPosition.x = lazerRect.left - playerHalfWidth - kCollisionBlank;
+				} else if (carriedDelta.x < 0.0f && overlapsY && playerRect.left >= lazerRect.right && newLeft < lazerRect.right) {
+					carriedPosition.x = lazerRect.right + playerHalfWidth + kCollisionBlank;
+				}
+			}
+
+			player_->SetTranslation(carriedPosition);
 		}
 
 		for (CloneBase* cloneBase : cloneBases_) {
@@ -1951,9 +2001,30 @@ void GameScene::UpdateElectricPlatforms() {
 
 			if (cloneBase->GetState() == CloneBase::State::kTransformed) {
 				Player* clonePlayer = cloneBase->GetPlayer();
-				clonePlayer->SetTranslation(clonePlayer->GetWorldTransform().translation_ + delta);
+				Player::CollisionMapInfo carriedCollision;
+				carriedCollision.moveVelocity = delta;
+				clonePlayer->isMapCollision(carriedCollision);
+				clonePlayer->isCollisionMove(carriedCollision);
 			} else {
-				cloneBase->SetTranslation(cloneBase->GetWorldTransform().translation_ + delta);
+				cloneBase->MoveHeldTo(cloneBase->GetWorldTransform().translation_ + delta);
+			}
+		}
+	}
+
+	// 電動足場同士が移動中に接触したら、両方の前進を止めて初期位置へ戻す。
+	for (size_t firstIndex = 0; firstIndex < electricPlatforms_.size(); ++firstIndex) {
+		for (size_t secondIndex = firstIndex + 1; secondIndex < electricPlatforms_.size(); ++secondIndex) {
+			ElectricPlatform* first = electricPlatforms_[firstIndex];
+			ElectricPlatform* second = electricPlatforms_[secondIndex];
+
+			const Vector3& firstDelta = first->GetMoveDelta();
+			const Vector3& secondDelta = second->GetMoveDelta();
+			const bool eitherMoved = firstDelta.x != 0.0f || firstDelta.y != 0.0f || firstDelta.z != 0.0f ||
+			                         secondDelta.x != 0.0f || secondDelta.y != 0.0f || secondDelta.z != 0.0f;
+
+			if (eitherMoved && IsRectColliding(first->GetRect(), second->GetRect())) {
+				first->ReturnToStart();
+				second->ReturnToStart();
 			}
 		}
 	}

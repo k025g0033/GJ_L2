@@ -14,9 +14,8 @@ void ElectricPlatform::Initialize(
 
 	model_ = model;
 	camera_ = camera;
-	// ElecPlate.objの原点は底面にある。
-	// CSVマスの下端（直下の地面ブロック上面）へ底面を合わせる。
-	start_ = {start.x, start.y - MapChipField::kBlockHeight / 2.0f, start.z};
+	// ElecPlate.objの原点は底面にある。マス中央を底面にして上半分へ配置する。
+	start_ = start;
 	moveStep_ = end - start;
 	forwardTarget_ = start_;
 	id_ = id;
@@ -45,17 +44,10 @@ void ElectricPlatform::Update() {
 			worldTransform_.translation_ = forwardTarget_;
 			isMovingForward_ = false;
 			returnWaitTimer_ = kReturnWaitFrames;
+			behavior_ = Behavior::kWaiting;
 		} else {
 			Normalize(difference);
 			worldTransform_.translation_ = worldTransform_.translation_ + difference * kMoveSpeed;
-		}
-
-		if (distance <= kMoveSpeed) {
-			worldTransform_.translation_ = forwardTarget_;
-			isMovingForward_ = false;
-			returnWaitTimer_ = kReturnWaitFrames;
-
-			behavior_ = Behavior::kWaiting;
 		}
 	} else if (returnWaitTimer_ > 0) {
 		// 最後の移動が完了してから一定時間その場に留まる。
@@ -146,6 +138,16 @@ void ElectricPlatform::Charge() {
 	returnWaitTimer_ = 0;
 
 	behavior_ = Behavior::kMoving;
+	effectTimer_ = 0.0f;
+}
+
+void ElectricPlatform::ReturnToStart() {
+	// 前進と帰還待ちを中断し、現在位置からそのまま初期位置へ戻す。
+	isMovingForward_ = false;
+	returnWaitTimer_ = 0;
+	isReturning_ = true;
+	forwardTarget_ = start_;
+	behavior_ = Behavior::kReturning;
 	effectTimer_ = 0.0f;
 }
 

@@ -205,7 +205,7 @@ IScene* SceneManager::CreateScene(Scene scene) {
 	case Scene::kTitle:
 		return new TitleScene();
 	case Scene::kStageSelect:
-		return new StageSelectScene(selectedStageNumber_);
+		return new StageSelectScene(selectedStageNumber_, highestUnlockedStage_);
 	case Scene::kGame:
 		return new GameScene(selectedStageNumber_);
 	case Scene::kResult:

@@ -14,6 +14,8 @@ public:
 	void Draw();
 
 	void Charge();
+	// 他の電動足場と衝突した時などに、待機せず初期位置への帰還を始める。
+	void ReturnToStart();
 	bool IsCharged() const { return isMovingForward_ || returnWaitTimer_ > 0; }
 	uint8_t GetID() const { return id_; }
 	MapChipField::Rect GetRect() const;
