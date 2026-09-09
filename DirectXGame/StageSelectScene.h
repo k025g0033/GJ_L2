@@ -6,6 +6,7 @@
 // ステージセレクトシーン
 class StageSelectScene : public IScene {
 public:
+	explicit StageSelectScene(int initialStageNumber = 1);
 	~StageSelectScene() override;
 
 	void Initialize() override;
@@ -37,4 +38,8 @@ private:
 	uint32_t decideSoundHandle_ = 0;
 
 	static inline const float kAnimationDuration = 0.35f;
+
+	// 初期ステージ番号
+	int initialStageNumber_ = 1;
+
 };

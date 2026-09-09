@@ -63,6 +63,36 @@ void SceneManager::Update() {
 		return;
 	}
 
+	if (currentScene_->GetTitleRequested()) {
+		delete currentScene_;
+
+		scene_ = Scene::kTitle;
+		currentScene_ = CreateScene(scene_);
+		currentScene_->Initialize();
+
+		ChangeBgm(scene_);
+		return;
+	}
+
+	// リザルトから次のステージへ進む
+	if (currentScene_->GetNextStageRequested()) {
+		constexpr int kMaxStageNumber = 20;
+
+		if (selectedStageNumber_ < kMaxStageNumber) {
+			++selectedStageNumber_;
+			scene_ = Scene::kGame;
+		} else {
+			// 最終ステージをクリアした場合
+			scene_ = Scene::kStageSelect;
+		}
+
+		delete currentScene_;
+		currentScene_ = CreateScene(scene_);
+		currentScene_->Initialize();
+		ChangeBgm(scene_);
+		return;
+	}
+
 	// 現在のシーンが終了要求を出したら次のシーンへ切り替える
 	if (currentScene_->IsFinished()) {
 		ChangeScene();
@@ -166,7 +196,7 @@ IScene* SceneManager::CreateScene(Scene scene) {
 	case Scene::kTitle:
 		return new TitleScene();
 	case Scene::kStageSelect:
-		return new StageSelectScene();
+		return new StageSelectScene(selectedStageNumber_);
 	case Scene::kGame:
 		return new GameScene(selectedStageNumber_);
 	case Scene::kResult:

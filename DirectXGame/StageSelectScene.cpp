@@ -41,6 +41,8 @@ StageLayout GetStageLayout(int slot) {
 
 } // namespace
 
+StageSelectScene::StageSelectScene(int initialStageNumber) : initialStageNumber_(initialStageNumber) {}
+
 StageSelectScene::~StageSelectScene() {
 	for (Sprite* sprite : stageSprites_) {
 		delete sprite;
@@ -49,7 +51,7 @@ StageSelectScene::~StageSelectScene() {
 
 void StageSelectScene::Initialize() {
 	isFinished_ = false;
-	selectedStageNumber_ = 1;
+	selectedStageNumber_ = initialStageNumber_;
 	previousStageNumber_ = selectedStageNumber_;
 	isAnimating_ = false;
 	animationTime_ = 0.0f;
