@@ -16,8 +16,8 @@ void ResultScene::Initialize() {
 	selectionAnimationTime_ = 0.0f;
 	titleTextureHandle_ = TextureManager::Load("Result/Title.png");
 	stageSelectTextureHandle_ = TextureManager::Load("Result/StageSelect.png");
-	titleSprite_ = Sprite::Create(titleTextureHandle_, {512.0f, 320.0f});
-	stageSelectSprite_ = Sprite::Create(stageSelectTextureHandle_, {512.0f, 420.0f});
+	stageSelectSprite_ = Sprite::Create(stageSelectTextureHandle_, {512.0f, 320.0f});
+	titleSprite_ = Sprite::Create(titleTextureHandle_, {512.0f, 420.0f});
 	titleSprite_->SetSize({256.0f, 64.0f});
 	stageSelectSprite_->SetSize({256.0f, 64.0f});
 	cursorMoveSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/CursorMove.wav");
@@ -35,7 +35,7 @@ void ResultScene::Update() {
 	constexpr float kWidth = 256.0f;
 	constexpr float kHeight = 64.0f;
 	const float pulse = (std::sin(selectionAnimationTime_ * 6.0f) + 1.0f) * 0.5f;
-	Sprite* sprites[] = {titleSprite_, stageSelectSprite_};
+	Sprite* sprites[] = {stageSelectSprite_, titleSprite_};
 	for (int i = 0; i < 2; ++i) {
 		float width = kWidth;
 		float height = kHeight;
@@ -50,9 +50,9 @@ void ResultScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		Audio::GetInstance()->PlayWave(decideSoundHandle_);
 		if (selectedItem_ == 0) {
-			isFinished_ = true;
-		} else {
 			stageSelectRequested_ = true;
+		} else {
+			isFinished_ = true;
 		}
 	}
 }

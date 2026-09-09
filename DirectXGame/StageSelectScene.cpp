@@ -72,12 +72,12 @@ void StageSelectScene::Update() {
 		if (Input::GetInstance()->TriggerKey(DIK_A)) {
 			nextStageNumber--;
 			if (nextStageNumber < kMinStageNumber) {
-				nextStageNumber = kMinStageNumber;
+				nextStageNumber = kMaxStageNumber;
 			}
 		} else if (Input::GetInstance()->TriggerKey(DIK_D)) {
 			nextStageNumber++;
 			if (nextStageNumber > kMaxStageNumber) {
-				nextStageNumber = kMaxStageNumber;
+				nextStageNumber = kMinStageNumber;
 			}
 		}
 
