@@ -3,6 +3,9 @@
 #include "KamataEngine.h"
 #include <array>
 
+class Skydome;
+class BackGround;
+
 // ステージセレクトシーン
 class StageSelectScene : public IScene {
 public:
@@ -31,6 +34,10 @@ private:
 	int highestClearedStage_ = 0;
 	bool isAnimating_ = false;
 	float animationTime_ = 0.0f;
+	KamataEngine::Model* skydomeModel_ = nullptr;
+	Skydome* skydome_ = nullptr;
+	BackGround* mountainBackground_ = nullptr;
+	KamataEngine::Camera skydomeCamera_;
 	static inline const int kMinStageNumber = 0;
 	static inline const int kMaxStageNumber = 20;
 	static inline const int kMaxPlayableStageNumber = 20;

@@ -1,6 +1,8 @@
 #include "StageSelectScene.h"
 #include "AudioSettings.h"
+#include "BackGround.h"
 #include "KamataEngine.h"
+#include "Skydome.h"
 #include <algorithm>
 #include <numbers>
 
@@ -47,6 +49,9 @@ StageSelectScene::StageSelectScene(int initialStageNumber, int highestUnlockedSt
       initialHighestClearedStage_(highestClearedStage) {}
 
 StageSelectScene::~StageSelectScene() {
+	delete mountainBackground_;
+	delete skydome_;
+	delete skydomeModel_;
 	for (Sprite* sprite : stageSprites_) {
 		delete sprite;
 	}
@@ -63,6 +68,14 @@ StageSelectScene::~StageSelectScene() {
 
 void StageSelectScene::Initialize() {
 	isFinished_ = false;
+	skydomeModel_ = Model::CreateFromOBJ("Skydome", true);
+	skydomeCamera_.farZ = 1000.0f;
+	skydomeCamera_.Initialize();
+	skydomeCamera_.UpdateMatrix();
+	skydome_ = new Skydome();
+	skydome_->Initialize(skydomeModel_, &skydomeCamera_);
+	mountainBackground_ = new BackGround();
+	mountainBackground_->Initialize(&skydomeCamera_, 1);
 	highestUnlockedStage_ = std::clamp(initialHighestUnlockedStage_, 1, kMaxStageNumber);
 	highestClearedStage_ = std::clamp(initialHighestClearedStage_, 0, kMaxStageNumber);
 	selectedStageNumber_ = std::clamp(initialStageNumber_, kMinStageNumber, highestUnlockedStage_);
@@ -106,6 +119,8 @@ void StageSelectScene::Initialize() {
 }
 
 void StageSelectScene::Update() {
+	skydome_->Update();
+	skydomeCamera_.UpdateMatrix();
 	if (isAnimating_) {
 		animationTime_ += 1.0f / 60.0f;
 		if (animationTime_ >= kAnimationDuration) {
@@ -188,7 +203,11 @@ void StageSelectScene::UpdateStageSpriteLayout() {
 }
 
 void StageSelectScene::Draw() {
-
+	Model::PreDraw(Model::CullingMode::kBack, Model::BlendMode::kNormal, Model::DepthTestMode::kOff);
+	skydome_->Draw();
+	mountainBackground_->DrawBackground();
+	Model::PostDraw();
+	DirectXCommon::GetInstance()->ClearDepthBuffer();
 
 	Sprite::PreDraw();
 	for (int stageNumber = 0; stageNumber <= highestUnlockedStage_; ++stageNumber) {
