@@ -389,6 +389,14 @@ void GameScene::Update() {
 		cloneBaseRects.push_back(keyRect);
 	}
 
+		// エネルギー源を障害物にする
+	std::vector<MapChipField::Rect> chargePointRects;
+	for (const ChargePoint* chargePoint : chargePoints_) {
+		const MapChipField::Rect rect = chargePoint->GetRect();
+		chargePointRects.push_back(rect);
+		cloneBaseRects.push_back(rect);
+	}
+
 	// 電動足場は停止中・移動中に関係なく、プレイヤーとクローンが乗れる障害物にする。
 	for (const ElectricPlatform* platform : electricPlatforms_) {
 		cloneBaseRects.push_back(platform->GetRect());
@@ -517,15 +525,22 @@ void GameScene::Update() {
 		// 　ここで自分だけを除いて組み直すことで、素同士・素とクローン・素と自機のすべてが有効になる。
 		std::vector<MapChipField::Rect> obstacleRectsForClone = closedDoorRects;
 		obstacleRectsForClone.insert(obstacleRectsForClone.end(), keyObstacleRects.begin(), keyObstacleRects.end());
+		obstacleRectsForClone.insert(obstacleRectsForClone.end(), chargePointRects.begin(), chargePointRects.end());
 		obstacleRectsForClone.push_back(playerRect);
 		for (CloneBase* other : cloneBases_) {
-			// 自分自身と、自機に持たれている素は障害物に含めない
 			if (other == cloneBase || other == heldCloneBase_) {
 				continue;
 			}
+
 			obstacleRectsForClone.push_back(other->GetRect());
 		}
 
+		// 動く足場を障害物へ追加
+		for (const ElectricPlatform* platform : electricPlatforms_) {
+			obstacleRectsForClone.push_back(platform->GetRect());
+		}
+
+		// 必ず足場を追加した後にUpdateする
 		cloneBase->Update(cloneBase == controlledClone_ && canActivePlayerMove, obstacleRectsForClone, playerRect, oneWayPlatformRects);
 
 		if (cloneBase->ConsumeWaterDestroyed()) {
@@ -1539,7 +1554,9 @@ void GameScene::UpdateChargeSources() {
 
 		// 帯電ポイントとの接触
 		for (const ChargePoint* chargePoint : chargePoints_) {
-			if (IsRectColliding(cloneRect, chargePoint->GetRect())) {
+			const MapChipField::Rect contactRect = ExpandRect(chargePoint->GetRect(), kChargeContactMargin);
+
+			if (IsRectColliding(cloneRect, contactRect)) {
 				isTouchingSource = true;
 				break;
 			}
@@ -1585,7 +1602,9 @@ void GameScene::UpdateElectricPlatforms() {
 		    playerPosition.x - playerHalfWidth, playerPosition.x + playerHalfWidth,
 		    playerPosition.y - playerHalfHeight, playerPosition.y + playerHalfHeight};
 
-		if (IsStandingOnRect(playerRect, previousRect)) {
+		const bool playerWasCarried = IsStandingOnRect(playerRect, previousRect);
+
+		if (playerWasCarried) {
 			player_->SetTranslation(playerPosition + delta);
 		}
 
@@ -1594,7 +1613,13 @@ void GameScene::UpdateElectricPlatforms() {
 				continue;
 			}
 
-			if (!IsStandingOnRect(cloneBase->GetRect(), previousRect)) {
+			const MapChipField::Rect cloneRect = cloneBase->GetRect();
+
+			const bool onPlatform = IsStandingOnRect(cloneRect, previousRect);
+
+			const bool onCarriedPlayer = playerWasCarried && IsStandingOnRect(cloneRect, playerRect);
+
+			if (!onPlatform && !onCarriedPlayer) {
 				continue;
 			}
 

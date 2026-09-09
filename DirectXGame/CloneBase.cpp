@@ -114,6 +114,24 @@ void CloneBase::Update(
 		UpdateThrowPhysics(playerRect, obstacleRects, oneWayPlatformRects);
 	}
 
+	// クローンの素が水に入ったか確認
+	MapChipField::IndexSet waterIndex = mapChipField_->GetMapChipIndexByPosition(worldTransform_.translation_);
+
+	if (mapChipField_->GetMapChipTypeByIndex(waterIndex.xIndex, waterIndex.yIndex) == MapChipType::kWater) {
+
+		// 初期位置へ戻す
+		worldTransform_.translation_ = initialPosition_;
+		throwVelocity_ = {};
+		isThrown_ = false;
+		isHeld_ = false;
+
+		Discharge();
+
+		wasDestroyedByWater_ = true;
+		UpdateWorldTransform(worldTransform_);
+		return;
+	}
+
 	// 素の状態の表示スケール
 	worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
 

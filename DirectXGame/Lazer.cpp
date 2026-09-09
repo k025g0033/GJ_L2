@@ -23,10 +23,26 @@ void Lazer::Initialize(Model* model, Camera* camera, const Vector3& start, const
 	const float maxX = start.x > end.x ? start.x : end.x;
 	const float minY = start.y < end.y ? start.y : end.y;
 	const float maxY = start.y > end.y ? start.y : end.y;
-	collisionRect_.left = minX - MapChipField::kBlockWidth / 2.0f;
-	collisionRect_.right = maxX + MapChipField::kBlockWidth / 2.0f;
-	collisionRect_.bottom = minY - MapChipField::kBlockHeight / 2.0f;
-	collisionRect_.top = maxY + MapChipField::kBlockHeight / 2.0f;
+	// レーザーの当たり判定の太さ
+	constexpr float kCollisionThickness = 0.2f;
+	const float halfThickness = kCollisionThickness / 2.0f;
+
+	if (start.y == end.y) {
+		// 横レーザー：上下だけ細くする
+		collisionRect_.left = minX - MapChipField::kBlockWidth / 2.0f;
+		collisionRect_.right = maxX + MapChipField::kBlockWidth / 2.0f;
+
+		collisionRect_.bottom = start.y - halfThickness;
+		collisionRect_.top = start.y + halfThickness;
+
+	} else if (start.x == end.x) {
+		// 縦レーザー：左右だけ細くする
+		collisionRect_.left = start.x - halfThickness;
+		collisionRect_.right = start.x + halfThickness;
+
+		collisionRect_.bottom = minY - MapChipField::kBlockHeight / 2.0f;
+		collisionRect_.top = maxY + MapChipField::kBlockHeight / 2.0f;
+	}
 
 	worldTransform_.Initialize();
 
