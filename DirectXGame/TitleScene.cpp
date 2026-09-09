@@ -1,4 +1,5 @@
 #include "TitleScene.h"
+#include "AudioSettings.h"
 #include "KamataEngine.h"
 #include "WorldTransformConfig.h"
 #include <Windows.h>
@@ -45,7 +46,7 @@ void TitleScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_W) || Input::GetInstance()->TriggerKey(DIK_S)) {
 		selectedItem_ = selectedItem_ == MenuItem::kStart ? MenuItem::kExit : MenuItem::kStart;
 		selectionAnimationTime_ = 0.0f;
-		Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
+		Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
 	}
 
 	float pulse = (std::sin(selectionAnimationTime_ * kAnimationSpeed) + 1.0f) * 0.5f;
@@ -65,7 +66,7 @@ void TitleScene::Update() {
 	}
 
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		Audio::GetInstance()->PlayWave(decideSoundHandle_);
+		Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
 		if (selectedItem_ == MenuItem::kStart) {
 			isFinished_ = true;
 		} else {

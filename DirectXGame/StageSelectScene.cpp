@@ -1,4 +1,5 @@
 #include "StageSelectScene.h"
+#include "AudioSettings.h"
 #include "KamataEngine.h"
 #include <algorithm>
 
@@ -93,7 +94,7 @@ void StageSelectScene::Update() {
 			selectedStageNumber_ = nextStageNumber;
 			animationTime_ = 0.0f;
 			isAnimating_ = true;
-			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
+			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_, false, AudioSettings::GetSeVolume());
 		}
 	}
 
@@ -101,7 +102,7 @@ void StageSelectScene::Update() {
 
 	// タイトルと実装済みのステージ1～6だけ決定できる
 	if (!isAnimating_ && selectedStageNumber_ <= kMaxPlayableStageNumber && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-		Audio::GetInstance()->PlayWave(decideSoundHandle_);
+		Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
 		isFinished_ = true;
 	}
 }
