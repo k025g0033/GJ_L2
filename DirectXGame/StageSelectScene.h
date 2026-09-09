@@ -33,6 +33,8 @@ private:
 	static inline const int kStageSpriteCount = kMaxStageNumber + 1;
 	std::array<uint32_t, kStageSpriteCount> stageTextureHandles_{};
 	std::array<KamataEngine::Sprite*, kStageSpriteCount> stageSprites_{};
+	uint32_t cursorMoveSoundHandle_ = 0;
+	uint32_t decideSoundHandle_ = 0;
 
 	static inline const float kAnimationDuration = 0.35f;
 };

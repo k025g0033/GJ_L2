@@ -45,6 +45,8 @@ void StageSelectScene::Initialize() {
 	previousStageNumber_ = selectedStageNumber_;
 	isAnimating_ = false;
 	animationTime_ = 0.0f;
+	cursorMoveSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/CursorMove.wav");
+	decideSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/Decide.wav");
 
 	stageTextureHandles_[0] = TextureManager::Load("StageSelect/Title.png");
 	stageSprites_[0] = Sprite::Create(stageTextureHandles_[0], {0.0f, 0.0f});
@@ -84,6 +86,7 @@ void StageSelectScene::Update() {
 			selectedStageNumber_ = nextStageNumber;
 			animationTime_ = 0.0f;
 			isAnimating_ = true;
+			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
 		}
 	}
 
@@ -91,6 +94,7 @@ void StageSelectScene::Update() {
 
 	// タイトルと実装済みのステージ1～6だけ決定できる
 	if (!isAnimating_ && selectedStageNumber_ <= kMaxPlayableStageNumber && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+		Audio::GetInstance()->PlayWave(decideSoundHandle_);
 		isFinished_ = true;
 	}
 }

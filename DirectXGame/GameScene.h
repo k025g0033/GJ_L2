@@ -121,6 +121,8 @@ private:
 	std::array<KamataEngine::Sprite*, 4> pauseMenuSprites_{};
 	int selectedPauseItem_ = 0;
 	float pauseSelectionAnimationTime_ = 0.0f;
+	uint32_t cursorMoveSoundHandle_ = 0;
+	uint32_t decideSoundHandle_ = 0;
 	bool reloadRequested_ = false;
 	bool stageSelectRequested_ = false;
 

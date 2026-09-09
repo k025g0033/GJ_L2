@@ -23,6 +23,8 @@ private:
 	MenuItem selectedItem_ = MenuItem::kStart;
 	uint32_t startTextureHandle_ = 0;
 	uint32_t exitTextureHandle_ = 0;
+	uint32_t cursorMoveSoundHandle_ = 0;
+	uint32_t decideSoundHandle_ = 0;
 	KamataEngine::Sprite* startSprite_ = nullptr;
 	KamataEngine::Sprite* exitSprite_ = nullptr;
 	KamataEngine::Model* titleModel_ = nullptr;

@@ -17,6 +17,8 @@ void TitleScene::Initialize() {
 	isFinished_ = false;
 	selectedItem_ = MenuItem::kStart;
 	selectionAnimationTime_ = 0.0f;
+	cursorMoveSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/CursorMove.wav");
+	decideSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/Decide.wav");
 
 	startTextureHandle_ = TextureManager::Load("Title/Start.png");
 	exitTextureHandle_ = TextureManager::Load("Title/Exit.png");
@@ -43,6 +45,7 @@ void TitleScene::Update() {
 	if (Input::GetInstance()->TriggerKey(DIK_W) || Input::GetInstance()->TriggerKey(DIK_S)) {
 		selectedItem_ = selectedItem_ == MenuItem::kStart ? MenuItem::kExit : MenuItem::kStart;
 		selectionAnimationTime_ = 0.0f;
+		Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
 	}
 
 	float pulse = (std::sin(selectionAnimationTime_ * kAnimationSpeed) + 1.0f) * 0.5f;
@@ -62,6 +65,7 @@ void TitleScene::Update() {
 	}
 
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+		Audio::GetInstance()->PlayWave(decideSoundHandle_);
 		if (selectedItem_ == MenuItem::kStart) {
 			isFinished_ = true;
 		} else {
