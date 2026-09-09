@@ -56,9 +56,11 @@ void CloneBase::Initialize(Model* modelBase, Model* modelClone, Camera* camera, 
 	worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
 	UpdateWorldTransform(worldTransform_);
 	initialPosition_ = position; // 初期位置を保存
+	// 素が複数あるときに全員が同じ動きで揃わないよう、配置位置から揺れの開始位相をずらす
+	swayTimer_ = position.x * 0.7f + position.y * 0.3f;
 
 	chargeColor_.Initialize();
-	chargeColor_.SetColor({0.2f, 0.7f, 1.0f, 1.0f});
+	chargeColor_.SetColor(kChargeColor);
 
 	state_ = State::kBase;
 	// 初期配置が空中でも、その場に固定せず自然に落下させる。
@@ -92,6 +94,8 @@ void CloneBase::Update(
 
 	// 変形アニメーション中は、その場で見た目だけを変化させる（移動も物理も止める）
 	if (IsAnimating()) {
+		// 揺れの傾きが残ったまま変形すると見た目が崩れるので、まっすぐに戻しておく
+		worldTransform_.rotation_.z = 0.0f;
 		UpdateTransformAnimation();
 		return;
 	}
@@ -148,6 +152,19 @@ void CloneBase::Update(
 
 	// 素の状態の表示スケール
 	worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
+
+	/// --- 待機中の揺れ ---
+	// 背景と同化して見失わないよう、リンクしていない素は左右へゆっくり傾ける。
+	// 止めるのは自機に持たれている間だけ。
+	// ※isThrown_は着地後もtrueのままになる（足場が消えたら再び落ちるための判定）ので、
+	// 　これを条件に入れると一度投げた素やリンクを解除した素が二度と揺れなくなる。
+	if (!isHeld_) {
+		swayTimer_ += 1.0f / kFramesPerSecond;
+		const float swayRadian = kSwayAngleDegree * std::numbers::pi_v<float> / 180.0f;
+		worldTransform_.rotation_.z = std::sin(swayTimer_ * kSwaySpeed) * swayRadian;
+	} else {
+		worldTransform_.rotation_.z = 0.0f;
+	}
 
 	UpdateWorldTransform(worldTransform_);
 }
@@ -855,17 +872,18 @@ void CloneBase::BehaviorChargingUpdate() {
 		const bool flash = static_cast<int>(chargeEffectTime_ * 12.0f) % 2 == 0;
 
 		if (flash) {
-			chargeColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
+			chargeColor_.SetColor(kChargeFlashColor);
 		} else {
-			chargeColor_.SetColor({0.1f, 0.5f, 1.0f, 1.0f});
+			chargeColor_.SetColor(kChargeColor);
 		}
 	} else {
 		const float pulse = (std::sin(chargeEffectTime_ * 6.0f) + 1.0f) * 0.5f;
 
+		// 暗い水色と明るい水色の間を行き来させる
 		chargeColor_.SetColor({
-		    0.1f + pulse * 0.2f,
-		    0.5f + pulse * 0.3f,
-		    1.0f,
+		    kChargeDimColor.x + (kChargeColor.x - kChargeDimColor.x) * pulse,
+		    kChargeDimColor.y + (kChargeColor.y - kChargeDimColor.y) * pulse,
+		    kChargeDimColor.z + (kChargeColor.z - kChargeDimColor.z) * pulse,
 		    1.0f,
 		});
 	}
@@ -883,9 +901,9 @@ void CloneBase::BehaviorDischargeUpdate() {
 	const bool flash = static_cast<int>(behaviorTimer_ * 20.0f) % 2 == 0;
 
 	if (flash) {
-		chargeColor_.SetColor({1.0f, 1.0f, 1.0f, 1.0f});
+		chargeColor_.SetColor(kChargeFlashColor);
 	} else {
-		chargeColor_.SetColor({0.1f, 0.5f, 1.0f, 1.0f});
+		chargeColor_.SetColor(kChargeColor);
 	}
 
 	if (behaviorTimer_ >= kDischargeEffectDuration) {

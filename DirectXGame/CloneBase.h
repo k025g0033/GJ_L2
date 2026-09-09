@@ -255,6 +255,18 @@ private:
 	// 色
 	KamataEngine::ObjectColor chargeColor_;
 
+	///// ----- 帯電中の色 ----- /////
+	// ObjectColorはシェーダー内でテクスチャ色に「掛け算」される（加算ではない）。
+	// 素もクローンもテクスチャが緑（素:RGB(100,162,118) クローン:RGB(89,185,68)）なので、
+	// 青を1.0倍しても緑のままになる。青成分を大きく増幅して水色に見せる。
+	// 1.0を超える値を入れてよく、はみ出した分は描画時に白へ飽和する。
+	/// --- 帯電中の基本色（水色） ---
+	static inline const KamataEngine::Vector4 kChargeColor = {1.1f, 0.9f, 3.9f, 1.0f};
+	/// --- 脈動でいちばん暗くなる側 ---
+	static inline const KamataEngine::Vector4 kChargeDimColor = {0.75f, 0.95f, 2.6f, 1.0f};
+	/// --- 点滅で光る側（白飛びさせて閃光に見せる） ---
+	static inline const KamataEngine::Vector4 kChargeFlashColor = {2.4f, 2.6f, 6.0f, 1.0f};
+
 	// 消滅フラグ
 	bool wasDestroyedByWater_ = false;
 
@@ -277,7 +289,17 @@ private:
 	bool isHeld_ = false;
 
 	// 素の状態での表示スケール（球体モデルを1マスに収める）
-	static inline const float kBaseScale = 0.8f;
+	static inline const float kBaseScale = 0.9f;
+
+	///// ----- 素の待機モーション ----- /////
+	// 背景と色が同化して見失わないよう、置かれているだけのときは左右へゆっくり傾ける。
+	// 傾けるだけで座標は動かさないので、当たり判定（矩形）には影響しない。
+	// 揺れの経過時間（秒）。素が複数あっても揃わないよう、初期位置で位相をずらす。
+	float swayTimer_ = 0.0f;
+	// 傾きの最大角度（度）
+	static inline const float kSwayAngleDegree = 35.0f;
+	// 揺れの速さ（大きいほど速く往復する）
+	static inline const float kSwaySpeed = 2.7f;
 
 	///// ----- 当たり判定(立方体) ----- /////
 	// 当たり判定は自機と同じく軸に沿った矩形として扱う（ImGuiで調整できるようconstにしていない）
@@ -338,11 +360,11 @@ private:
 
 	/// --- 伸び縮みの調整値 ---
 	// つぶれる側の強さ（0.45なら、つぶれた時に横が0.55倍・縦が1.45倍になる）
-	static inline const float kSquashStrength = 0.7f;
+	static inline const float kSquashStrength = 0.8f;
 	// 伸びる側の強さ
 	// ※つぶれる側より小さくしておくことで、伸びた瞬間でも元の大きさを超えず、
 	// 　全体としては常に小さくなっていくように見える
 	static inline const float kStretchStrength = 0.3f;
 	// 伸び縮みを何往復させるか
-	static inline const float kSquashWaveCount = 3.0f;
+	static inline const float kSquashWaveCount = 4.0f;
 };
