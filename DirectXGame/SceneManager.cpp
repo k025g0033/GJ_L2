@@ -213,7 +213,7 @@ IScene* SceneManager::CreateScene(Scene scene) {
 	case Scene::kGame:
 		return new GameScene(selectedStageNumber_);
 	case Scene::kResult:
-		return new ResultScene();
+		return new ResultScene(selectedStageNumber_);
 	default:
 		return nullptr;
 	}
