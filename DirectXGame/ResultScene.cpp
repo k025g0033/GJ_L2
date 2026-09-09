@@ -1,15 +1,11 @@
 #include "ResultScene.h"
 #include "AudioSettings.h"
-#include "GameScene.h"
 #include "KamataEngine.h"
 #include <cmath>
 
 using namespace KamataEngine;
 
 ResultScene::~ResultScene() {
-	delete resultBackgroundScene_;
-	delete sunsetOverlaySprite_;
-	delete menuPanelSprite_;
 	delete nextStageSprite_;
 	delete titleSprite_;
 	delete stageSelectSprite_;
@@ -23,16 +19,6 @@ void ResultScene::Initialize() {
 
 	selectedItem_ = 0;
 	selectionAnimationTime_ = 0.0f;
-	// タイトル用マップではなく、今クリアしたステージを静止背景として使う。
-	resultBackgroundScene_ = new GameScene(clearedStageNumber_);
-	resultBackgroundScene_->Initialize();
-	menuPanelTextureHandle_ = TextureManager::Load("white1x1.png");
-	sunsetOverlaySprite_ = Sprite::Create(menuPanelTextureHandle_, {0.0f, 0.0f});
-	sunsetOverlaySprite_->SetSize({1280.0f, 720.0f});
-	sunsetOverlaySprite_->SetColor({1.0f, 0.38f, 0.08f, 0.22f});
-	menuPanelSprite_ = Sprite::Create(menuPanelTextureHandle_, {448.0f, 180.0f});
-	menuPanelSprite_->SetSize({384.0f, 400.0f});
-	menuPanelSprite_->SetColor({0.0f, 0.0f, 0.0f, 0.45f});
 
 	nextStageTextureHandle_ = TextureManager::Load("Result/nextstage.png");
 	titleTextureHandle_ = TextureManager::Load("Result/Title.png");
@@ -52,7 +38,6 @@ void ResultScene::Initialize() {
 
 void ResultScene::Update() {
 	selectionAnimationTime_ += 1.0f / 60.0f;
-	resultBackgroundScene_->UpdateTitleBackground();
 	if (Input::GetInstance()->TriggerKey(DIK_W)) {
 		selectedItem_ = (selectedItem_ + 2) % 3;
 		selectionAnimationTime_ = 0.0f;
@@ -103,12 +88,8 @@ void ResultScene::Update() {
 }
 
 void ResultScene::Draw() {
-	resultBackgroundScene_->DrawResultBackground();
-	DirectXCommon::GetInstance()->ClearDepthBuffer();
 	Sprite::PreDraw();
 
-	sunsetOverlaySprite_->Draw();
-	menuPanelSprite_->Draw();
 	nextStageSprite_->Draw();
 	stageSelectSprite_->Draw();
 	titleSprite_->Draw();

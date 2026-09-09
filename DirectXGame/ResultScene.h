@@ -2,12 +2,9 @@
 #include "IScene.h"
 #include "KamataEngine.h"
 
-class GameScene;
-
 // リザルトシーン
 class ResultScene : public IScene {
 public:
-	explicit ResultScene(int clearedStageNumber = 1) : clearedStageNumber_(clearedStageNumber) {}
 	~ResultScene() override;
 
 	// 初期化
@@ -27,7 +24,6 @@ public:
 	bool GetTitleRequested() const override { return titleRequested_; }
 
 private:
-	int clearedStageNumber_ = 1;
 	bool isFinished_ = false;
 	bool nextStageRequested_ = false;
 	bool stageSelectRequested_ = false;
@@ -46,8 +42,4 @@ private:
 	KamataEngine::Sprite* nextStageSprite_ = nullptr;
 	KamataEngine::Sprite* titleSprite_ = nullptr;
 	KamataEngine::Sprite* stageSelectSprite_ = nullptr;
-	uint32_t menuPanelTextureHandle_ = 0;
-	KamataEngine::Sprite* sunsetOverlaySprite_ = nullptr;
-	KamataEngine::Sprite* menuPanelSprite_ = nullptr;
-	GameScene* resultBackgroundScene_ = nullptr;
 };
