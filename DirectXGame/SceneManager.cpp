@@ -8,13 +8,21 @@
 SceneManager::SceneManager() {}
 
 SceneManager::~SceneManager() {
+	if (hasBgmVoice_) {
+		KamataEngine::Audio::GetInstance()->StopWave(bgmVoiceHandle_);
+	}
 	delete currentScene_;
 }
 
 void SceneManager::Initialize() {
+	titleBgmSoundHandle_ = KamataEngine::Audio::GetInstance()->LoadWave("Sound/TitleBgm.wav");
+	gameBgmSoundHandle_ = KamataEngine::Audio::GetInstance()->LoadWave("Sound/GameBgm.wav");
+	resultSoundHandle_ = KamataEngine::Audio::GetInstance()->LoadWave("Sound/Result.wav");
+
 	scene_ = Scene::kTitle;
 	currentScene_ = CreateScene(scene_);
 	currentScene_->Initialize();
+	ChangeBgm(scene_);
 }
 
 void SceneManager::Update() {
@@ -34,6 +42,7 @@ void SceneManager::Update() {
 		scene_ = Scene::kStageSelect;
 		currentScene_ = CreateScene(scene_);
 		currentScene_->Initialize();
+		ChangeBgm(scene_);
 		return;
 	}
 
@@ -83,6 +92,53 @@ void SceneManager::ChangeScene() {
 	// 次のシーンを生成して初期化
 	currentScene_ = CreateScene(scene_);
 	currentScene_->Initialize();
+	ChangeBgm(scene_);
+}
+
+void SceneManager::ChangeBgm(Scene nextScene) {
+	BgmType nextBgm = BgmType::kNone;
+	switch (nextScene) {
+	case Scene::kTitle:
+	case Scene::kStageSelect:
+		nextBgm = BgmType::kTitle;
+		break;
+	case Scene::kGame:
+		nextBgm = BgmType::kGame;
+		break;
+	case Scene::kResult:
+		nextBgm = BgmType::kResult;
+		break;
+	default:
+		break;
+	}
+
+	// タイトルとステージセレクト間では同じ曲を継続する。
+	if (currentBgm_ == nextBgm && nextBgm != BgmType::kResult) {
+		return;
+	}
+
+	if (hasBgmVoice_) {
+		KamataEngine::Audio::GetInstance()->StopWave(bgmVoiceHandle_);
+		hasBgmVoice_ = false;
+	}
+
+	currentBgm_ = nextBgm;
+	switch (currentBgm_) {
+	case BgmType::kTitle:
+		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(titleBgmSoundHandle_, true, 0.1f);
+		hasBgmVoice_ = true;
+		break;
+	case BgmType::kGame:
+		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(gameBgmSoundHandle_, true, 0.3f);
+		hasBgmVoice_ = true;
+		break;
+	case BgmType::kResult:
+		bgmVoiceHandle_ = KamataEngine::Audio::GetInstance()->PlayWave(resultSoundHandle_, false, 0.3f);
+		hasBgmVoice_ = true;
+		break;
+	case BgmType::kNone:
+		break;
+	}
 }
 
 IScene* SceneManager::CreateScene(Scene scene) {

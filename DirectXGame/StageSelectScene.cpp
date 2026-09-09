@@ -11,8 +11,15 @@ struct StageLayout {
 	float size;
 };
 
-int GetStageSlot(int stageNumber, int selectedStageNumber) {
-	return stageNumber - selectedStageNumber;
+int GetStageSlot(int stageNumber, int selectedStageNumber, int stageCount) {
+	int slot = stageNumber - selectedStageNumber;
+	const int halfStageCount = stageCount / 2;
+	if (slot > halfStageCount) {
+		slot -= stageCount;
+	} else if (slot < -halfStageCount) {
+		slot += stageCount;
+	}
+	return slot;
 }
 
 StageLayout GetStageLayout(int slot) {
@@ -104,8 +111,8 @@ void StageSelectScene::UpdateStageSpriteLayout() {
 	t = t * t * (3.0f - 2.0f * t);
 
 	for (int stageNumber = 0; stageNumber <= kMaxStageNumber; ++stageNumber) {
-		StageLayout start = GetStageLayout(GetStageSlot(stageNumber, previousStageNumber_));
-		StageLayout end = GetStageLayout(GetStageSlot(stageNumber, selectedStageNumber_));
+		StageLayout start = GetStageLayout(GetStageSlot(stageNumber, previousStageNumber_, kStageSpriteCount));
+		StageLayout end = GetStageLayout(GetStageSlot(stageNumber, selectedStageNumber_, kStageSpriteCount));
 		Vector2 position = {
 		    start.position.x + (end.position.x - start.position.x) * t,
 		    start.position.y + (end.position.y - start.position.y) * t};
