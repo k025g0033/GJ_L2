@@ -265,6 +265,9 @@ void GameScene::Initialize() {
 }
 
 void GameScene::Update() {
+	// ステージCSVの再読み込みパネル。ポーズ中でも受け付けたいので先頭で呼ぶ。
+	ShowStageDebugImGui();
+
 	// ESCでポーズを切り替える。停止中は以降のゲーム処理を更新しない。
 	if (Input::GetInstance()->TriggerKey(DIK_ESCAPE)) {
 		isPaused_ = !isPaused_;
@@ -1001,6 +1004,34 @@ void GameScene::ShowCameraImGui() {
 
 	ImGui::End();
 #endif
+}
+
+///// ----- ステージ再読み込みパネル ----- /////
+// NOTE: ImGuiの表示文字列は日本語だと文字化けするため、英語表記にしている
+void GameScene::ShowStageDebugImGui() {
+#ifdef USE_IMGUI
+	ImGui::Begin("Stage Debug");
+
+	/// --- 今読み込んでいるステージの情報 ---
+	ImGui::Text("Stage: %d", stageNumber_);
+	ImGui::Text("Map File: Resources/map/map_%d.csv", stageNumber_);
+	ImGui::TextWrapped("Edit the csv in a text editor and save it, then press Reload to rebuild the stage.");
+	ImGui::Separator();
+
+	/// --- 再読み込み ---
+	if (ImGui::Button("Reload Stage (F5)")) {
+		// SceneManagerがこの要求を見て、ゲームシーンを作り直す
+		reloadRequested_ = true;
+	}
+	ImGui::TextWrapped("The player returns to the start position. Camera and background settings are reloaded too.");
+
+	ImGui::End();
+#endif
+
+	// ImGuiのウィンドウを閉じていても押せるように、キーでも再読み込みできるようにする
+	if (Input::GetInstance()->TriggerKey(DIK_F5)) {
+		reloadRequested_ = true;
+	}
 }
 
 void GameScene::GenerateBlocks() {

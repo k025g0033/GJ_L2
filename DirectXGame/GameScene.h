@@ -184,6 +184,9 @@ private:
 	// ImGui上でこのステージのカメラ設定を調整するパネルを表示する
 	void ShowCameraImGui();
 
+	// ImGui上でステージCSVを読み込み直すパネルを表示する（F5でも再読み込みできる）
+	void ShowStageDebugImGui();
+
 	// 自機・クローン・クローンの素の当たり判定をワイヤーフレームの箱で可視化する
 	// （Debugビルド/USE_IMGUI時のみ）
 	void DrawCollisionWireframes();
