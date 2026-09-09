@@ -34,6 +34,7 @@ void Player::Update(
     bool canMove, const std::vector<MapChipField::Rect>& obstacleRects,
     const std::vector<MapChipField::Rect>& oneWayPlatformRects) {
 
+	jumpedThisFrame_ = false;
 	CheckInWater();
 	if (canMove) {
 		Move();
@@ -213,6 +214,7 @@ void Player::Move() {
 		if (canJump_ && Input::GetInstance()->PushKey(DIK_W)) {
 			// ジャンプ初速
 			velocity_.y += kJumpAcceleration;
+			jumpedThisFrame_ = true;
 		}
 	} else {
 		// 落下速度

@@ -123,6 +123,14 @@ private:
 	float pauseSelectionAnimationTime_ = 0.0f;
 	uint32_t cursorMoveSoundHandle_ = 0;
 	uint32_t decideSoundHandle_ = 0;
+	uint32_t electricChargeSoundHandle_ = 0;
+	uint32_t electricFireSoundHandle_ = 0;
+	uint32_t waterSplashSoundHandle_ = 0;
+	uint32_t keyGetSoundHandle_ = 0;
+	uint32_t pushPlateSoundHandle_ = 0;
+	uint32_t controlSwitchSoundHandle_ = 0;
+	uint32_t cloneLandingSoundHandle_ = 0;
+	uint32_t jumpSoundHandle_ = 0;
 	bool reloadRequested_ = false;
 	bool stageSelectRequested_ = false;
 
@@ -210,6 +218,8 @@ private:
 	ThrowAimIndicator* throwAimIndicator_ = nullptr;
 
 	///// ----- クローン帯電関連 ----- /////
+	// 未帯電から帯電へ切り替わった時だけSEを鳴らす
+	void ChargeClone(CloneBase* cloneBase);
 	// 電気弾発射
 	void FireElectricBullet();
 
