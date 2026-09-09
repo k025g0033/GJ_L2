@@ -2,6 +2,8 @@
 #include "IScene.h"
 #include "KamataEngine.h"
 
+class GameScene;
+
 // タイトルシーン
 class TitleScene : public IScene {
 public:
@@ -28,11 +30,13 @@ private:
 	KamataEngine::Sprite* startSprite_ = nullptr;
 	KamataEngine::Sprite* exitSprite_ = nullptr;
 	KamataEngine::Model* titleModel_ = nullptr;
+	GameScene* titleBackgroundScene_ = nullptr;
 	KamataEngine::WorldTransform titleWorldTransform_;
 	KamataEngine::Camera titleCamera_;
 	float selectionAnimationTime_ = 0.0f;
 
-	static inline const float kImageSize = 128.0f;
+	static inline const float kImageWidth = 128.0f;
+	static inline const float kImageHeight = 64.0f;
 	static inline const float kAnimationScale = 0.12f;
 	static inline const float kAnimationSpeed = 4.0f;
 };

@@ -110,6 +110,15 @@ void SceneManager::ChangeScene() {
 
 		if (stageSelectScene != nullptr) {
 			selectedStageNumber_ = stageSelectScene->GetSelectedStageNumber();
+			highestUnlockedStage_ = stageSelectScene->GetHighestUnlockedStage();
+		}
+	}
+
+	// ゲームをクリアしてリザルトへ進む時だけ、次のステージを解放する。
+	if (scene_ == Scene::kGame) {
+		const int nextStageNumber = selectedStageNumber_ + 1;
+		if (nextStageNumber > highestUnlockedStage_) {
+			highestUnlockedStage_ = nextStageNumber > 20 ? 20 : nextStageNumber;
 		}
 	}
 

@@ -2,6 +2,7 @@
 #include "AudioSettings.h"
 #include "KamataEngine.h"
 #include <algorithm>
+#include <numbers>
 
 using namespace KamataEngine;
 
@@ -47,6 +48,10 @@ StageSelectScene::~StageSelectScene() {
 	for (Sprite* sprite : stageSprites_) {
 		delete sprite;
 	}
+	delete keyASprite_;
+	delete keyDSprite_;
+	delete leftArrowSprite_;
+	delete rightArrowSprite_;
 }
 
 void StageSelectScene::Initialize() {
@@ -65,6 +70,22 @@ void StageSelectScene::Initialize() {
 		stageTextureHandles_[stageNumber] = TextureManager::Load(texturePath);
 		stageSprites_[stageNumber] = Sprite::Create(stageTextureHandles_[stageNumber], {0.0f, 0.0f});
 	}
+
+	keyATextureHandle_ = TextureManager::Load("StageSelect/KeyA.png");
+	keyDTextureHandle_ = TextureManager::Load("StageSelect/KeyD.png");
+	arrowTextureHandle_ = TextureManager::Load("StageSelect/Arrow.png");
+	keyASprite_ = Sprite::Create(keyATextureHandle_, {48.0f, 624.0f});
+	leftArrowSprite_ = Sprite::Create(
+	    arrowTextureHandle_, {160.0f, 656.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.5f, 0.5f});
+	rightArrowSprite_ = Sprite::Create(
+	    arrowTextureHandle_, {1120.0f, 656.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.5f, 0.5f});
+	keyDSprite_ = Sprite::Create(keyDTextureHandle_, {1168.0f, 624.0f});
+	keyASprite_->SetSize({64.0f, 64.0f});
+	keyDSprite_->SetSize({64.0f, 64.0f});
+	leftArrowSprite_->SetSize({64.0f, 64.0f});
+	rightArrowSprite_->SetSize({64.0f, 64.0f});
+	leftArrowSprite_->SetRotation(-std::numbers::pi_v<float> / 2.0f);
+	rightArrowSprite_->SetRotation(std::numbers::pi_v<float> / 2.0f);
 	UpdateStageSpriteLayout();
 }
 
@@ -82,11 +103,11 @@ void StageSelectScene::Update() {
 		if (Input::GetInstance()->TriggerKey(DIK_A)) {
 			nextStageNumber--;
 			if (nextStageNumber < kMinStageNumber) {
-				nextStageNumber = kMaxStageNumber;
+				nextStageNumber = highestUnlockedStage_;
 			}
 		} else if (Input::GetInstance()->TriggerKey(DIK_D)) {
 			nextStageNumber++;
-			if (nextStageNumber > kMaxStageNumber) {
+			if (nextStageNumber > highestUnlockedStage_) {
 				nextStageNumber = kMinStageNumber;
 			}
 		}
@@ -100,9 +121,18 @@ void StageSelectScene::Update() {
 		}
 	}
 
+	// デバッグ用：選択中の最新ステージをクリア扱いにして次を解放する
+	if (!isAnimating_ && Input::GetInstance()->TriggerKey(DIK_1) &&
+	    selectedStageNumber_ == highestUnlockedStage_ && highestUnlockedStage_ < kMaxStageNumber) {
+		highestUnlockedStage_++;
+		previousStageNumber_ = selectedStageNumber_;
+		animationTime_ = kAnimationDuration;
+		Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
+	}
+
 	UpdateStageSpriteLayout();
 
-	// タイトルと実装済みのステージ1～6だけ決定できる
+	// タイトルと解放済みのステージだけ決定できる
 	if (!isAnimating_ && selectedStageNumber_ <= kMaxPlayableStageNumber && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
 		isFinished_ = true;
@@ -113,9 +143,10 @@ void StageSelectScene::UpdateStageSpriteLayout() {
 	float t = isAnimating_ ? std::clamp(animationTime_ / kAnimationDuration, 0.0f, 1.0f) : 1.0f;
 	t = t * t * (3.0f - 2.0f * t);
 
-	for (int stageNumber = 0; stageNumber <= kMaxStageNumber; ++stageNumber) {
-		StageLayout start = GetStageLayout(GetStageSlot(stageNumber, previousStageNumber_, kStageSpriteCount));
-		StageLayout end = GetStageLayout(GetStageSlot(stageNumber, selectedStageNumber_, kStageSpriteCount));
+	const int visibleStageCount = highestUnlockedStage_ + 1; // タイトルを含む
+	for (int stageNumber = 0; stageNumber <= highestUnlockedStage_; ++stageNumber) {
+		StageLayout start = GetStageLayout(GetStageSlot(stageNumber, previousStageNumber_, visibleStageCount));
+		StageLayout end = GetStageLayout(GetStageSlot(stageNumber, selectedStageNumber_, visibleStageCount));
 		Vector2 position = {
 		    start.position.x + (end.position.x - start.position.x) * t,
 		    start.position.y + (end.position.y - start.position.y) * t};
@@ -129,9 +160,13 @@ void StageSelectScene::Draw() {
 
 
 	Sprite::PreDraw();
-	for (Sprite* sprite : stageSprites_) {
-		sprite->Draw();
+	for (int stageNumber = 0; stageNumber <= highestUnlockedStage_; ++stageNumber) {
+		stageSprites_[stageNumber]->Draw();
 	}
+	keyASprite_->Draw();
+	leftArrowSprite_->Draw();
+	rightArrowSprite_->Draw();
+	keyDSprite_->Draw();
 	DebugText::GetInstance()->DrawAll();
 	Sprite::PostDraw();
 }

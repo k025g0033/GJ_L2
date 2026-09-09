@@ -67,6 +67,8 @@ private:
 	/// --- ステージ進行を管理 ---
 	// ステージセレクトで選んだステージ番号（仮ステージが1つだけの間は未使用。複数ステージ対応時にStageSelectSceneから渡す）
 	int selectedStageNumber_ = 1;
+	// この起動中に選択できる最後のステージ（終了すると1に戻る）
+	int highestUnlockedStage_ = 1;
 
 	uint32_t titleBgmSoundHandle_ = 0;
 	uint32_t gameBgmSoundHandle_ = 0;
