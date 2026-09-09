@@ -7,7 +7,7 @@ using namespace KamataEngine;
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// エンジンの初期化
-	KamataEngine::Initialize(L"GJ1_L2");
+	KamataEngine::Initialize(L"2028_リンクローン");
 	DebugText::GetInstance()->Initialize();
 
 	// DirectXCommonインスタンスの取得
