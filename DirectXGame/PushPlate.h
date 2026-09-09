@@ -3,6 +3,7 @@
 #include "KamataEngine.h"
 #include "Player.h"
 #include "MapChipField.h"
+#include <array>
 #include <cstdint>
 #include <vector>
 #include <optional>
@@ -12,7 +13,8 @@ class PushPlate {
 public:
 	void Initialize(
 	    KamataEngine::Model* baseModel, KamataEngine::Model* buttonModel, KamataEngine::Camera* camera, const KamataEngine::Vector3& position,
-	    uint8_t id, uint8_t requiredActorCount = 1, float width = 0.8f);
+	    uint8_t id, uint8_t requiredActorCount = 1, float width = 0.8f,
+	    KamataEngine::Model* countXModel = nullptr, const std::array<KamataEngine::Model*, 10>& countNumberModels = {});
 	void Update(const std::vector<Player*>& actors, const std::vector<MapChipField::Rect>& cloneBaseRects);
 	void Draw();
 
@@ -63,10 +65,14 @@ private:
 	KamataEngine::WorldTransform worldTransform_;
 	KamataEngine::WorldTransform baseWorldTransform_;
 	KamataEngine::WorldTransform buttonWorldTransform_;
+	KamataEngine::WorldTransform countXWorldTransform_;
+	KamataEngine::WorldTransform countNumberWorldTransform_;
 	KamataEngine::ObjectColor baseColor_;
 	KamataEngine::ObjectColor buttonColor_;
 	KamataEngine::Model* baseModel_ = nullptr;
 	KamataEngine::Model* buttonModel_ = nullptr;
+	KamataEngine::Model* countXModel_ = nullptr;
+	std::array<KamataEngine::Model*, 10> countNumberModels_{};
 	KamataEngine::Camera* camera_ = nullptr;
 	uint8_t id_ = 0;
 	uint8_t requiredActorCount_ = 1;
@@ -80,6 +86,9 @@ private:
 	static inline const float kButtonModelTop = 0.346196f;
 	static inline const float kButtonPressedOffset = -0.12f;
 	static inline const float kStandingTolerance = 0.15f;
+	static inline const float kCountModelScale = 0.5f;
+	static inline const float kCountModelHeight = 0.72f;
+	static inline const float kCountModelSpacing = 0.18f;
 	// Blenderのマテリアル色はテクスチャ側で再現するため、コード側では色を掛けない。
 	static inline const KamataEngine::Vector4 kBaseColor = {1.0f, 1.0f, 1.0f, 1.0f};
 	static inline const KamataEngine::Vector4 kButtonColor = {1.0f, 1.0f, 1.0f, 1.0f};
