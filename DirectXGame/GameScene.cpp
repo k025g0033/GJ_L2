@@ -152,8 +152,8 @@ void GameScene::Initialize() {
 	modelSkydome_ = Model::CreateFromOBJ("Skydome", true);
 	// クローンの素モデル生成
 	modelCloneBase_ = Model::CreateFromOBJ("cloneObject", true);
-	// 鍵モデル生成（球体）
-	modelKey_ = Model::CreateSphere();
+	// 鍵モデル生成
+	modelKey_ = Model::CreateFromOBJ("Key", true);
 	// 電気弾モデル生成
 	modelElectricBullet_ = KamataEngine::Model::CreateSphere();
 	// 自機の追加パーツモデル生成（頭・左腕・右腕。Blender側で原点をワールド原点に合わせてあるので、
@@ -179,6 +179,8 @@ void GameScene::Initialize() {
 	pauseTitleSprite_ = Sprite::Create(pausePoseTextureHandle_, {512.0f, 232.0f});
 	pauseTitleSprite_->SetPosition({512.0f, 80.0f});
 	pauseTitleSprite_->SetSize({256.0f, 128.0f});
+	cursorMoveSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/CursorMove.wav");
+	decideSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/Decide.wav");
 
 	const std::array<std::string, 4> pauseMenuPaths = {
 	    "Pause/Return.png", "Pause/Restart.png", "Pause/StageSelect.png", "Pause/Settings.png"};
@@ -257,10 +259,12 @@ void GameScene::Update() {
 		if (Input::GetInstance()->TriggerKey(DIK_W)) {
 			selectedPauseItem_ = (selectedPauseItem_ + 3) % 4;
 			pauseSelectionAnimationTime_ = 0.0f;
+			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
 		}
 		if (Input::GetInstance()->TriggerKey(DIK_S)) {
 			selectedPauseItem_ = (selectedPauseItem_ + 1) % 4;
 			pauseSelectionAnimationTime_ = 0.0f;
+			Audio::GetInstance()->PlayWave(cursorMoveSoundHandle_);
 		}
 
 		constexpr float kMenuWidth = 256.0f;
@@ -281,6 +285,7 @@ void GameScene::Update() {
 		}
 
 		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+			Audio::GetInstance()->PlayWave(decideSoundHandle_);
 			switch (selectedPauseItem_) {
 			case 0: // もどる
 				isPaused_ = false;
