@@ -144,6 +144,8 @@ public:
 
 	// 座標を直接設定する（クローンの素との当たり判定で押し出す時に使用）
 	void SetTranslation(const KamataEngine::Vector3& position) { worldTransform_.translation_ = position; }
+	// 素からクローンへ戻る際に、以前の速度を消して現在の接地状態を引き継ぐ。
+	void ResetMotionForTransform(bool isOnGround);
 
 	// 水中状態
 	bool IsInWater() const { return isInWater_; }

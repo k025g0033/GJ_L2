@@ -159,8 +159,12 @@ void CloneBase::Transform() {
 		return;
 	}
 
-	// 変形前（素の状態）の現在位置をそのまま引き継ぐ
+	// 足元を少しだけ調べ、素がブロック上にいるかを変身後のPlayerへ引き継ぐ。
+	// 以前の落下速度は消すが、Respawn()のように接地状態まで空中へ戻さない。
+	Vector3 groundProbe = {0.0f, -kLandingBlank, 0.0f};
+	const bool isOnBlock = CheckBlockCollision(groundProbe).isGroundHit;
 	player_->SetTranslation(worldTransform_.translation_);
+	player_->ResetMotionForTransform(isOnBlock);
 
 	// 投げられている最中に変形した場合は、その物理を止める
 	throwVelocity_ = {};

@@ -798,3 +798,11 @@ void Player::Respawn(const Vector3& position) {
 
 	UpdateWorldTransform(worldTransform_);
 }
+
+void Player::ResetMotionForTransform(bool isOnGround) {
+	velocity_ = {};
+	onGround_ = isOnGround;
+	recoveryStopPending_ = false;
+	recoveryStopFrames_ = 0;
+	knockbackFrames_ = 0;
+}
