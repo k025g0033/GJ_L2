@@ -59,10 +59,8 @@ void ResultScene::Update() {
 }
 
 void ResultScene::Draw() {
-	DebugText::GetInstance()->Print("RESULT SCENE", 480.0f, 200.0f, 2.0f);
 	Sprite::PreDraw();
 	titleSprite_->Draw();
 	stageSelectSprite_->Draw();
-	DebugText::GetInstance()->DrawAll();
 	Sprite::PostDraw();
 }
