@@ -25,6 +25,11 @@ public:
 
 	// ステージセレクトへ戻る要求
 	virtual bool GetStageSelectRequested() const { return false; }
+	
+	// 次のステージへ進む要求
+	virtual bool GetNextStageRequested() const { return false; }
+
+	virtual bool GetTitleRequested() const { return false; }
 
 private:
 };

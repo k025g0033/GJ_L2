@@ -65,6 +65,7 @@ GameScene::~GameScene() {
 	delete modelPushPlateBase_;
 	delete modelPushPlateButton_;
 	delete modelSkydome_;
+	delete modelWater_;
 	for (Lazer* lazer : lazers_) {
 		delete lazer;
 	}
@@ -135,6 +136,12 @@ GameScene::~GameScene() {
 		}
 	}
 	worldTransformBlocks_.clear();
+	for (std::vector<WorldTransform*>& waterLine : worldTransformWaters_) {
+		for (WorldTransform* water : waterLine) {
+			delete water;
+		}
+	}
+	worldTransformWaters_.clear();
 
 	// クローンの素の解放
 	for (CloneBase* cloneBase : cloneBases_) {
@@ -1229,13 +1236,8 @@ void GameScene::GenerateBlocks() {
 				break;
 			}
 			case MapChipType::kWater: {
-				worldTransformWaters_[i][j] = new WorldTransform();
-				worldTransformWaters_[i][j]->Initialize();
-				worldTransformWaters_[i][j]->translation_ = mapChipField_->GetMapChipPositionByIndex(j, i);
-				// 新しいwater.objは原点が底面にあるため、CSVマスの下端へ底面を合わせる。
-				worldTransformWaters_[i][j]->translation_.y -= MapChipField::kBlockHeight / 2.0f;
-
-				UpdateWorldTransform(*worldTransformWaters_[i][j]);
+				// 水はこのループの後で、隣接するマスを一つの直方体にまとめて生成する。
+				worldTransformWaters_[i][j] = nullptr;
 				break;
 			}
 			case MapChipType::kCloneBase: {
@@ -1347,6 +1349,61 @@ void GameScene::GenerateBlocks() {
 				worldTransformBlocks_[i][j] = nullptr;
 				break;
 			}
+		}
+	}
+
+	// 隣接する水マスを可能な限り大きな長方形へまとめる。
+	// 1マスずつ透明な箱を重ねず、水域ごとに一つの直方体を描くことで、
+	// 正面・上面・左右端の側面を残しつつ内部の継ぎ目をなくす。
+	std::vector<std::vector<bool>> waterUsed(numBlockVertical, std::vector<bool>(numBlockHorizontal, false));
+	for (uint32_t i = 0; i < numBlockVertical; ++i) {
+		for (uint32_t j = 0; j < numBlockHorizontal; ++j) {
+			if (waterUsed[i][j] || mapChipField_->GetMapChipTypeByIndex(j, i) != MapChipType::kWater) {
+				continue;
+			}
+
+			uint32_t endX = j;
+			while (endX + 1 < numBlockHorizontal && !waterUsed[i][endX + 1] &&
+			       mapChipField_->GetMapChipTypeByIndex(endX + 1, i) == MapChipType::kWater) {
+				++endX;
+			}
+
+			uint32_t endY = i;
+			for (uint32_t nextY = i + 1; nextY < numBlockVertical; ++nextY) {
+				bool canExtend = true;
+				for (uint32_t x = j; x <= endX; ++x) {
+					if (waterUsed[nextY][x] || mapChipField_->GetMapChipTypeByIndex(x, nextY) != MapChipType::kWater) {
+						canExtend = false;
+						break;
+					}
+				}
+				if (!canExtend) {
+					break;
+				}
+				endY = nextY;
+			}
+
+			for (uint32_t y = i; y <= endY; ++y) {
+				for (uint32_t x = j; x <= endX; ++x) {
+					waterUsed[y][x] = true;
+				}
+			}
+
+			const float width = static_cast<float>(endX - j + 1) * MapChipField::kBlockWidth;
+			const float height = static_cast<float>(endY - i + 1) * MapChipField::kBlockHeight;
+			const Vector3 topLeft = mapChipField_->GetMapChipPositionByIndex(j, i);
+			const Vector3 bottomRight = mapChipField_->GetMapChipPositionByIndex(endX, endY);
+
+			WorldTransform* water = new WorldTransform();
+			water->Initialize();
+			water->scale_ = {width, height, 1.0f};
+			water->translation_ = {
+			    (topLeft.x + bottomRight.x) / 2.0f,
+			    bottomRight.y - MapChipField::kBlockHeight / 2.0f,
+			    topLeft.z,
+			};
+			UpdateWorldTransform(*water);
+			worldTransformWaters_[i][j] = water;
 		}
 	}
 
