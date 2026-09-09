@@ -36,7 +36,28 @@ void Player::Update(
 
 	jumpedThisFrame_ = false;
 	CheckInWater();
-	if (canMove) {
+	// ノックバック後は空中で静止させず、着地してから短い硬直を始める。
+	if (recoveryStopPending_ && onGround_) {
+		recoveryStopPending_ = false;
+		recoveryStopFrames_ = kRecoveryStopDurationFrames;
+	}
+	if (recoveryStopFrames_ > 0) {
+		// ノックバックが終わった後だけ短く停止する。
+		--recoveryStopFrames_;
+		velocity_ = {};
+	} else if (knockbackFrames_ > 0) {
+		// ノックバック中は左右入力で速度を上書きせず、重力だけを加える。
+		--knockbackFrames_;
+		if (isInWater_) {
+			velocity_.x *= 1.0f - kWaterResistance;
+			velocity_.y = std::clamp(velocity_.y - kWaterGravity, -kLimitWaterFallSpeed, kSwimSpeedY);
+		} else {
+			velocity_.y = (std::max)(velocity_.y - kGravityAcceleration, -kLimitFallSpeed);
+		}
+		if (knockbackFrames_ == 0) {
+			recoveryStopPending_ = true;
+		}
+	} else if (canMove) {
 		Move();
 	} else {
 		// 操作は受け付けないが、重力（落下）だけは働かせる
@@ -105,6 +126,18 @@ void Player::Update(
 
 	// 行列を定数バッファに転送
 	UpdateWorldTransform(worldTransform_);
+}
+
+void Player::ApplyKnockback(const Vector3& velocity) {
+	if (IsKnockbackActive()) {
+		return;
+	}
+
+	velocity_ = velocity;
+	recoveryStopPending_ = false;
+	recoveryStopFrames_ = 0;
+	knockbackFrames_ = kKnockbackDurationFrames;
+	onGround_ = false;
 }
 
 ///// ----- モデルの表示スケール ----- /////

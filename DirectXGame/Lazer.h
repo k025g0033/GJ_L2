@@ -61,4 +61,5 @@ private:
 	bool isActive_ = true;
 	KamataEngine::ObjectColor color_;
 	float effectTime_ = 0.0f;
+	static inline const float kRotationSpeed = 0.04f;
 };

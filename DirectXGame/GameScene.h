@@ -78,7 +78,11 @@ private:
 	KamataEngine::Model* modelPlayer_ = nullptr;
 	// ブロックモデル
 	KamataEngine::Model* modelBlock_ = nullptr;
-	// ドアモデル（閉／開の2種類を差し替えて使う）
+	// 電動足場モデル
+	KamataEngine::Model* modelElectricPlatform_ = nullptr;
+	// エネルギー源モデル
+	KamataEngine::Model* modelChargePoint_ = nullptr;
+	// ドアモデル
 	KamataEngine::Model* modelDoor_ = nullptr;
 	KamataEngine::Model* modelDoorOpen_ = nullptr;
 	KamataEngine::Model* modelDoorOpenGlass_ = nullptr;
