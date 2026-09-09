@@ -13,6 +13,7 @@ TitleScene::~TitleScene() {
 	delete titleModel_;
 	delete startSprite_;
 	delete exitSprite_;
+	delete spaceSprite_;
 	delete titleBackgroundScene_;
 }
 
@@ -20,6 +21,7 @@ void TitleScene::Initialize() {
 	isFinished_ = false;
 	selectedItem_ = MenuItem::kStart;
 	selectionAnimationTime_ = 0.0f;
+	spaceAnimationTime_ = 0.0f;
 	cursorMoveSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/CursorMove.wav");
 	decideSoundHandle_ = Audio::GetInstance()->LoadWave("Sound/Decide.wav");
 	titleBackgroundScene_ = new GameScene(1, true);
@@ -27,8 +29,11 @@ void TitleScene::Initialize() {
 
 	startTextureHandle_ = TextureManager::Load("Title/Start.png");
 	exitTextureHandle_ = TextureManager::Load("Title/Exit.png");
+	spaceTextureHandle_ = TextureManager::Load("Title/Space.png");
 	startSprite_ = Sprite::Create(startTextureHandle_, {576.0f, 400.0f});
 	exitSprite_ = Sprite::Create(exitTextureHandle_, {576.0f, 520.0f});
+	spaceSprite_ = Sprite::Create(spaceTextureHandle_, {576.0f, 640.0f});
+	spaceSprite_->SetSize({128.0f, 60.0f});
 
 	titleModel_ = Model::CreateFromOBJ("TitleLogo", true);
 	titleWorldTransform_.Initialize();
@@ -44,6 +49,9 @@ void TitleScene::Initialize() {
 
 void TitleScene::Update() {
 	selectionAnimationTime_ += 1.0f / 60.0f;
+	spaceAnimationTime_ += 1.0f / 60.0f;
+	const float spaceAlpha = 0.7f + std::sin(spaceAnimationTime_ * kSpaceBlinkSpeed) * 0.3f;
+	spaceSprite_->SetColor({1.0f, 1.0f, 1.0f, spaceAlpha});
 	titleBackgroundScene_->UpdateTitleBackground();
 	UpdateWorldTransform(titleWorldTransform_);
 	titleCamera_.UpdateMatrix();
@@ -93,5 +101,6 @@ void TitleScene::Draw() {
 	Sprite::PreDraw();
 	startSprite_->Draw();
 	exitSprite_->Draw();
+	spaceSprite_->Draw();
 	Sprite::PostDraw();
 }
