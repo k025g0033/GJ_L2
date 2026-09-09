@@ -406,40 +406,21 @@ void CloneBase::CheckBlockCollisionTop(Vector3& moveAmount, BlockCollisionResult
 	// 移動後の4つの角の計算（ヒット判定用）
 	std::array<Vector3, kNumCorner> positionsNew = GetCalculatedCorners(moveAmount);
 
-	MapChipType mapChipType;
-	MapChipType mapChipTypeNext;
+	float correctedY = moveAmount.y;
 	bool hit = false;
-
-	MapChipField::IndexSet indexSet;
-	indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[kLeftTop]);
-	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
-	mapChipTypeNext = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex + 1);
-	if (mapChipType == MapChipType::kBlock && mapChipTypeNext != MapChipType::kBlock) {
-		hit = true;
-	}
-
-	indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[kRightTop]);
-	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
-	mapChipTypeNext = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex + 1);
-	if (mapChipType == MapChipType::kBlock && mapChipTypeNext != MapChipType::kBlock) {
-		hit = true;
-	}
-
-	if (hit) {
-		// Y軸方向の移動量だけを使い、現在のX座標のままこの先どのマスに入るかを求める
-		Vector3 nextPos = worldTransform_.translation_;
-		nextPos.y += moveAmount.y + (kHeight / 2.0f);
-		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
-
-		Vector3 nowPos = worldTransform_.translation_;
-		nowPos.y += (kHeight / 2.0f);
-		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
-
-		if (indexSetNow.yIndex != indexSet.yIndex) {
-			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
-			moveAmount.y = (std::max)(0.0f, rect.bottom - worldTransform_.translation_.y - kHeight / 2.0f - kBlank);
-			result.isCeilingHit = true;
+	for (Corner corner : {kLeftTop, kRightTop}) {
+		const MapChipField::IndexSet indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[corner]);
+		if (mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex) != MapChipType::kBlock) {
+			continue;
 		}
+		const MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
+		const float allowedY = (std::max)(0.0f, rect.bottom - worldTransform_.translation_.y - kHeight / 2.0f - kBlank);
+		correctedY = (std::min)(correctedY, allowedY);
+		hit = true;
+	}
+	if (hit) {
+		moveAmount.y = correctedY;
+		result.isCeilingHit = true;
 	}
 }
 
@@ -451,39 +432,21 @@ void CloneBase::CheckBlockCollisionBottom(Vector3& moveAmount, BlockCollisionRes
 
 	std::array<Vector3, kNumCorner> positionsNew = GetCalculatedCorners(moveAmount);
 
-	MapChipType mapChipType;
-	MapChipType mapChipTypeNext;
+	float correctedY = moveAmount.y;
 	bool hit = false;
-
-	MapChipField::IndexSet indexSet;
-	indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[kLeftBottom]);
-	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
-	mapChipTypeNext = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex - 1);
-	if (mapChipType == MapChipType::kBlock && mapChipTypeNext != MapChipType::kBlock) {
-		hit = true;
-	}
-
-	indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[kRightBottom]);
-	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
-	mapChipTypeNext = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex - 1);
-	if (mapChipType == MapChipType::kBlock && mapChipTypeNext != MapChipType::kBlock) {
-		hit = true;
-	}
-
-	if (hit) {
-		Vector3 nextPos = worldTransform_.translation_;
-		nextPos.y += moveAmount.y - (kHeight / 2.0f);
-		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
-
-		Vector3 nowPos = worldTransform_.translation_;
-		nowPos.y -= (kHeight / 2.0f);
-		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
-
-		if (indexSetNow.yIndex != indexSet.yIndex) {
-			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
-			moveAmount.y = (std::min)(0.0f, rect.top - worldTransform_.translation_.y + kHeight / 2.0f + kBlank);
-			result.isGroundHit = true;
+	for (Corner corner : {kLeftBottom, kRightBottom}) {
+		const MapChipField::IndexSet indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[corner]);
+		if (mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex) != MapChipType::kBlock) {
+			continue;
 		}
+		const MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
+		const float allowedY = (std::min)(0.0f, rect.top - worldTransform_.translation_.y + kHeight / 2.0f + kBlank);
+		correctedY = (std::max)(correctedY, allowedY);
+		hit = true;
+	}
+	if (hit) {
+		moveAmount.y = correctedY;
+		result.isGroundHit = true;
 	}
 }
 
@@ -495,39 +458,21 @@ void CloneBase::CheckBlockCollisionRight(Vector3& moveAmount, BlockCollisionResu
 
 	std::array<Vector3, kNumCorner> positionsNew = GetCalculatedCorners(moveAmount);
 
-	MapChipType mapChipType;
-	MapChipType mapChipTypeNext;
+	float correctedX = moveAmount.x;
 	bool hit = false;
-
-	MapChipField::IndexSet indexSet;
-	indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[kRightTop]);
-	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
-	mapChipTypeNext = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex - 1, indexSet.yIndex);
-	if (mapChipType == MapChipType::kBlock && mapChipTypeNext != MapChipType::kBlock) {
-		hit = true;
-	}
-
-	indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[kRightBottom]);
-	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
-	mapChipTypeNext = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex - 1, indexSet.yIndex);
-	if (mapChipType == MapChipType::kBlock && mapChipTypeNext != MapChipType::kBlock) {
-		hit = true;
-	}
-
-	if (hit) {
-		Vector3 nextPos = worldTransform_.translation_;
-		nextPos.x += moveAmount.x + (kWidth / 2.0f);
-		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
-
-		Vector3 nowPos = worldTransform_.translation_;
-		nowPos.x += (kWidth / 2.0f);
-		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
-
-		if (indexSetNow.xIndex != indexSet.xIndex) {
-			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
-			moveAmount.x = (std::max)(rect.left - worldTransform_.translation_.x - kWidth / 2.0f - kBlank, 0.0f);
-			result.isWallHit = true;
+	for (Corner corner : {kRightTop, kRightBottom}) {
+		const MapChipField::IndexSet indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[corner]);
+		if (mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex) != MapChipType::kBlock) {
+			continue;
 		}
+		const MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
+		const float allowedX = (std::max)(rect.left - worldTransform_.translation_.x - kWidth / 2.0f - kBlank, 0.0f);
+		correctedX = (std::min)(correctedX, allowedX);
+		hit = true;
+	}
+	if (hit) {
+		moveAmount.x = correctedX;
+		result.isWallHit = true;
 	}
 }
 
@@ -539,39 +484,21 @@ void CloneBase::CheckBlockCollisionLeft(Vector3& moveAmount, BlockCollisionResul
 
 	std::array<Vector3, kNumCorner> positionsNew = GetCalculatedCorners(moveAmount);
 
-	MapChipType mapChipType;
-	MapChipType mapChipTypeNext;
+	float correctedX = moveAmount.x;
 	bool hit = false;
-
-	MapChipField::IndexSet indexSet;
-	indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[kLeftTop]);
-	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
-	mapChipTypeNext = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex + 1, indexSet.yIndex);
-	if (mapChipType == MapChipType::kBlock && mapChipTypeNext != MapChipType::kBlock) {
-		hit = true;
-	}
-
-	indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[kLeftBottom]);
-	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
-	mapChipTypeNext = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex + 1, indexSet.yIndex);
-	if (mapChipType == MapChipType::kBlock && mapChipTypeNext != MapChipType::kBlock) {
-		hit = true;
-	}
-
-	if (hit) {
-		Vector3 nextPos = worldTransform_.translation_;
-		nextPos.x += moveAmount.x - (kWidth / 2.0f);
-		indexSet = mapChipField_->GetMapChipIndexByPosition(nextPos);
-
-		Vector3 nowPos = worldTransform_.translation_;
-		nowPos.x -= (kWidth / 2.0f);
-		MapChipField::IndexSet indexSetNow = mapChipField_->GetMapChipIndexByPosition(nowPos);
-
-		if (indexSetNow.xIndex != indexSet.xIndex) {
-			MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
-			moveAmount.x = (std::min)(rect.right - worldTransform_.translation_.x + kWidth / 2.0f + kBlank, 0.0f);
-			result.isWallHit = true;
+	for (Corner corner : {kLeftTop, kLeftBottom}) {
+		const MapChipField::IndexSet indexSet = mapChipField_->GetMapChipIndexByPosition(positionsNew[corner]);
+		if (mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex) != MapChipType::kBlock) {
+			continue;
 		}
+		const MapChipField::Rect rect = mapChipField_->GetRectByIndex(indexSet.xIndex, indexSet.yIndex);
+		const float allowedX = (std::min)(rect.right - worldTransform_.translation_.x + kWidth / 2.0f + kBlank, 0.0f);
+		correctedX = (std::max)(correctedX, allowedX);
+		hit = true;
+	}
+	if (hit) {
+		moveAmount.x = correctedX;
+		result.isWallHit = true;
 	}
 }
 
