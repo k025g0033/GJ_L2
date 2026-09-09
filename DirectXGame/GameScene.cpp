@@ -50,7 +50,8 @@ const char* kCameraSettingsCsvPath = "Resources/map/camera.csv";
 using namespace KamataEngine;
 using namespace KamataEngine::MathUtility; // 追加
 
-GameScene::GameScene(int stageNumber) : stageNumber_(stageNumber) {}
+GameScene::GameScene(int stageNumber, bool useTitleMap)
+    : stageNumber_(stageNumber), useTitleMap_(useTitleMap) {}
 
 GameScene::~GameScene() {
 	// 解放
@@ -238,7 +239,9 @@ void GameScene::Initialize() {
 	}
 
 	// マップチップフィールドの初期化と生成
-	std::string mapPath = "Resources/map/map_" + std::to_string(stageNumber_) + ".csv";
+	std::string mapPath = useTitleMap_
+	                          ? "Resources/map/map_title.csv"
+	                          : "Resources/map/map_" + std::to_string(stageNumber_) + ".csv";
 
 	mapChipField_ = new MapChipField();
 	mapChipField_->LoadMapChipCsv(mapPath);
@@ -290,6 +293,11 @@ void GameScene::Initialize() {
 	// ※当たり判定のサイズは持っていても変わらない。見た目だけがこちらに切り替わる。
 	player_->SetHoldingPartModels(
 	    {modelPlayerHead_, modelPlayerLeftArmHolding_, modelPlayerRightArmHolding_, modelPlayerHoldingClone_});
+
+	if (useTitleMap_) {
+		// 通常ゲームのUpdateを呼ばないタイトル背景でも、CSVの初期座標を描画行列へ反映する。
+		player_->SetModelScaleImmediate(1.5f);
+	}
 }
 
 void GameScene::Update() {
@@ -865,7 +873,17 @@ void GameScene::Update() {
 	}
 }
 
-void GameScene::Draw() {
+void GameScene::UpdateTitleBackground() {
+	if (background_ != nullptr) {
+		background_->Update();
+	}
+}
+
+void GameScene::Draw() { DrawWorld(true); }
+
+void GameScene::DrawTitleBackground() { DrawWorld(false); }
+
+void GameScene::DrawWorld(bool drawGameplayUi) {
 	// 天球と透過画像の板は最背面。深度を書かず、後から描く雲やゲーム本体を隠さない。
 	Model::PreDraw(Model::CullingMode::kBack, Model::BlendMode::kNormal, Model::DepthTestMode::kOff);
 	skydome_->Draw();
@@ -953,6 +971,10 @@ void GameScene::Draw() {
 	}
 
 	Model::PostDraw();
+
+	if (!drawGameplayUi) {
+		return;
+	}
 
 	// 3Dモデルより手前へマウスカーソルの円を描画する
 	if (mouseCursor_ != nullptr) {

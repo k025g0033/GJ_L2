@@ -54,6 +54,7 @@ void CloneBase::Initialize(Model* modelBase, Model* modelClone, Camera* camera, 
 	worldTransform_.Initialize();
 	worldTransform_.translation_ = position;
 	worldTransform_.scale_ = {kBaseScale, kBaseScale, kBaseScale};
+	UpdateWorldTransform(worldTransform_);
 	initialPosition_ = position; // 初期位置を保存
 
 	chargeColor_.Initialize();

@@ -80,6 +80,15 @@ void SceneManager::ChangeScene() {
 
 		if (stageSelectScene != nullptr) {
 			selectedStageNumber_ = stageSelectScene->GetSelectedStageNumber();
+			highestUnlockedStage_ = stageSelectScene->GetHighestUnlockedStage();
+		}
+	}
+
+	// ゲームをクリアしてリザルトへ進む時だけ、次のステージを解放する。
+	if (scene_ == Scene::kGame) {
+		const int nextStageNumber = selectedStageNumber_ + 1;
+		if (nextStageNumber > highestUnlockedStage_) {
+			highestUnlockedStage_ = nextStageNumber > 20 ? 20 : nextStageNumber;
 		}
 	}
 
@@ -166,7 +175,7 @@ IScene* SceneManager::CreateScene(Scene scene) {
 	case Scene::kTitle:
 		return new TitleScene();
 	case Scene::kStageSelect:
-		return new StageSelectScene();
+		return new StageSelectScene(highestUnlockedStage_);
 	case Scene::kGame:
 		return new GameScene(selectedStageNumber_);
 	case Scene::kResult:

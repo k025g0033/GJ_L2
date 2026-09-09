@@ -42,6 +42,9 @@ StageLayout GetStageLayout(int slot) {
 
 } // namespace
 
+StageSelectScene::StageSelectScene(int highestUnlockedStage)
+    : highestUnlockedStage_(std::clamp(highestUnlockedStage, 1, kMaxStageNumber)) {}
+
 StageSelectScene::~StageSelectScene() {
 	for (Sprite* sprite : stageSprites_) {
 		delete sprite;
@@ -101,11 +104,11 @@ void StageSelectScene::Update() {
 		if (Input::GetInstance()->TriggerKey(DIK_A)) {
 			nextStageNumber--;
 			if (nextStageNumber < kMinStageNumber) {
-				nextStageNumber = kMaxStageNumber;
+				nextStageNumber = highestUnlockedStage_;
 			}
 		} else if (Input::GetInstance()->TriggerKey(DIK_D)) {
 			nextStageNumber++;
-			if (nextStageNumber > kMaxStageNumber) {
+			if (nextStageNumber > highestUnlockedStage_) {
 				nextStageNumber = kMinStageNumber;
 			}
 		}
@@ -119,9 +122,18 @@ void StageSelectScene::Update() {
 		}
 	}
 
+	// デバッグ用：選択中の最新ステージをクリア扱いにして次を解放する
+	if (!isAnimating_ && Input::GetInstance()->TriggerKey(DIK_1) &&
+	    selectedStageNumber_ == highestUnlockedStage_ && highestUnlockedStage_ < kMaxStageNumber) {
+		highestUnlockedStage_++;
+		previousStageNumber_ = selectedStageNumber_;
+		animationTime_ = kAnimationDuration;
+		Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
+	}
+
 	UpdateStageSpriteLayout();
 
-	// タイトルと実装済みのステージ1～6だけ決定できる
+	// タイトルと解放済みのステージだけ決定できる
 	if (!isAnimating_ && selectedStageNumber_ <= kMaxPlayableStageNumber && Input::GetInstance()->TriggerKey(DIK_SPACE)) {
 		Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
 		isFinished_ = true;
@@ -132,9 +144,10 @@ void StageSelectScene::UpdateStageSpriteLayout() {
 	float t = isAnimating_ ? std::clamp(animationTime_ / kAnimationDuration, 0.0f, 1.0f) : 1.0f;
 	t = t * t * (3.0f - 2.0f * t);
 
-	for (int stageNumber = 0; stageNumber <= kMaxStageNumber; ++stageNumber) {
-		StageLayout start = GetStageLayout(GetStageSlot(stageNumber, previousStageNumber_, kStageSpriteCount));
-		StageLayout end = GetStageLayout(GetStageSlot(stageNumber, selectedStageNumber_, kStageSpriteCount));
+	const int visibleStageCount = highestUnlockedStage_ + 1; // タイトルを含む
+	for (int stageNumber = 0; stageNumber <= highestUnlockedStage_; ++stageNumber) {
+		StageLayout start = GetStageLayout(GetStageSlot(stageNumber, previousStageNumber_, visibleStageCount));
+		StageLayout end = GetStageLayout(GetStageSlot(stageNumber, selectedStageNumber_, visibleStageCount));
 		Vector2 position = {
 		    start.position.x + (end.position.x - start.position.x) * t,
 		    start.position.y + (end.position.y - start.position.y) * t};
@@ -148,8 +161,8 @@ void StageSelectScene::Draw() {
 
 
 	Sprite::PreDraw();
-	for (Sprite* sprite : stageSprites_) {
-		sprite->Draw();
+	for (int stageNumber = 0; stageNumber <= highestUnlockedStage_; ++stageNumber) {
+		stageSprites_[stageNumber]->Draw();
 	}
 	keyASprite_->Draw();
 	leftArrowSprite_->Draw();

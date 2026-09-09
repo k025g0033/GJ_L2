@@ -23,7 +23,7 @@
 // ゲームシーン
 class GameScene : public IScene {
 public:
-	explicit GameScene(int stageNumber = 1);
+	explicit GameScene(int stageNumber = 1, bool useTitleMap = false);
 	~GameScene() override;
 
 	// 初期化
@@ -34,6 +34,9 @@ public:
 
 	// 描画
 	void Draw() override;
+	// タイトル背景として、ゲーム操作やUIを出さずにステージだけ更新・描画する。
+	void UpdateTitleBackground();
+	void DrawTitleBackground();
 
 	// 終了フラグの取得
 	bool IsFinished() const override { return isFinished_; }
@@ -46,6 +49,7 @@ public:
 	void CheckAllCollisions();
 
 private:
+	void DrawWorld(bool drawGameplayUi);
 	std::vector<PushPlate*> pressurePlates_;
 	std::vector<Door*> doors_;
 	std::vector<Key*> keys_;
@@ -62,6 +66,7 @@ private:
 
 	// 終了フラグ（仮：本来はゴール到達などのクリア条件で立てる）
 	bool isFinished_ = false;
+	bool useTitleMap_ = false;
 
 	// 自キャラ
 	Player* player_ = nullptr;
