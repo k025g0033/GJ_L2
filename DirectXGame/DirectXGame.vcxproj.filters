@@ -21,6 +21,9 @@
     <ClCompile Include="BackGround.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Tips.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="GameScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -188,6 +191,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BackGround.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Tips.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <Text Include="StageDataMemo.txt" />

@@ -1,5 +1,6 @@
 #pragma once
 #include "BackGround.h"
+#include "Tips.h"
 #include "CameraController.h"
 #include "CloneBase.h"
 #include "Door.h"
@@ -125,6 +126,8 @@ private:
 	KamataEngine::Model* modelElectricBullet_ = nullptr;
 	// ステージごとの背景画像と、右から左へ流れる雲。
 	BackGround* background_ = nullptr;
+	// ステージ内に置くTIPS看板（TipsData.csvで管理）
+	Tips* tips_ = nullptr;
 
 	// ポーズ表示
 	bool isPaused_ = false;
