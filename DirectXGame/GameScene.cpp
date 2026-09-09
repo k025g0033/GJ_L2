@@ -1512,7 +1512,7 @@ void GameScene::FireElectricBullet() {
 	bullet->Initialize(modelElectricBullet_, &camera_, position, velocity);
 
 	electricBullets_.push_back(bullet);
-	Audio::GetInstance()->PlayWave(electricFireSoundHandle_);
+	Audio::GetInstance()->PlayWave(electricFireSoundHandle_, false, 0.3f);
 
 	// 発射時に帯電を消費
 	controlledClone_->Discharge();

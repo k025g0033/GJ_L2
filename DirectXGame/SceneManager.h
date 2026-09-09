@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 
 ///// ----- インクルード ----- /////
 #include "IScene.h"
@@ -46,6 +47,16 @@ private:
 	/// --- 現在の種別に応じたシーンの生成 ---
 	IScene* CreateScene(Scene scene);
 
+	/// --- シーンに応じたBGMへ切り替える ---
+	void ChangeBgm(Scene nextScene);
+
+	enum class BgmType {
+		kNone,
+		kTitle,
+		kGame,
+		kResult,
+	};
+
 	///// ----- 変数 ----- /////
 	/// --- 現在シーン ---
 	Scene scene_ = Scene::kTitle;
@@ -56,4 +67,11 @@ private:
 	/// --- ステージ進行を管理 ---
 	// ステージセレクトで選んだステージ番号（仮ステージが1つだけの間は未使用。複数ステージ対応時にStageSelectSceneから渡す）
 	int selectedStageNumber_ = 1;
+
+	uint32_t titleBgmSoundHandle_ = 0;
+	uint32_t gameBgmSoundHandle_ = 0;
+	uint32_t resultSoundHandle_ = 0;
+	uint32_t bgmVoiceHandle_ = 0;
+	BgmType currentBgm_ = BgmType::kNone;
+	bool hasBgmVoice_ = false;
 };
