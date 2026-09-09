@@ -76,6 +76,9 @@ GameScene::~GameScene() {
 	delete modelPlayerHead_;
 	delete modelPlayerLeftArm_;
 	delete modelPlayerRightArm_;
+	delete modelCloneHead_;
+	delete modelCloneLeftArm_;
+	delete modelCloneRightArm_;
 	delete modelPlayerLeftArmHolding_;
 	delete modelPlayerRightArmHolding_;
 	delete modelPlayerHoldingClone_;
@@ -188,6 +191,10 @@ void GameScene::Initialize() {
 	modelPlayerHead_ = Model::CreateFromOBJ("player_head", true);
 	modelPlayerLeftArm_ = Model::CreateFromOBJ("player_leftArm", true);
 	modelPlayerRightArm_ = Model::CreateFromOBJ("player_rightArm", true);
+	// 変形後のクローンのパーツモデル（頭・左腕・右腕）。組み方は自機と同じで、見た目だけクローン専用にする。
+	modelCloneHead_ = Model::CreateFromOBJ("Clone_head", true);
+	modelCloneLeftArm_ = Model::CreateFromOBJ("Clone_leftArm", true);
+	modelCloneRightArm_ = Model::CreateFromOBJ("Clone_rightArm", true);
 	// クローンの素を持っている間だけ使うパーツ（腕を上げた形と、抱えているクローン）
 	modelPlayerLeftArmHolding_ = Model::CreateFromOBJ("player_leftArm_next", true);
 	modelPlayerRightArmHolding_ = Model::CreateFromOBJ("player_rightArm_next", true);
@@ -292,7 +299,7 @@ void GameScene::Initialize() {
 	throwAimIndicator_->Initialize(&camera_);
 
 	// 自機はベースモデルを使わず、頭・左腕・右腕のパーツだけで構成する。
-	// ※変形後のクローンも同じパーツを使う（GenerateBlocks内のSetClonePartModelsで設定している）。
+	// ※変形後のクローンはクローン専用パーツを使う（GenerateBlocks内のSetClonePartModelsで設定している）。
 	// 　クローン専用パーツができたら、そちらだけ差し替えれば自機とは別の見た目にできる。
 	player_->SetExtraPartModels({modelPlayerHead_, modelPlayerLeftArm_, modelPlayerRightArm_});
 
@@ -1253,9 +1260,8 @@ void GameScene::GenerateBlocks() {
 				// 変形後のクローンは自機と同じくベースモデルを持たず、パーツだけで構成するのでnullptrを渡す。
 				// クローン専用の1体モデルを用意したら、ここへ渡すだけでそちらが使われる。
 				cloneBase->Initialize(modelCloneBase_, nullptr, &camera_, mapChipField_, cloneBasePosition);
-				// いったんは自機と同じ頭・左腕・右腕を使う。
-				// クローン専用パーツができたら、ここへ渡すモデルを差し替えるだけで見た目が切り替わる。
-				cloneBase->SetClonePartModels({modelPlayerHead_, modelPlayerLeftArm_, modelPlayerRightArm_});
+				// 変形後はクローン専用の頭・左腕・右腕を使う。
+				cloneBase->SetClonePartModels({modelCloneHead_, modelCloneLeftArm_, modelCloneRightArm_});
 				// 見た目の大きさも自機と揃える（当たり判定サイズには影響しない）
 				cloneBase->SetCloneModelScale(1.5f);
 				cloneBases_.push_back(cloneBase);

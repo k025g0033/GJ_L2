@@ -49,6 +49,11 @@ StageSelectScene::~StageSelectScene() {
 	for (Sprite* sprite : stageSprites_) {
 		delete sprite;
 	}
+	for (auto& frame : clearFrameSprites_) {
+		for (Sprite* sprite : frame) {
+			delete sprite;
+		}
+	}
 	delete keyASprite_;
 	delete keyDSprite_;
 	delete leftArrowSprite_;
@@ -71,6 +76,13 @@ void StageSelectScene::Initialize() {
 		std::string texturePath = "StageSelect/Stage" + std::to_string(stageNumber) + ".png";
 		stageTextureHandles_[stageNumber] = TextureManager::Load(texturePath);
 		stageSprites_[stageNumber] = Sprite::Create(stageTextureHandles_[stageNumber], {0.0f, 0.0f});
+	}
+	clearFrameTextureHandle_ = TextureManager::Load("white1x1.png");
+	for (int stageNumber = 1; stageNumber <= kMaxStageNumber; ++stageNumber) {
+		for (Sprite*& frameSprite : clearFrameSprites_[stageNumber]) {
+			frameSprite = Sprite::Create(clearFrameTextureHandle_, {0.0f, 0.0f});
+			frameSprite->SetColor({1.0f, 0.0f, 0.0f, 1.0f});
+		}
 	}
 
 	keyATextureHandle_ = TextureManager::Load("StageSelect/KeyA.png");
@@ -125,8 +137,11 @@ void StageSelectScene::Update() {
 
 	// デバッグ用：選択中の最新ステージをクリア扱いにして次を解放する
 	if (!isAnimating_ && Input::GetInstance()->TriggerKey(DIK_1) &&
-	    selectedStageNumber_ == highestUnlockedStage_ && highestUnlockedStage_ < kMaxStageNumber) {
-		highestUnlockedStage_++;
+	    selectedStageNumber_ == highestUnlockedStage_) {
+		highestClearedStage_ = selectedStageNumber_;
+		if (highestUnlockedStage_ < kMaxStageNumber) {
+			highestUnlockedStage_++;
+		}
 		previousStageNumber_ = selectedStageNumber_;
 		animationTime_ = kAnimationDuration;
 		Audio::GetInstance()->PlayWave(decideSoundHandle_, false, AudioSettings::GetSeVolume());
@@ -155,6 +170,18 @@ void StageSelectScene::UpdateStageSpriteLayout() {
 		float size = start.size + (end.size - start.size) * t;
 		stageSprites_[stageNumber]->SetPosition(position);
 		stageSprites_[stageNumber]->SetSize({size, size});
+		if (stageNumber >= 1 && stageNumber <= highestClearedStage_) {
+			const float thickness = size * 0.04f;
+			auto& frame = clearFrameSprites_[stageNumber];
+			frame[0]->SetPosition(position);
+			frame[0]->SetSize({size, thickness});
+			frame[1]->SetPosition({position.x, position.y + size - thickness});
+			frame[1]->SetSize({size, thickness});
+			frame[2]->SetPosition(position);
+			frame[2]->SetSize({thickness, size});
+			frame[3]->SetPosition({position.x + size - thickness, position.y});
+			frame[3]->SetSize({thickness, size});
+		}
 	}
 }
 
@@ -164,6 +191,11 @@ void StageSelectScene::Draw() {
 	Sprite::PreDraw();
 	for (int stageNumber = 0; stageNumber <= highestUnlockedStage_; ++stageNumber) {
 		stageSprites_[stageNumber]->Draw();
+		if (stageNumber >= 1 && stageNumber <= highestClearedStage_) {
+			for (Sprite* frameSprite : clearFrameSprites_[stageNumber]) {
+				frameSprite->Draw();
+			}
+		}
 	}
 	keyASprite_->Draw();
 	leftArrowSprite_->Draw();
