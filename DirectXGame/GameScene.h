@@ -95,6 +95,8 @@ private:
 	// 感圧板モデル（土台・押下部分）
 	KamataEngine::Model* modelPushPlateBase_ = nullptr;
 	KamataEngine::Model* modelPushPlateButton_ = nullptr;
+	KamataEngine::Model* modelPushPlateCountX_ = nullptr;
+	std::array<KamataEngine::Model*, 10> modelPushPlateCountNumbers_{};
 	// レーザーモデル
 	KamataEngine::Model* modelLazer_ = nullptr;
 	// 天球モデル

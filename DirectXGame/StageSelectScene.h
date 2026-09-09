@@ -39,8 +39,8 @@ private:
 	BackGround* mountainBackground_ = nullptr;
 	KamataEngine::Camera skydomeCamera_;
 	static inline const int kMinStageNumber = 0;
-	static inline const int kMaxStageNumber = 20;
-	static inline const int kMaxPlayableStageNumber = 20;
+	static inline const int kMaxStageNumber = 12;
+	static inline const int kMaxPlayableStageNumber = 12;
 	static inline const int kStageSpriteCount = kMaxStageNumber + 1;
 	std::array<uint32_t, kStageSpriteCount> stageTextureHandles_{};
 	std::array<KamataEngine::Sprite*, kStageSpriteCount> stageSprites_{};

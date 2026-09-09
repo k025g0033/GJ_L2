@@ -3,13 +3,17 @@
 #include "WorldTransformConfig.h"
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 using namespace KamataEngine;
 
 void PushPlate::Initialize(
-    Model* baseModel, Model* buttonModel, Camera* camera, const Vector3& position, uint8_t id, uint8_t requiredActorCount, float width) {
+    Model* baseModel, Model* buttonModel, Camera* camera, const Vector3& position, uint8_t id, uint8_t requiredActorCount, float width,
+    Model* countXModel, const std::array<Model*, 10>& countNumberModels) {
 	baseModel_ = baseModel;
 	buttonModel_ = buttonModel;
+	countXModel_ = countXModel;
+	countNumberModels_ = countNumberModels;
 	camera_ = camera;
 	id_ = id;
 	requiredActorCount_ = std::max<uint8_t>(requiredActorCount, 1);
@@ -32,6 +36,18 @@ void PushPlate::Initialize(
 	buttonWorldTransform_.translation_ = baseWorldTransform_.translation_;
 	buttonWorldTransform_.scale_ = baseWorldTransform_.scale_;
 	UpdateWorldTransform(buttonWorldTransform_);
+
+	// 感圧板全体の中央上へ「× 残り人数」を並べる。
+	countXWorldTransform_.Initialize();
+	countXWorldTransform_.translation_ = {position.x - kCountModelSpacing, position.y + kCountModelHeight, position.z};
+	countXWorldTransform_.scale_ = {kCountModelScale, kCountModelScale, kCountModelScale};
+	UpdateWorldTransform(countXWorldTransform_);
+
+	countNumberWorldTransform_.Initialize();
+	countNumberWorldTransform_.translation_ = {position.x + kCountModelSpacing, position.y + kCountModelHeight, position.z};
+	countNumberWorldTransform_.rotation_.y = std::numbers::pi_v<float>;
+	countNumberWorldTransform_.scale_ = {kCountModelScale, kCountModelScale, kCountModelScale};
+	UpdateWorldTransform(countNumberWorldTransform_);
 
 	baseColor_.Initialize();
 	baseColor_.SetColor(kBaseColor);
@@ -67,6 +83,8 @@ void PushPlate::Update(const std::vector<Player*>& actors, const std::vector<Map
 	UpdateWorldTransform(worldTransform_);
 	UpdateWorldTransform(baseWorldTransform_);
 	UpdateWorldTransform(buttonWorldTransform_);
+	UpdateWorldTransform(countXWorldTransform_);
+	UpdateWorldTransform(countNumberWorldTransform_);
 }
 
 bool PushPlate::IsStandingOn(const Player* actor) const {
@@ -88,6 +106,13 @@ bool PushPlate::IsStandingOn(const Player* actor) const {
 void PushPlate::Draw() {
 	baseModel_->Draw(baseWorldTransform_, *camera_, &baseColor_);
 	buttonModel_->Draw(buttonWorldTransform_, *camera_, &buttonColor_);
+	if (countXModel_ != nullptr) {
+		countXModel_->Draw(countXWorldTransform_, *camera_);
+	}
+	const uint8_t remainingCount = currentActorCount_ >= requiredActorCount_ ? 0 : requiredActorCount_ - currentActorCount_;
+	if (countNumberModels_[remainingCount] != nullptr) {
+		countNumberModels_[remainingCount]->Draw(countNumberWorldTransform_, *camera_);
+	}
 }
 
 bool PushPlate::IsStandingOn(const MapChipField::Rect& actorRect) const {
