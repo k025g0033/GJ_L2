@@ -18,6 +18,9 @@ const char* kStageDataPath = "Resources/map/StageData.csv";
 constexpr float kScreenWidth = 1280.0f;
 constexpr float kScreenHeight = 720.0f;
 constexpr float kDeltaTime = 1.0f / 60.0f;
+// 背景のbgX・bgY・bgWidth・bgHeightを画面座標として解釈するときの基準距離。
+// bgDistanceがこの値のとき、CSVで指定した画面上の位置とサイズがそのまま出る。
+constexpr float kBackgroundBaseDistance = 80.0f;
 // 誤設定で雲が増え続けないよう、同時表示数に上限を設ける。
 constexpr size_t kMaxClouds = 64;
 
@@ -203,10 +206,12 @@ void BackGround::Update() {
 	}
 }
 
-void BackGround::PlaceInCamera(WorldTransform& transform, float x, float y, float distance, const Vector3& scale) {
+void BackGround::PlaceInCamera(WorldTransform& transform, float x, float y, float distance, const Vector3& scale, float layoutDistance) {
+	// 換算に使う距離。基準距離を渡せば、実際の奥行きとは切り離して画面座標を解釈できる。
+	const float baseDistance = layoutDistance > 0.0f ? layoutDistance : distance;
 	// 射影行列から、その奥行きで画面に入るワールド幅・高さを逆算する。
-	const float viewWidth = 2.0f * distance / camera_->matProjection.m[0][0];
-	const float viewHeight = 2.0f * distance / camera_->matProjection.m[1][1];
+	const float viewWidth = 2.0f * baseDistance / camera_->matProjection.m[0][0];
+	const float viewHeight = 2.0f * baseDistance / camera_->matProjection.m[1][1];
 	transform.scale_ = scale;
 	transform.translation_ = {(x / kScreenWidth - 0.5f) * viewWidth, (0.5f - y / kScreenHeight) * viewHeight, distance};
 	// カメラ基準の配置をワールド座標へ戻す。カメラ移動時も画像の同じ範囲が見える。
@@ -216,9 +221,11 @@ void BackGround::PlaceInCamera(WorldTransform& transform, float x, float y, floa
 
 void BackGround::DrawBackground() {
 	const StageSetting& s = settings_.at(stageNumber_);
-	const float width = 2.0f * s.distance / camera_->matProjection.m[0][0] * s.width / kScreenWidth;
-	const float height = 2.0f * s.distance / camera_->matProjection.m[1][1] * s.height / kScreenHeight;
-	PlaceInCamera(transform_, s.x, s.y, s.distance, {width, height, 1.0f});
+	// 大きさと位置は基準距離で一度だけワールドへ換算し、その板を実際の奥行きへ置く。
+	// これでbgDistanceを大きくするほど小さく、画面中央寄りに見えるようになる。
+	const float width = 2.0f * kBackgroundBaseDistance / camera_->matProjection.m[0][0] * s.width / kScreenWidth;
+	const float height = 2.0f * kBackgroundBaseDistance / camera_->matProjection.m[1][1] * s.height / kScreenHeight;
+	PlaceInCamera(transform_, s.x, s.y, s.distance, {width, height, 1.0f}, kBackgroundBaseDistance);
 	model_->Draw(transform_, *camera_, textureHandle_);
 }
 
