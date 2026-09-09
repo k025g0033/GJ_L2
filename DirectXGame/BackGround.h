@@ -56,7 +56,8 @@ private:
 	void SpawnCloud(float x);
 	float RandomFloat(float minimum, float maximum);
 	// 実際に描画するカメラの行列を使うので、移動・回転・デバッグカメラにも追従する。
-	void PlaceInCamera(KamataEngine::WorldTransform& transform, float x, float y, float distance, const KamataEngine::Vector3& scale);
+	// layoutDistanceは画面座標をワールドへ換算するときの基準距離。0以下ならdistanceをそのまま使う。
+	void PlaceInCamera(KamataEngine::WorldTransform& transform, float x, float y, float distance, const KamataEngine::Vector3& scale, float layoutDistance = 0.0f);
 
 	KamataEngine::Camera* camera_ = nullptr;
 	int stageNumber_ = 1;
