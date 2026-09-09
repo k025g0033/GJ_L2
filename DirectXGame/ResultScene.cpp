@@ -20,7 +20,7 @@ void ResultScene::Initialize() {
 	selectedItem_ = 0;
 	selectionAnimationTime_ = 0.0f;
 
-	nextStageTextureHandle_ = TextureManager::Load("Result/stagenext.png");
+	nextStageTextureHandle_ = TextureManager::Load("Result/nextstage.png");
 	titleTextureHandle_ = TextureManager::Load("Result/Title.png");
 	stageSelectTextureHandle_ = TextureManager::Load("Result/StageSelect.png");
 	
